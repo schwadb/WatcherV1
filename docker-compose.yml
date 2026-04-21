@@ -1,0 +1,14 @@
+services:
+  watcherv1:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - JWT_SECRET=change-this-in-production
+      - DB_PATH=/data/watcher.db
+    volumes:
+      - watcher-data:/data
+    restart: unless-stopped
+
+volumes:
+  watcher-data:

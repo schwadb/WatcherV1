@@ -1,0 +1,260 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Login */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.login-card {
+  background: #1e293b;
+  padding: 2.5rem;
+  border-radius: 12px;
+  width: 360px;
+  border: 1px solid #334155;
+}
+
+.login-card h1 { color: #3b82f6; text-align: center; font-size: 1.8rem; }
+.login-card .subtitle { text-align: center; color: #94a3b8; margin-bottom: 1.5rem; }
+
+.login-card form { display: flex; flex-direction: column; gap: 0.75rem; }
+.login-card input {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.login-card button {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: #3b82f6;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+.login-card button:hover { background: #2563eb; }
+.error { color: #ef4444; font-size: 0.85rem; }
+.toggle-auth { text-align: center; color: #3b82f6; cursor: pointer; margin-top: 1rem; font-size: 0.9rem; }
+
+/* Dashboard */
+.dashboard {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 320px;
+  background: #1e293b;
+  border-right: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-header h2 { font-size: 1.2rem; color: #3b82f6; }
+.back-link { color: #3b82f6; text-decoration: none; font-size: 0.85rem; }
+
+.conn-status {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+.conn-status.online { background: #065f46; color: #34d399; }
+.conn-status.offline { background: #7f1d1d; color: #fca5a5; }
+
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #334155;
+}
+.tab-bar button {
+  flex: 1;
+  padding: 0.6rem;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-bottom: 2px solid transparent;
+}
+.tab-bar button.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+.map-container {
+  flex: 1;
+  position: relative;
+}
+
+/* Device list */
+.device-list { padding: 0.5rem; flex: 1; }
+.device-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+}
+.device-list-header h3 { font-size: 0.95rem; }
+.device-list-header button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #3b82f6;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.device-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #0f172a;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+.device-form input, .device-form select {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+}
+.device-form button {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+
+ul { list-style: none; }
+.device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 0.25rem;
+}
+.device-item:hover { background: #334155; }
+.device-info { display: flex; align-items: center; gap: 0.5rem; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #64748b;
+}
+.status-dot.active { background: #34d399; }
+.device-type { color: #64748b; font-size: 0.75rem; }
+.delete-btn {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #ef4444;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+/* Events */
+.events-list { padding: 0.5rem; flex: 1; }
+.events-list h3 { padding: 0.5rem; font-size: 0.95rem; }
+.empty { padding: 1rem; color: #64748b; text-align: center; }
+.event-item {
+  padding: 0.5rem;
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+.event-item.enter { background: #065f461a; border-left: 3px solid #34d399; }
+.event-item.exit { background: #7f1d1d1a; border-left: 3px solid #ef4444; }
+
+/* History */
+.history-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+.history-form select, .history-form input {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.history-form label { font-size: 0.8rem; color: #94a3b8; }
+.history-form button {
+  padding: 0.6rem;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+}
+.track-count { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 0.5rem; }
+
+/* Track player */
+.track-player { padding: 0.75rem; border-top: 1px solid #334155; }
+.track-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.track-controls button {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.track-controls input[type="range"] { flex: 1; }
+.track-controls span { font-size: 0.75rem; color: #94a3b8; }
+.track-info { display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.8rem; color: #94a3b8; }
+
+/* Geofence */
+.geofence-editor { padding: 0.5rem; flex: 1; }
+
+.logout-btn {
+  margin: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard { flex-direction: column; }
+  .sidebar { width: 100%; height: 45vh; }
+  .map-container { height: 55vh; }
+}
