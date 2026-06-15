@@ -16,6 +16,7 @@ export function useSocket() {
 
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
+    socket.on('connect_error', (err) => console.error('Socket connection error:', err.message));
 
     socket.on('position:update', (data) => {
       setPositions(prev => ({ ...prev, [data.device_id]: data }));

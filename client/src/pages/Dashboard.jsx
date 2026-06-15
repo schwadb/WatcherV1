@@ -3,27 +3,19 @@ import TrackingMap from '../components/Map';
 import DeviceList from '../components/DeviceList';
 import GeofenceEditor from '../components/GeofenceEditor';
 import { useSocket } from '../hooks/useSocket';
-
-const API = '/api';
-function apiFetch(path) {
-  const token = localStorage.getItem('token');
-  return fetch(API + path, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json());
-}
+import { apiFetch } from '../utils/api';
 
 export default function Dashboard() {
   const [devices, setDevices] = useState([]);
   const [geofences, setGeofences] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [tab, setTab] = useState('devices');
+  const [error, setError] = useState('');
   const { connected, positions, geofenceEvents } = useSocket();
 
   useEffect(() => {
-    apiFetch('/devices').then(setDevices).catch(() => {});
-    apiFetch('/geofences').then(setGeofences).catch(() => {});
-    apiFetch('/positions/latest').then(data => {
-      const map = {};
-      data.forEach(p => { map[p.device_id] = p; });
-    }).catch(() => {});
+    apiFetch('/devices').then(setDevices).catch(err => setError(err.message));
+    apiFetch('/geofences').then(setGeofences).catch(err => setError(err.message));
   }, []);
 
   return (
@@ -35,6 +27,8 @@ export default function Dashboard() {
             {connected ? 'Live' : 'Offline'}
           </span>
         </div>
+
+        {error && <p className="error" style={{ padding: '0 1rem', color: '#ef4444' }}>{error}</p>}
 
         <div className="tab-bar">
           <button className={tab === 'devices' ? 'active' : ''} onClick={() => setTab('devices')}>Devices</button>

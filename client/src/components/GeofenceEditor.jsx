@@ -1,16 +1,5 @@
 import { useState } from 'react';
-
-const API = '/api';
-
-async function apiFetch(path, opts = {}) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(API + path, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...opts.headers }
-  });
-  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-  return res.json();
-}
+import { apiFetch } from '../utils/api';
 
 export default function GeofenceEditor({ geofences, setGeofences }) {
   const [form, setForm] = useState({ name: '', center_lat: '', center_lng: '', radius: '500' });

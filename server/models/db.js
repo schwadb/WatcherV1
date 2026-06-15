@@ -67,6 +67,9 @@ db.exec(`
     FOREIGN KEY (geofence_id) REFERENCES geofences(id) ON DELETE CASCADE,
     FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
   );
+
+  CREATE INDEX IF NOT EXISTS idx_geofence_events_ts ON geofence_events(timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_geofence_events_device ON geofence_events(device_id, timestamp DESC);
 `);
 
 module.exports = db;

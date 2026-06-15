@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 import TrackingMap from '../components/Map';
 import TrackPlayer from '../components/TrackPlayer';
-
-const API = '/api';
-function apiFetch(path) {
-  const token = localStorage.getItem('token');
-  return fetch(API + path, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json());
-}
+import { apiFetch } from '../utils/api';
 
 export default function History() {
   const [devices, setDevices] = useState([]);
@@ -16,9 +11,10 @@ export default function History() {
   const [track, setTrack] = useState([]);
   const [positions, setPositions] = useState({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    apiFetch('/devices').then(setDevices).catch(() => {});
+    apiFetch('/devices').then(setDevices).catch(err => setError(err.message));
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 86400000);
     setTo(now.toISOString().slice(0, 16));
@@ -28,6 +24,7 @@ export default function History() {
   async function loadHistory() {
     if (!deviceId || !from || !to) return;
     setLoading(true);
+    setError('');
     try {
       const data = await apiFetch(
         `/positions/history/${deviceId}?from=${new Date(from).toISOString()}&to=${new Date(to).toISOString()}`
@@ -36,8 +33,9 @@ export default function History() {
       if (data.length > 0) {
         setPositions({ [deviceId]: data[data.length - 1] });
       }
-    } catch {
+    } catch (err) {
       setTrack([]);
+      setError(err.message);
     }
     setLoading(false);
   }
@@ -55,6 +53,8 @@ export default function History() {
           <h2>Route History</h2>
           <a href="/" className="back-link">Back to Live</a>
         </div>
+
+        {error && <p className="error" style={{ padding: '0 1rem', color: '#ef4444' }}>{error}</p>}
 
         <div className="history-form">
           <select value={deviceId} onChange={e => setDeviceId(e.target.value)}>

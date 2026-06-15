@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../models/db');
 const { authenticate } = require('../middleware/auth');
+const { validateGeofenceData } = require('../middleware/validate');
+const { invalidateGeofenceCache } = require('../services/geofence');
 
 const router = express.Router();
 router.use(authenticate);
@@ -15,7 +17,7 @@ router.get('/', (req, res) => {
   })));
 });
 
-router.post('/', (req, res) => {
+router.post('/', validateGeofenceData, (req, res) => {
   const { name, type, center_lat, center_lng, radius, coordinates } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
 
@@ -35,6 +37,7 @@ router.post('/', (req, res) => {
     center_lat || null, center_lng || null, radius || null,
     coordinates ? JSON.stringify(coordinates) : null
   );
+  invalidateGeofenceCache();
   res.status(201).json({ id: result.lastInsertRowid, name, type: type || 'circle' });
 });
 
@@ -45,6 +48,7 @@ router.delete('/:id', (req, res) => {
     return res.status(403).json({ error: 'Access denied' });
   }
   db.prepare('DELETE FROM geofences WHERE id = ?').run(req.params.id);
+  invalidateGeofenceCache();
   res.json({ message: 'Geofence deleted' });
 });
 

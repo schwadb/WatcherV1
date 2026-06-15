@@ -1,4 +1,5 @@
 const db = require('../models/db');
+const logger = require('../logger');
 
 function toRad(deg) {
   return deg * (Math.PI / 180);
@@ -40,9 +41,39 @@ function isInsideGeofence(lat, lng, geofence) {
 }
 
 const deviceGeofenceState = new Map();
+let geofenceCache = null;
+let geofenceCacheTime = 0;
+const CACHE_TTL = 30000;
+
+function getCachedGeofences() {
+  if (!geofenceCache || Date.now() - geofenceCacheTime > CACHE_TTL) {
+    geofenceCache = db.prepare('SELECT * FROM geofences').all();
+    geofenceCacheTime = Date.now();
+  }
+  return geofenceCache;
+}
+
+function invalidateGeofenceCache() {
+  geofenceCache = null;
+  geofenceCacheTime = 0;
+}
+
+function initGeofenceState() {
+  const events = db.prepare(`
+    SELECT device_id, geofence_id, event_type FROM geofence_events
+    WHERE id IN (
+      SELECT MAX(id) FROM geofence_events GROUP BY device_id, geofence_id
+    )
+  `).all();
+  for (const evt of events) {
+    deviceGeofenceState.set(`${evt.device_id}:${evt.geofence_id}`, evt.event_type === 'enter');
+  }
+}
+
+initGeofenceState();
 
 function checkGeofences(deviceId, lat, lng, io) {
-  const geofences = db.prepare('SELECT * FROM geofences').all();
+  const geofences = getCachedGeofences();
 
   for (const fence of geofences) {
     const inside = isInsideGeofence(lat, lng, fence);
@@ -51,20 +82,28 @@ function checkGeofences(deviceId, lat, lng, io) {
 
     if (inside && !wasInside) {
       const eventType = 'enter';
-      db.prepare(
-        'INSERT INTO geofence_events (geofence_id, device_id, event_type) VALUES (?, ?, ?)'
-      ).run(fence.id, deviceId, eventType);
-      deviceGeofenceState.set(stateKey, true);
-      if (io) io.emit('geofence:event', { geofence: fence.name, device_id: deviceId, event: eventType });
+      try {
+        db.prepare(
+          'INSERT INTO geofence_events (geofence_id, device_id, event_type) VALUES (?, ?, ?)'
+        ).run(fence.id, deviceId, eventType);
+        deviceGeofenceState.set(stateKey, true);
+        if (io) io.emit('geofence:event', { geofence: fence.name, device_id: deviceId, event: eventType });
+      } catch (err) {
+        logger.error({ err, deviceId, fenceId: fence.id }, 'Failed to record geofence enter event');
+      }
     } else if (!inside && wasInside) {
       const eventType = 'exit';
-      db.prepare(
-        'INSERT INTO geofence_events (geofence_id, device_id, event_type) VALUES (?, ?, ?)'
-      ).run(fence.id, deviceId, eventType);
-      deviceGeofenceState.set(stateKey, false);
-      if (io) io.emit('geofence:event', { geofence: fence.name, device_id: deviceId, event: eventType });
+      try {
+        db.prepare(
+          'INSERT INTO geofence_events (geofence_id, device_id, event_type) VALUES (?, ?, ?)'
+        ).run(fence.id, deviceId, eventType);
+        deviceGeofenceState.set(stateKey, false);
+        if (io) io.emit('geofence:event', { geofence: fence.name, device_id: deviceId, event: eventType });
+      } catch (err) {
+        logger.error({ err, deviceId, fenceId: fence.id }, 'Failed to record geofence exit event');
+      }
     }
   }
 }
 
-module.exports = { checkGeofences, isInsideGeofence, haversineDistance };
+module.exports = { checkGeofences, isInsideGeofence, haversineDistance, invalidateGeofenceCache };

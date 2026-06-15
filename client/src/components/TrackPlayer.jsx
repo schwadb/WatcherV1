@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function TrackPlayer({ track, onPositionChange }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const intervalRef = useRef(null);
 
-  function play() {
-    setPlaying(true);
+  useEffect(() => {
+    if (!playing) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+
     let i = index;
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       if (i >= track.length - 1) {
-        clearInterval(interval);
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
         setPlaying(false);
         return;
       }
@@ -17,8 +23,14 @@ export default function TrackPlayer({ track, onPositionChange }) {
       setIndex(i);
       onPositionChange(i);
     }, 200);
-    return () => clearInterval(interval);
-  }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [playing]);
 
   function handleSlider(e) {
     const val = parseInt(e.target.value);
@@ -32,7 +44,7 @@ export default function TrackPlayer({ track, onPositionChange }) {
   return (
     <div className="track-player">
       <div className="track-controls">
-        <button onClick={play} disabled={playing}>{playing ? 'Playing...' : 'Play'}</button>
+        <button onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
         <input type="range" min={0} max={track.length - 1} value={index} onChange={handleSlider} />
         <span>{index + 1} / {track.length}</span>
       </div>
