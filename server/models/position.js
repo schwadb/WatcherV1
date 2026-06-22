@@ -8,8 +8,8 @@ const Position = {
     );
     const result = stmt.run(
       deviceId, data.latitude, data.longitude,
-      data.altitude || null, data.speed || null,
-      data.heading || null, data.accuracy || null,
+      data.altitude ?? null, data.speed ?? null,
+      data.heading ?? null, data.accuracy ?? null,
       data.timestamp || new Date().toISOString()
     );
     return this.findById(result.lastInsertRowid);
@@ -27,11 +27,12 @@ const Position = {
 
   getLatestAll() {
     return db.prepare(`
-      SELECT p.* FROM positions p
+      SELECT p.*, d.name as device_name FROM positions p
       INNER JOIN (
-        SELECT device_id, MAX(timestamp) as max_ts
+        SELECT device_id, MAX(id) as max_id
         FROM positions GROUP BY device_id
-      ) latest ON p.device_id = latest.device_id AND p.timestamp = latest.max_ts
+      ) latest ON p.id = latest.max_id
+      JOIN devices d ON p.device_id = d.id
     `).all();
   },
 
@@ -41,6 +42,15 @@ const Position = {
        WHERE device_id = ? AND timestamp BETWEEN ? AND ?
        ORDER BY timestamp ASC LIMIT ?`
     ).all(deviceId, from, to, limit);
+  },
+
+  deleteOlderThan(days) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+    return db.prepare('DELETE FROM positions WHERE created_at < ?').run(cutoff);
+  },
+
+  getCount() {
+    return db.prepare('SELECT COUNT(*) as count FROM positions').get().count;
   }
 };
 

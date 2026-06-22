@@ -13,6 +13,7 @@ const deviceRoutes = require('./routes/devices');
 const positionRoutes = require('./routes/positions');
 const geofenceRoutes = require('./routes/geofences');
 const { initializeSocket } = require('./services/tracking');
+const { startStaleDeviceChecker, stopStaleDeviceChecker } = require('./services/staleDevices');
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,7 +25,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'https://*.tile.openstreetmap.org', 'https://unpkg.com', 'data:'],
       connectSrc: ["'self'", 'ws:', 'wss:'],
@@ -58,7 +59,19 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/positions', positionRoutes);
 app.use('/api/geofences', geofenceRoutes);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+app.get('/api/health', (req, res) => {
+  const Position = require('./models/position');
+  const memUsage = process.memoryUsage();
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    positions: Position.getCount(),
+    memory: {
+      rss: Math.round(memUsage.rss / 1024 / 1024),
+      heap: Math.round(memUsage.heapUsed / 1024 / 1024),
+    },
+  });
+});
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(clientDist));
@@ -74,6 +87,26 @@ app.use((err, req, res, _next) => {
 });
 
 initializeSocket(io);
+startStaleDeviceChecker();
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => logger.info({ port: PORT }, 'WatcherV1 server running'));
+
+function shutdown(signal) {
+  logger.info({ signal }, 'Shutdown signal received');
+  stopStaleDeviceChecker();
+  io.close(() => {
+    logger.info('Socket.IO closed');
+    httpServer.close(() => {
+      logger.info('HTTP server closed');
+      process.exit(0);
+    });
+  });
+  setTimeout(() => {
+    logger.warn('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

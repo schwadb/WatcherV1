@@ -14,7 +14,28 @@ const reportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post('/report', reportLimiter, validatePositionData, (req, res) => {
+function authenticateReport(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  const authHeader = req.headers.authorization;
+  if (apiKey && process.env.DEVICE_API_KEY && apiKey === process.env.DEVICE_API_KEY) {
+    return next();
+  }
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const jwt = require('jsonwebtoken');
+    try {
+      req.user = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+  }
+  if (!process.env.DEVICE_API_KEY) {
+    return next();
+  }
+  return res.status(401).json({ error: 'Authentication required: provide X-API-Key header or Bearer token' });
+}
+
+router.post('/report', reportLimiter, authenticateReport, validatePositionData, (req, res) => {
   const { device_id, unique_id, latitude, longitude, altitude, speed, heading, accuracy, timestamp } = req.body;
 
   let device;
@@ -24,6 +45,10 @@ router.post('/report', reportLimiter, validatePositionData, (req, res) => {
     device = Device.findById(device_id);
   }
   if (!device) return res.status(404).json({ error: 'Device not found' });
+
+  if (req.user && req.user.role !== 'admin' && device.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
 
   const position = Position.create(device.id, { latitude, longitude, altitude, speed, heading, accuracy, timestamp });
   Device.update(device.id, { status: 'active', last_seen: new Date().toISOString() });

@@ -57,7 +57,7 @@ export default function DeviceList({ devices, setDevices, positions, onSelect })
                 <strong>{d.name}</strong>
                 <span className="device-type">{d.type}</span>
               </div>
-              {pos && <small>{pos.speed ? `${pos.speed.toFixed(1)} km/h` : 'Stationary'}</small>}
+              {pos && <small>{pos.speed != null && pos.speed > 0 ? `${pos.speed.toFixed(1)} km/h` : 'Stationary'}</small>}
               <button className="delete-btn" onClick={e => { e.stopPropagation(); removeDevice(d.id); }}>x</button>
             </li>
           );

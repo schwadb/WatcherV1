@@ -1,36 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export default function TrackPlayer({ track, onPositionChange }) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const intervalRef = useRef(null);
+  const indexRef = useRef(index);
+  indexRef.current = index;
 
-  useEffect(() => {
-    if (!playing) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+  const advance = useCallback(() => {
+    const next = indexRef.current + 1;
+    if (next >= track.length) {
+      setPlaying(false);
       return;
     }
+    setIndex(next);
+    onPositionChange(next);
+  }, [track.length, onPositionChange]);
 
-    let i = index;
-    intervalRef.current = setInterval(() => {
-      if (i >= track.length - 1) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        setPlaying(false);
-        return;
-      }
-      i++;
-      setIndex(i);
-      onPositionChange(i);
-    }, 200);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [playing]);
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(advance, 200);
+    return () => clearInterval(id);
+  }, [playing, advance]);
 
   function handleSlider(e) {
     const val = parseInt(e.target.value);
@@ -51,7 +41,7 @@ export default function TrackPlayer({ track, onPositionChange }) {
       {point && (
         <div className="track-info">
           <span>{new Date(point.timestamp).toLocaleString()}</span>
-          <span>Speed: {point.speed ? `${point.speed.toFixed(1)} km/h` : 'N/A'}</span>
+          <span>Speed: {point.speed != null ? `${point.speed.toFixed(1)} km/h` : 'N/A'}</span>
         </div>
       )}
     </div>

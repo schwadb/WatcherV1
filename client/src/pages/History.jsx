@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import TrackingMap from '../components/Map';
 import TrackPlayer from '../components/TrackPlayer';
 import { apiFetch } from '../utils/api';
@@ -51,7 +52,7 @@ export default function History() {
       <div className="sidebar">
         <div className="sidebar-header">
           <h2>Route History</h2>
-          <a href="/" className="back-link">Back to Live</a>
+          <Link to="/" className="back-link">Back to Live</Link>
         </div>
 
         {error && <p className="error" style={{ padding: '0 1rem', color: '#ef4444' }}>{error}</p>}

@@ -53,13 +53,21 @@ router.delete('/:id', (req, res) => {
 });
 
 router.get('/events', (req, res) => {
-  const events = db.prepare(`
-    SELECT ge.*, g.name as geofence_name, d.name as device_name
-    FROM geofence_events ge
-    JOIN geofences g ON ge.geofence_id = g.id
-    JOIN devices d ON ge.device_id = d.id
-    ORDER BY ge.timestamp DESC LIMIT 100
-  `).all();
+  const query = req.user.role === 'admin'
+    ? `SELECT ge.*, g.name as geofence_name, d.name as device_name
+       FROM geofence_events ge
+       JOIN geofences g ON ge.geofence_id = g.id
+       JOIN devices d ON ge.device_id = d.id
+       ORDER BY ge.timestamp DESC LIMIT 100`
+    : `SELECT ge.*, g.name as geofence_name, d.name as device_name
+       FROM geofence_events ge
+       JOIN geofences g ON ge.geofence_id = g.id
+       JOIN devices d ON ge.device_id = d.id
+       WHERE d.user_id = ?
+       ORDER BY ge.timestamp DESC LIMIT 100`;
+  const events = req.user.role === 'admin'
+    ? db.prepare(query).all()
+    : db.prepare(query).all(req.user.id);
   res.json(events);
 });
 

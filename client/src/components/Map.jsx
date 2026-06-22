@@ -1,5 +1,5 @@
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 
 const icon = new L.Icon({
@@ -11,15 +11,31 @@ const icon = new L.Icon({
   popupAnchor: [1, -34],
 });
 
-function FitBounds({ positions }) {
+function FitBounds({ positions, selectedDevice }) {
   const map = useMap();
+  const hasFitted = useRef(false);
+  const prevSelected = useRef(null);
+
   useEffect(() => {
-    const points = Object.values(positions);
-    if (points.length > 0) {
-      const bounds = points.map(p => [p.latitude, p.longitude]);
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    if (selectedDevice && selectedDevice !== prevSelected.current) {
+      prevSelected.current = selectedDevice;
+      const pos = positions[selectedDevice];
+      if (pos) {
+        map.setView([pos.latitude, pos.longitude], 15, { animate: true });
+      }
+      return;
     }
-  }, [positions, map]);
+
+    if (!hasFitted.current) {
+      const points = Object.values(positions);
+      if (points.length > 0) {
+        const bounds = points.map(p => [p.latitude, p.longitude]);
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        hasFitted.current = true;
+      }
+    }
+  }, [positions, selectedDevice, map]);
+
   return null;
 }
 
@@ -32,13 +48,13 @@ export default function TrackingMap({ positions, geofences = [], track = null, s
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds positions={positions} />
+      <FitBounds positions={positions} selectedDevice={selectedDevice} />
 
       {Object.entries(positions).map(([deviceId, pos]) => (
         <Marker key={deviceId} position={[pos.latitude, pos.longitude]} icon={icon}>
           <Popup>
             <strong>{pos.device_name || `Device ${deviceId}`}</strong><br />
-            Speed: {pos.speed ? `${pos.speed.toFixed(1)} km/h` : 'N/A'}<br />
+            Speed: {pos.speed != null ? `${pos.speed.toFixed(1)} km/h` : 'N/A'}<br />
             Updated: {new Date(pos.timestamp).toLocaleTimeString()}
           </Popup>
         </Marker>

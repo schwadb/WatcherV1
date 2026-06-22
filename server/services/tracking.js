@@ -58,6 +58,10 @@ function initializeSocket(io) {
       else if (device_id) device = Device.findById(device_id);
       if (!device) return socket.emit('error', { message: 'Device not found' });
 
+      if (socket.user.role !== 'admin' && device.user_id !== socket.user.id) {
+        return socket.emit('error', { message: 'Access denied' });
+      }
+
       const position = Position.create(device.id, {
         latitude, longitude, altitude, speed, heading, accuracy,
         timestamp: new Date().toISOString()

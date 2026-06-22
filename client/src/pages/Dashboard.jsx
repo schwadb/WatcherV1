@@ -64,6 +64,9 @@ export default function Dashboard() {
           </div>
         )}
 
+        <a href="/history" className="history-link" style={{ display: 'block', textAlign: 'center', color: '#3b82f6', padding: '0.5rem', fontSize: '0.9rem', textDecoration: 'none' }}>
+          Route History
+        </a>
         <button className="logout-btn" onClick={() => { localStorage.clear(); window.location.reload(); }}>
           Logout
         </button>
