@@ -1,0 +1,47 @@
+# Watcher Memory — shared AI memory server for the UGREEN NAS.
+# Engine: doobidoo/mcp-memory-service (slim/ONNX variant: CPU-only local
+# embeddings, no API keys needed). Copy .env.example to .env before deploying.
+services:
+  memory:
+    image: doobidoo/mcp-memory-service:${MEMORY_IMAGE_TAG:-11.4.0-slim}
+    container_name: watcher-memory
+    ports:
+      # 0.0.0.0 exposes on all NAS interfaces (LAN + tailnet); set
+      # MEMORY_BIND_IP to the NAS Tailscale IP for tailnet-only.
+      - "${MEMORY_BIND_IP:-0.0.0.0}:${MEMORY_PORT:-8000}:8000"
+    volumes:
+      - ${DATA_DIR:-./data}:/app/sqlite_db
+      - ${BACKUPS_DIR:-./backups}:/app/backups
+      # ONNX embedding model cache — survives container recreation
+      - ${MODEL_CACHE_DIR:-./model-cache}:/root/.cache/mcp_memory
+    environment:
+      - MCP_MODE=http
+      - MCP_HTTP_HOST=0.0.0.0
+      - MCP_HTTP_PORT=8000
+      - MCP_API_KEY=${MCP_API_KEY:?Set MCP_API_KEY in .env (openssl rand -hex 32)}
+      - MCP_MEMORY_STORAGE_BACKEND=sqlite_vec
+      - MCP_MEMORY_SQLITE_PATH=/app/sqlite_db/sqlite_vec.db
+      - MCP_MEMORY_BACKUPS_PATH=/app/backups
+      - MCP_MEMORY_USE_ONNX=1
+      # Server-side scheduled backups (see also scripts/backup.sh)
+      - MCP_BACKUP_ENABLED=${MCP_BACKUP_ENABLED:-true}
+      - MCP_BACKUP_INTERVAL=${MCP_BACKUP_INTERVAL:-daily}
+      - MCP_BACKUP_RETENTION=${MCP_BACKUP_RETENTION:-7}
+      - MCP_BACKUP_MAX_COUNT=${MCP_BACKUP_MAX_COUNT:-10}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      # /api/health needs no auth; the slim image has no curl, so use python
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          memory: 256M

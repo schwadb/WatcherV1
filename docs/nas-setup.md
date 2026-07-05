@@ -58,28 +58,30 @@ watcher-memory/
 From any device on your tailnet:
 
 ```bash
-./scripts/smoke-test.sh http://<nas-tailscale-ip>:8443 <your-api-key>
+./scripts/smoke-test.sh http://<nas-tailscale-ip>:8000 <your-api-key>
 ```
 
 The script checks health, stores a test memory, finds it via semantic search,
 and deletes it. You can also open the dashboard in a browser:
-`http://<nas-tailscale-ip>:8443/` — you should see the memory dashboard.
+`http://<nas-tailscale-ip>:8000/` — you should see the memory dashboard.
 
 Then connect your AI clients — see [clients.md](clients.md).
 
 ## 5. Optional hardening
 
 - **HTTPS on the tailnet:** some clients insist on HTTPS. Run
-  `tailscale serve --bg https / http://localhost:8443` on the NAS to get
+  `tailscale serve --bg https / http://localhost:8000` on the NAS to get
   `https://<nas-name>.<tailnet>.ts.net` with a real certificate — still
   private to your tailnet (this is *serve*, not *funnel*; nothing public).
 - **Don't expose the port beyond the tailnet.** The compose file publishes the
   port on all NAS interfaces, which means devices on your home LAN can also
   reach it (fine for most homes). To restrict it strictly to Tailscale, set
-  `MCP_BIND_IP` in `.env` to the NAS's `100.x.y.z` address.
-- **Backups:** schedule `scripts/backup.sh` daily via UGOS **Task Scheduler**
-  (Control Panel → Task Scheduler → scheduled task → user-defined script). See
-  the header of the script for the exact command.
+  `MEMORY_BIND_IP` in `.env` to the NAS's `100.x.y.z` address.
+- **Backups:** the server backs itself up automatically (daily, into
+  `backups/` — tune with the `MCP_BACKUP_*` settings in `.env`). For an
+  off-site copy to a second disk or share, schedule `scripts/backup.sh` via
+  UGOS **Task Scheduler** (Control Panel → Task Scheduler → user-defined
+  script); see the script header for the exact command.
 
 ## Upgrading the server
 

@@ -1,0 +1,7 @@
+# Never commit the real config — it contains the API key
+.env
+
+# Live data if the repo is cloned directly onto the NAS
+data/
+backups/
+model-cache/
