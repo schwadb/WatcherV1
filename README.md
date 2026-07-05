@@ -37,6 +37,10 @@ flowchart LR
 
 ## Quick start
 
+**New here? Follow [SETUP.md](SETUP.md)** — the complete step-by-step
+walkthrough from zero to working shared memory, with a checkpoint after every
+part. The short version:
+
 1. **NAS side** — install Tailscale, deploy the Docker Compose project:
    follow [docs/nas-setup.md](docs/nas-setup.md).
 2. **Verify** — from any tailnet device:
@@ -52,6 +56,7 @@ flowchart LR
 
 | Path | Purpose |
 |---|---|
+| `SETUP.md` | **Start here** — full step-by-step walkthrough |
 | `docker-compose.yml` | The memory server (deploy on the NAS) |
 | `.env.example` | Configuration template — copy to `.env`, set your API key |
 | `docs/nas-setup.md` | UGREEN/UGOS setup: Tailscale, Docker, verify, harden |
