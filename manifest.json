@@ -1,0 +1,16 @@
+{
+  "name": "Watcher — Monthly Habit Tracker",
+  "short_name": "Watcher",
+  "description": "Track daily habits, memorable moments, sleep, and gratitude.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>👁</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
