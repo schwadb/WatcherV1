@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Monthly habit tracker with memorable moments, sleep graph, and daily journal — based on Dominic Hart's sanctuary system.">
+<meta name="theme-color" content="#0b0b0b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Watcher — Monthly Habit Tracker</title>
 <style>
   :root {
@@ -209,6 +216,25 @@
   .toolbar button.ghost { background: none; border: 1px solid var(--border); color: var(--text-primary); font-weight: 400; }
 
   footer.app { color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 24px; }
+
+  /* ---- streaks ---- */
+  .streak-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .streak-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--gridline); color: var(--text-secondary);
+  }
+  .streak-badge.hot { border-color: #e89b1e; color: #e89b1e; }
+  .streak-badge .fire { font-size: 12px; }
+
+  /* ---- monthly focus ---- */
+  .focus-wrap { margin-bottom: 14px; }
+  .focus-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
+  .focus-pick { display: flex; gap: 8px; align-items: center; }
+  .focus-pick select { width: auto; flex: 1; }
+  .focus-name { font-weight: 600; color: var(--series-sleep); font-size: 15px; }
+  th.habith.focus .rot { color: var(--series-sleep); font-weight: 600; }
+  th.habith.focus .dot { box-shadow: 0 0 0 2px var(--series-sleep); }
 </style>
 </head>
 <body>
@@ -238,6 +264,10 @@
   </section>
 
   <section class="card">
+    <div class="focus-wrap" id="focusWrap">
+      <div class="focus-label">Monthly focus habit</div>
+      <div class="focus-pick" id="focusPick"></div>
+    </div>
     <h2>Habit grid</h2>
     <p class="sub">Each morning, revisit <em>yesterday</em>: write one memorable moment, mark your habits, log your sleep. Tap a cell to cycle ✓ → ✗ → blank.</p>
     <div class="legend" id="legend">
@@ -248,6 +278,7 @@
     <div class="grid-wrap">
       <table class="grid" id="grid"></table>
     </div>
+    <div class="streak-row" id="streaks"></div>
   </section>
 
   <section class="card">
@@ -370,6 +401,7 @@
         goals: ['', '', ''],
         nextMonth: prev ? (prev.nextMonth || '') : '',
         habits: prev ? JSON.parse(JSON.stringify(prev.habits)) : JSON.parse(JSON.stringify(DEFAULT_HABITS)),
+        focusHabit: null,
         days: {},
       };
       save();
@@ -435,7 +467,8 @@
     hr.append(el('th', { class: 'daycol' }, ''));
     hr.append(el('th', { class: 'momcol' }, el('span', { class: 'rotlabel', style: 'font-size:12px;color:var(--text-secondary)' }, 'Memorable moment')));
     for (const h of m.habits) {
-      const th = el('th', { class: 'habith', title: h.name });
+      const isFocus = m.focusHabit === h.id;
+      const th = el('th', { class: 'habith' + (isFocus ? ' focus' : ''), title: h.name + (isFocus ? ' (monthly focus)' : '') });
       th.append(el('span', { class: 'rot' }, h.name));
       th.append(el('span', { class: 'dot', style: `background:${catVar(h.cat)}` }));
       hr.append(th);
@@ -477,7 +510,7 @@
             onclick: () => {
               const dd = day(d);
               dd.vals[h.id] = cycle(dd.vals[h.id] || '');
-              save(); renderGrid();
+              save(); renderGrid(); renderStreaks();
             },
           });
           if (v === 'done') btn.append(el('span', { class: 'done' }, '✓'));
@@ -708,7 +741,8 @@
           onclick: () => {
             if (!confirm(`Remove “${h.name}” from ${MONTHS[cur.m]}? Its marks this month will be kept in storage but hidden.`)) return;
             m.habits = m.habits.filter(x => x.id !== h.id);
-            save(); renderGrid(); renderHabits();
+            if (m.focusHabit === h.id) m.focusHabit = null;
+            save(); renderGrid(); renderHabits(); renderFocus();
           },
         }, '✕'),
       ));
@@ -723,7 +757,7 @@
       name, cat: $('#hcat').value, type: $('#htype').value,
     });
     $('#hname').value = '';
-    save(); renderGrid(); renderHabits();
+    save(); renderGrid(); renderHabits(); renderFocus();
   });
 
   /* ---------- export / import ---------- */
@@ -750,12 +784,74 @@
     e.target.value = '';
   });
 
+  /* ---------- monthly focus ---------- */
+  function renderFocus() {
+    const m = month();
+    const wrap = $('#focusPick');
+    wrap.replaceChildren();
+    const checkHabits = m.habits.filter(h => h.type === 'check');
+    if (checkHabits.length === 0) { $('#focusWrap').hidden = true; return; }
+    $('#focusWrap').hidden = false;
+    if (m.focusHabit && checkHabits.some(h => h.id === m.focusHabit)) {
+      const fh = checkHabits.find(h => h.id === m.focusHabit);
+      wrap.append(
+        el('span', { class: 'focus-name' }, fh.name),
+        el('button', {
+          class: 'ghost', type: 'button',
+          style: 'font-size:12px;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-secondary)',
+          onclick: () => { m.focusHabit = null; save(); renderFocus(); renderGrid(); },
+        }, 'Change'),
+      );
+    } else {
+      const sel = el('select', {
+        onchange: e => { m.focusHabit = e.target.value || null; save(); renderFocus(); renderGrid(); },
+      });
+      sel.append(el('option', { value: '' }, 'Pick one habit to hyper-focus on this month…'));
+      for (const h of checkHabits) sel.append(el('option', { value: h.id }, h.name));
+      wrap.append(sel);
+    }
+  }
+
+  /* ---------- streaks ---------- */
+  function renderStreaks() {
+    const m = month();
+    const box = $('#streaks');
+    box.replaceChildren();
+    const N = daysInMonth();
+    const today = isCurMonth() ? now.getDate() : N;
+
+    for (const h of m.habits) {
+      if (h.type !== 'check') continue;
+      const isAvoid = h.cat === 'avoid';
+      let streak = 0;
+      for (let d = today; d >= 1; d--) {
+        const v = m.days[d] && m.days[d].vals && m.days[d].vals[h.id];
+        if (!v) break;
+        if (isAvoid) {
+          if (v === 'miss') streak++;
+          else break;
+        } else {
+          if (v === 'done') streak++;
+          else break;
+        }
+      }
+      if (streak < 2) continue;
+      const badge = el('span', { class: 'streak-badge' + (streak >= 7 ? ' hot' : '') });
+      if (streak >= 7) badge.append(el('span', { class: 'fire' }, '🔥'));
+      badge.append(`${h.name}: ${streak}d`);
+      box.append(badge);
+    }
+  }
+
   /* ---------- boot ---------- */
   function renderAll() {
-    renderHeader(); renderIntention(); renderGrid(); renderChart(); renderJournal(); renderHabits();
+    renderHeader(); renderIntention(); renderFocus(); renderGrid(); renderStreaks(); renderChart(); renderJournal(); renderHabits();
   }
   renderAll();
 })();
+</script>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>

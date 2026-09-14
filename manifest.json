@@ -1,0 +1,15 @@
+{
+  "name": "Watcher — Monthly Habit Tracker",
+  "short_name": "Watcher",
+  "description": "Monthly habit tracker with memorable moments, sleep graph, and daily journal — based on Dominic Hart's sanctuary system.",
+  "start_url": "/WatcherV1/",
+  "scope": "/WatcherV1/",
+  "display": "standalone",
+  "background_color": "#f9f9f7",
+  "theme_color": "#0b0b0b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
