@@ -61,3 +61,12 @@ per-device/browser — use Export/Import to move it.
 
 Everything lives in `index.html` (vanilla HTML/CSS/JS, no dependencies).
 Screenshots in `docs/` are generated with Playwright.
+
+
+## Also in this repo: Watcher Dashboard
+
+[`dashboard/`](dashboard/) is a separate project: a free, self-hosted wall
+display for a Raspberry Pi (weather, live radar, stocks, Outlook calendar,
+photo slideshow, clock, and a news ticker), built as a replacement for a paid
+DAKboard subscription. See [dashboard/README.md](dashboard/README.md) for the
+step-by-step Pi setup.

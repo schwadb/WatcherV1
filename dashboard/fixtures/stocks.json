@@ -1,0 +1,9 @@
+{
+  "market_open": true,
+  "quotes": [
+    {"symbol": "SPY", "name": "S&P 500", "price": 668.42, "change": 3.18, "change_pct": 0.478, "prev_close": 665.24, "high": 669.1, "low": 664.8, "quote_time": 1759251600},
+    {"symbol": "DIA", "name": "Dow Jones", "price": 463.15, "change": -1.42, "change_pct": -0.306, "prev_close": 464.57, "high": 465.2, "low": 462.3, "quote_time": 1759251600},
+    {"symbol": "QQQ", "name": "Nasdaq 100", "price": 601.77, "change": 4.91, "change_pct": 0.823, "prev_close": 596.86, "high": 602.4, "low": 597.0, "quote_time": 1759251600}
+  ],
+  "errors": []
+}

@@ -1,0 +1,62 @@
+# Watcher Dashboard settings (no secrets here; secrets go in .env)
+# After editing on the Pi: sudo systemctl restart dashboard
+
+location:
+  name: "Plymouth, NE"        # shown in the weather panel
+  lat: 40.3039                # ZIP 68424
+  lon: -97.0012
+  timezone: "America/Chicago" # IANA time zone name
+
+units: imperial               # imperial = °F / mph, metric = °C / km/h
+clock_24h: false
+
+weather:
+  refresh_minutes: 10
+  forecast_days: 5            # days shown after today
+
+radar:
+  provider: rainviewer        # rainviewer (default) or mesonet (US NEXRAD fallback)
+  refresh_minutes: 5
+  zoom: 6                     # 5 = several states, 7 = max detail RainViewer offers
+  frame_ms: 600               # time each radar frame is shown
+  # Dark map tiles under the radar (free, no key). Set labels: "" to hide city names and borders.
+  basemap: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+  labels: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+
+stocks:
+  symbols:                    # Finnhub free tier has no index quotes, so use ETFs
+    SPY: "S&P 500"
+    DIA: "Dow Jones"
+    QQQ: "Nasdaq 100"
+  refresh_minutes_open: 2     # during US market hours
+  refresh_minutes_closed: 15
+
+calendar:
+  days_ahead: 7               # today + this many days
+  refresh_minutes: 15
+  max_events: 12
+
+news:
+  refresh_minutes: 10
+  max_headlines: 40
+  feeds:
+    - name: NPR
+      url: "https://feeds.npr.org/1001/rss.xml"
+    - name: BBC
+      url: "https://feeds.bbci.co.uk/news/world/rss.xml"
+    - name: CBS
+      url: "https://www.cbsnews.com/latest/rss/main"
+
+photos:
+  folder: "photos"            # relative to the dashboard folder, or an absolute path
+  seconds_per_photo: 20
+  order: shuffle              # shuffle or name
+  rescan_minutes: 5
+  max_size: 1920              # longest edge after resizing, in pixels
+
+display:
+  reload_at: "03:30"          # daily browser reload (keeps Chromium's memory in check)
+
+server:
+  host: "0.0.0.0"
+  port: 8080

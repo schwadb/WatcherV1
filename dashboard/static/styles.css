@@ -1,0 +1,138 @@
+/* Watcher Dashboard — designed for a 1920x1080 landscape screen viewed from across the room.
+   All sizes are in rem, and 1rem = 1/120 of the viewport width, so the layout scales to other 16:9 screens. */
+
+:root {
+  --bg: #0b0f14;
+  --panel: #141a22;
+  --panel-edge: rgba(255, 255, 255, 0.06);
+  --text: #f2f4f7;
+  --text-2: #b7c0cc;
+  --muted: #7a8595;
+  --accent: #5aa9ff;
+  --up: #3ecf8e;
+  --down: #ff6b6b;
+  --warn: #f5b942;
+  --gap: 1rem;
+}
+
+html { font-size: 0.8333vw; }              /* 16px at 1920 wide */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background: var(--bg); }
+body {
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.25rem; line-height: 1.3;
+  cursor: none; user-select: none; -webkit-user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.board {
+  display: grid;
+  width: 100vw; height: 100vh; padding: var(--gap); gap: var(--gap);
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: 13.75rem 1fr 21.25rem 4.5rem;
+}
+
+.panel { position: relative; background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 1rem; overflow: hidden; padding: 1.25rem 1.5rem; }
+.panel header { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.75rem; }
+.panel h2 { margin: 0; font-size: 1rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.hint { font-size: 1.15rem; line-height: 1.5; max-width: 34rem; padding: 0.5rem 0; }
+.hidden { display: none !important; }
+
+.badge { position: absolute; top: 0.75rem; right: 1rem; z-index: 5; font-size: 0.8rem; color: var(--warn); background: rgba(0,0,0,0.45); padding: 0.15rem 0.5rem; border-radius: 0.4rem; display: none; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge.show { display: inline-block; }
+.badge.error { color: var(--down); }
+
+/* ---- grid placement ---- */
+.clock    { grid-column: 1 / 5;  grid-row: 1; }
+.calendar { grid-column: 1 / 5;  grid-row: 2 / 4; }
+.photo    { grid-column: 5 / 10; grid-row: 1 / 3; padding: 0; background: #000; }
+.stocks   { grid-column: 5 / 10; grid-row: 3; }
+.weather  { grid-column: 10 / 13; grid-row: 1 / 3; }
+.radar    { grid-column: 10 / 13; grid-row: 3; padding: 0; }
+.ticker   { grid-column: 1 / 13; grid-row: 4; padding: 0; display: flex; align-items: center; }
+
+/* ---- clock ---- */
+.clock { display: flex; flex-direction: column; justify-content: center; }
+.clock .time { font-size: 7rem; font-weight: 300; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 0.6rem; }
+.clock .ampm { font-size: 2rem; font-weight: 500; color: var(--text-2); }
+.clock .date { margin-top: 0.75rem; font-size: 1.75rem; color: var(--text-2); }
+
+/* ---- photo ---- */
+.photo .layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.4s ease-in-out; }
+.photo .layer.visible { opacity: 1; }
+.photo .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 3rem; text-align: center; color: var(--muted); font-size: 1.5rem; }
+
+/* ---- weather ---- */
+.weather .now { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 1rem; margin-top: 0.25rem; }
+.weather .now-icon { width: 6rem; height: 6rem; color: var(--accent); }
+.weather .now-icon svg { width: 100%; height: 100%; }
+.weather .now-temp { font-size: 5.5rem; font-weight: 300; line-height: 1; letter-spacing: -0.03em; }
+.weather .now-temp .deg { font-size: 2.5rem; vertical-align: top; color: var(--text-2); margin-left: 0.1rem; }
+.weather .now-label { font-size: 1.5rem; font-weight: 500; }
+.weather .now-detail { font-size: 1.05rem; color: var(--text-2); margin-top: 0.3rem; line-height: 1.45; }
+.weather .today-line { margin: 0.9rem 0 0.6rem; padding-top: 0.75rem; border-top: 1px solid var(--panel-edge); font-size: 1.1rem; color: var(--text-2); }
+.forecast { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.forecast li { display: grid; grid-template-columns: 4.5rem 2.6rem 1fr auto; align-items: center; gap: 0.75rem; padding: 0.8rem 0; border-top: 1px solid var(--panel-edge); font-size: 1.25rem; }
+.forecast li .day { font-weight: 600; }
+.forecast li .icon { width: 2.4rem; height: 2.4rem; color: var(--text-2); }
+.forecast li .icon svg { width: 100%; height: 100%; }
+.forecast li .label { color: var(--text-2); font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.forecast li .label .pct { color: var(--accent); margin-left: 0.4rem; }
+.forecast li .temps { font-variant-numeric: tabular-nums; }
+.forecast li .temps .lo { color: var(--muted); margin-left: 0.5rem; }
+
+/* ---- calendar ---- */
+.agenda { display: flex; flex-direction: column; gap: 0.25rem; overflow: hidden; height: calc(100% - 2.25rem); }
+.agenda .day { margin-top: 0.75rem; }
+.agenda .day:first-child { margin-top: 0; }
+.agenda .day-head { font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 0.3rem; border-bottom: 1px solid var(--panel-edge); margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
+.agenda .day.today .day-head { color: var(--accent); }
+.agenda .event { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.75rem; align-items: baseline; padding: 0.35rem 0; font-size: 1.3rem; }
+.agenda .event .when { color: var(--text-2); font-size: 1.05rem; white-space: nowrap; }
+.agenda .event .what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda .event .where { color: var(--muted); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda .none { color: var(--muted); font-size: 1.1rem; padding: 0.3rem 0; }
+.agenda::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3rem; background: linear-gradient(to bottom, transparent, var(--panel)); pointer-events: none; }
+
+/* ---- stocks ---- */
+.stocks header .market { font-size: 0.9rem; color: var(--muted); }
+.quotes { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 1rem; height: calc(100% - 2.5rem); }
+.quote { display: flex; flex-direction: column; justify-content: center; padding: 1rem 1.25rem; border-radius: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-edge); min-width: 0; }
+.quote .sym { font-size: 1.1rem; letter-spacing: 0.08em; color: var(--muted); }
+.quote .name { font-size: 1.35rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quote .price { font-size: 3rem; font-weight: 300; line-height: 1.1; margin-top: 0.4rem; letter-spacing: -0.02em; }
+.quote .chg { font-size: 1.3rem; margin-top: 0.35rem; font-weight: 500; }
+.quote.up .chg { color: var(--up); }
+.quote.down .chg { color: var(--down); }
+.quote.flat .chg { color: var(--text-2); }
+
+/* ---- radar ---- */
+#map { position: absolute; inset: 0; background: #0b0f14; }
+.leaflet-container { background: #0b0f14; font-family: inherit; }
+.leaflet-control-attribution { display: none; }
+.radar-time { position: absolute; left: 0.9rem; bottom: 0.75rem; z-index: 500; font-size: 1.1rem; font-weight: 600; background: rgba(0,0,0,0.55); padding: 0.2rem 0.6rem; border-radius: 0.4rem; }
+.radar-attrib { position: absolute; right: 0.9rem; bottom: 0.75rem; z-index: 500; font-size: 0.75rem; color: var(--text-2); background: rgba(0,0,0,0.55); padding: 0.15rem 0.5rem; border-radius: 0.4rem; }
+.radar-here { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 0 0 4px rgba(90,169,255,0.35); }
+
+/* ---- news ticker ---- */
+.ticker-label { flex: 0 0 auto; height: 100%; display: flex; align-items: center; padding: 0 1.5rem; font-size: 1rem; font-weight: 700; letter-spacing: 0.15em; color: var(--accent); border-right: 1px solid var(--panel-edge); background: rgba(255,255,255,0.02); }
+.ticker-viewport { flex: 1 1 auto; height: 100%; overflow: hidden; position: relative; }
+.ticker-track { position: absolute; top: 0; left: 0; height: 100%; display: flex; align-items: center; white-space: nowrap; will-change: transform; animation: ticker linear infinite; animation-duration: 120s; }
+.ticker-track.paused { animation-play-state: paused; }
+.ticker-item { font-size: 1.6rem; padding: 0 2.5rem 0 0; }
+.ticker-item .src { color: var(--accent); font-weight: 700; font-size: 1rem; letter-spacing: 0.1em; margin-right: 0.8rem; vertical-align: 0.15em; }
+.ticker-item::after { content: "•"; color: var(--muted); margin-left: 2.5rem; }
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ---- small screens (a phone opening the LAN address) just stack the panels ---- */
+@media (max-width: 900px) and (orientation: portrait) {
+  html { font-size: 2.6vw; }
+  html, body { height: auto; overflow: auto; }
+  body { cursor: auto; }
+  .board { display: flex; flex-direction: column; height: auto; }
+  .panel { min-height: 14rem; }
+  .photo, .radar { height: 24rem; }
+  .agenda::after { display: none; }
+}

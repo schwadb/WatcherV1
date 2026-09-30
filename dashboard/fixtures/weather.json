@@ -1,0 +1,102 @@
+{
+    "latitude": 40.303513,
+    "longitude": -97.01181,
+    "generationtime_ms": 6.9141387939453125,
+    "utc_offset_seconds": -18000,
+    "timezone": "America/Chicago",
+    "timezone_abbreviation": "GMT-5",
+    "elevation": 437.0,
+    "current_units": {
+        "time": "iso8601",
+        "interval": "seconds",
+        "temperature_2m": "\u00b0F",
+        "relative_humidity_2m": "%",
+        "apparent_temperature": "\u00b0F",
+        "is_day": "",
+        "precipitation": "inch",
+        "weather_code": "wmo code",
+        "wind_speed_10m": "mp/h",
+        "wind_direction_10m": "\u00b0",
+        "wind_gusts_10m": "mp/h"
+    },
+    "current": {
+        "time": "2026-09-30T07:15",
+        "interval": 900,
+        "temperature_2m": 69.0,
+        "relative_humidity_2m": 94,
+        "apparent_temperature": 73.0,
+        "is_day": 0,
+        "precipitation": 0.0,
+        "weather_code": 3,
+        "wind_speed_10m": 6.3,
+        "wind_direction_10m": 228,
+        "wind_gusts_10m": 17.2
+    },
+    "daily_units": {
+        "time": "iso8601",
+        "weather_code": "wmo code",
+        "temperature_2m_max": "\u00b0F",
+        "temperature_2m_min": "\u00b0F",
+        "precipitation_probability_max": "%",
+        "sunrise": "iso8601",
+        "sunset": "iso8601"
+    },
+    "daily": {
+        "time": [
+            "2026-09-30",
+            "2026-10-01",
+            "2026-10-02",
+            "2026-10-03",
+            "2026-10-04",
+            "2026-10-05"
+        ],
+        "weather_code": [
+            65,
+            65,
+            0,
+            3,
+            3,
+            3
+        ],
+        "temperature_2m_max": [
+            73.5,
+            70.5,
+            66.5,
+            73.2,
+            66.9,
+            65.7
+        ],
+        "temperature_2m_min": [
+            68.1,
+            53.7,
+            49.8,
+            50.3,
+            53.0,
+            48.3
+        ],
+        "precipitation_probability_max": [
+            83,
+            41,
+            7,
+            0,
+            0,
+            1
+        ],
+        "sunrise": [
+            "2026-09-30T07:23",
+            "2026-10-01T07:24",
+            "2026-10-02T07:25",
+            "2026-10-03T07:26",
+            "2026-10-04T07:27",
+            "2026-10-05T07:28"
+        ],
+        "sunset": [
+            "2026-09-30T19:11",
+            "2026-10-01T19:09",
+            "2026-10-02T19:08",
+            "2026-10-03T19:06",
+            "2026-10-04T19:05",
+            "2026-10-05T19:03"
+        ]
+    }
+}

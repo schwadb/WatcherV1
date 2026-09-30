@@ -1,0 +1,8 @@
+.env
+.venv/
+cache/
+photos/*
+!photos/.gitkeep
+__pycache__/
+*.pyc
+node_modules/
