@@ -22,12 +22,20 @@ fi
 "$DIR/.venv/bin/pip" install --quiet --upgrade pip
 "$DIR/.venv/bin/pip" install --quiet -r "$DIR/requirements.txt"
 
-echo "==> Preparing folders and secrets file"
-mkdir -p "$DIR/photos" "$DIR/cache"
+echo "==> Preparing folders, settings and secrets files"
+mkdir -p "$DIR/photos" "$DIR/cache" "$DIR/data"
+if [ ! -f "$DIR/config.yaml" ]; then
+  cp "$DIR/config.example.yaml" "$DIR/config.yaml"
+  echo "    created $DIR/config.yaml (your settings; edit it from the settings page)"
+fi
 if [ ! -f "$DIR/.env" ]; then
   cp "$DIR/.env.example" "$DIR/.env"
-  echo "    created $DIR/.env  <-- paste your FINNHUB_API_KEY and OUTLOOK_ICS_URL here"
+  echo "    created $DIR/.env (your secrets; fill them in from the settings page)"
 fi
+
+echo "==> Allowing the Reboot button on the settings page (sudo rule limited to reboot)"
+echo "$USER_NAME ALL=(root) NOPASSWD: /sbin/reboot" | sudo tee /etc/sudoers.d/dashboard-reboot >/dev/null
+sudo chmod 440 /etc/sudoers.d/dashboard-reboot
 
 if [ -n "$TZ_NAME" ] && command -v timedatectl >/dev/null 2>&1; then
   echo "==> Setting the Pi's time zone to $TZ_NAME"
@@ -62,12 +70,10 @@ fi
 
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo
-echo "Done. Next steps:"
-echo "  1. nano $DIR/.env          (paste your Finnhub key and Outlook ICS link, then Ctrl+O, Enter, Ctrl+X)"
-echo "  2. sudo systemctl restart dashboard"
-echo "  3. curl http://localhost:$PORT/api/health   (every source should say \"ok\": true within a minute)"
-echo "  4. Copy photos into $DIR/photos/"
-echo "  5. sudo reboot   -> the dashboard opens full screen"
+echo "Done. Everything else happens on the settings page, from your phone:"
+echo "    http://$(hostname).local:$PORT/manage      (or http://${IP:-<pi-ip>}:$PORT/manage)"
+echo "  1. Settings tab -> Secrets: paste your Finnhub key and your Outlook calendar link"
+echo "  2. Photos tab: add photos from your phone"
+echo "  3. sudo reboot   -> the dashboard opens full screen on this Pi"
 echo
-echo "From another device on your Wi-Fi: http://$(hostname).local:$PORT  or  http://${IP:-<pi-ip>}:$PORT"
-echo "Logs: journalctl -u dashboard -f"
+echo "The dashboard itself: http://$(hostname).local:$PORT     Logs: journalctl -u dashboard -f"

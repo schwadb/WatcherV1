@@ -56,6 +56,12 @@
     <div class="agenda" id="agenda"><div class="muted">Loading…</div></div>
   </section>
 
+  <section class="panel todo" data-widget="todo">
+    <header><h2>To-do</h2><span class="badge" id="badge-todo"></span></header>
+    <ul class="todo-list" id="todo-list"></ul>
+    <div class="notes hidden" id="notes"></div>
+  </section>
+
   <section class="panel stocks" data-widget="stocks">
     <header><h2 id="markets-title">Markets</h2><span class="market" id="market-state"></span><span class="badge" id="badge-stocks"></span><span class="badge sports-badge" id="badge-sports"></span></header>
     <div class="tiles">
@@ -80,6 +86,7 @@
 </main>
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
+<a id="gear" class="gear" href="/manage?kiosk=1" title="Settings" aria-label="Settings">&#9881;</a>
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/icons.js"></script>
 <script src="/static/app.js"></script>

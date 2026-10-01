@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard settings</title>
+<link rel="stylesheet" href="/static/manage.css">
+</head>
+<body>
+<header class="top">
+  <a class="back hidden" id="back" href="/">← Back to dashboard</a>
+  <h1>Watcher Dashboard</h1>
+  <button class="kbd-toggle hidden" id="kbd-toggle" type="button" title="On-screen keyboard">⌨</button>
+</header>
+
+<nav class="tabs" id="tabs">
+  <a href="#photos" data-tab="photos">Photos</a>
+  <a href="#todo" data-tab="todo">To-do</a>
+  <a href="#notes" data-tab="notes">Notes</a>
+  <a href="#settings" data-tab="settings">Settings</a>
+  <a href="#music" data-tab="music">Music</a>
+  <a href="#system" data-tab="system">System</a>
+</nav>
+
+<main>
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- PIN -->
+  <section id="pin-gate" class="card hidden">
+    <h2>Enter the dashboard PIN</h2>
+    <p class="muted">The PIN is set on the settings page (or as DASHBOARD_PIN in the .env file).</p>
+    <form id="pin-form" class="row">
+      <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
+      <button type="submit">Unlock</button>
+    </form>
+  </section>
+
+  <!-- PHOTOS -->
+  <section id="tab-photos" class="tab">
+    <div class="card">
+      <h2>Add photos</h2>
+      <p class="muted">Pick photos from your phone. Big photos are resized automatically; iPhone HEIC photos are converted.</p>
+      <label class="dropzone" id="dropzone">
+        <input id="file-input" type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif">
+        <span>Tap to choose photos<br><small>or drop them here</small></span>
+      </label>
+      <div id="upload-status" class="status"></div>
+    </div>
+    <div class="card">
+      <h2>Photos on the dashboard <span class="count" id="photo-count"></span></h2>
+      <div class="grid" id="photo-grid"></div>
+    </div>
+  </section>
+
+  <!-- TODO -->
+  <section id="tab-todo" class="tab">
+    <div class="card">
+      <h2>Shared to-do list</h2>
+      <p class="muted">Shows on the dashboard. Checked items disappear the next day.</p>
+      <form id="todo-form" class="row">
+        <input id="todo-input" type="text" maxlength="200" placeholder="Add something…" autocomplete="off">
+        <button type="submit">Add</button>
+      </form>
+      <ul class="todo" id="todo-items"></ul>
+      <div class="row end"><button type="button" class="ghost" id="todo-clear">Clear checked items</button></div>
+    </div>
+  </section>
+
+  <!-- NOTES -->
+  <section id="tab-notes" class="tab">
+    <div class="card">
+      <h2>Note on the dashboard</h2>
+      <p class="muted">A short message everyone sees. Saves by itself a second after you stop typing.</p>
+      <textarea id="notes-text" rows="5" maxlength="2000" placeholder="Dinner at 6. Trash goes out tonight."></textarea>
+      <div class="status" id="notes-status"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="tab">
+    <div id="settings-warnings" class="card warn hidden"></div>
+
+    <form class="card" data-section="location">
+      <h2>Location &amp; clock</h2>
+      <div class="row">
+        <input id="zip" type="text" inputmode="numeric" placeholder="US ZIP code" maxlength="5">
+        <button type="button" id="zip-lookup">Look up</button>
+      </div>
+      <label>Place name <input name="location.name" type="text"></label>
+      <div class="row two">
+        <label>Latitude <input name="location.lat" type="number" step="0.0001"></label>
+        <label>Longitude <input name="location.lon" type="number" step="0.0001"></label>
+      </div>
+      <label>Time zone <input name="location.timezone" type="text" list="tz-list"><datalist id="tz-list"></datalist></label>
+      <div class="row two">
+        <label>Units <select name="units"><option value="imperial">°F, mph</option><option value="metric">°C, km/h</option></select></label>
+        <label class="check"><input name="clock_24h" type="checkbox"> 24-hour clock</label>
+      </div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="panels">
+      <h2>Panels</h2>
+      <p class="muted">Turn off anything you don't want on the screen. Neighbors fill the space.</p>
+      <div class="checks" id="panel-checks"></div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="weather">
+      <h2>Weather &amp; radar</h2>
+      <div class="row two">
+        <label>Hourly strip (hours) <input name="weather.hourly_hours" type="number" min="4" max="12"></label>
+        <label>Forecast days <input name="weather.forecast_days" type="number" min="1" max="7"></label>
+      </div>
+      <div class="row two">
+        <label class="check"><input name="weather.air_quality" type="checkbox"> Show air quality</label>
+        <label class="check"><input name="weather.alerts" type="checkbox"> Severe weather alerts (US)</label>
+      </div>
+      <div class="row two">
+        <label>Radar zoom (5 wide – 8 close) <input name="radar.zoom" type="number" min="4" max="9"></label>
+        <label>Radar source <select name="radar.provider"><option value="rainviewer">RainViewer</option><option value="mesonet">NWS NEXRAD (Mesonet)</option></select></label>
+      </div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="calendars">
+      <h2>Calendars</h2>
+      <p class="muted">Paste each calendar's ICS link. Outlook: Settings → Calendar → Shared calendars → Publish. Google: calendar settings → "Secret address in iCal format".</p>
+      <div class="list" id="calendar-list"></div>
+      <div class="row"><button type="button" class="ghost" data-add="calendar">+ Add calendar</button></div>
+      <div class="row two">
+        <label>Days ahead <input name="calendar.days_ahead" type="number" min="1" max="14"></label>
+        <label>Max events shown <input name="calendar.max_events" type="number" min="3" max="20"></label>
+      </div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="stocks">
+      <h2>Stocks</h2>
+      <p class="muted">Symbol and the name to show. Index symbols (^GSPC) aren't on Finnhub's free plan; SPY, DIA and QQQ track them.</p>
+      <div class="list" id="stock-list"></div>
+      <div class="row"><button type="button" class="ghost" data-add="stock">+ Add symbol</button></div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="sports">
+      <h2>Sports team</h2>
+      <div class="row">
+        <input id="team-search" type="text" placeholder="Search a team (e.g. Nebraska, Chiefs)">
+        <button type="button" id="team-search-btn">Search</button>
+      </div>
+      <div class="results" id="team-results"></div>
+      <div class="list" id="team-list"></div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="countdowns">
+      <h2>Countdowns</h2>
+      <div class="list" id="countdown-list"></div>
+      <div class="row"><button type="button" class="ghost" data-add="countdown">+ Add countdown</button></div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="news">
+      <h2>News feeds</h2>
+      <p class="muted">Any RSS feed address. Most news sites have one; search "<em>site name</em> RSS".</p>
+      <div class="list" id="feed-list"></div>
+      <div class="row"><button type="button" class="ghost" data-add="feed">+ Add feed</button></div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="photos">
+      <h2>Photos &amp; to-do</h2>
+      <div class="row two">
+        <label>Seconds per photo <input name="photos.seconds_per_photo" type="number" min="5" max="600"></label>
+        <label>Order <select name="photos.order"><option value="shuffle">Shuffle</option><option value="name">By name</option></select></label>
+      </div>
+      <div class="row two">
+        <label>Max upload size (MB) <input name="photos.max_upload_mb" type="number" min="1" max="100"></label>
+        <label>To-do items on screen <input name="todo.max_items" type="number" min="1" max="20"></label>
+      </div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="display">
+      <h2>Screen schedule</h2>
+      <p class="muted">Times are 24-hour (22:30). Leave blank to never turn off.</p>
+      <div class="row two">
+        <label>Screen off at <input name="display.screen_off" type="time"></label>
+        <label>Screen on at <input name="display.screen_on" type="time"></label>
+      </div>
+      <div class="row two">
+        <label>Dim from <input name="display.dim_from" type="time"></label>
+        <label>Dim amount (0–0.9) <input name="display.dim_level" type="number" min="0" max="0.9" step="0.1"></label>
+      </div>
+      <div class="row two">
+        <label>Nightly reload at <input name="display.reload_at" type="time"></label>
+        <label>HDMI control <select name="display.control"><option value="auto">Turn the TV output off/on</option><option value="off">Only dim the page</option></select></label>
+      </div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
+    <form class="card" data-section="secrets">
+      <h2>Keys &amp; links</h2>
+      <p class="muted">Stored only on the Pi. Leave a field blank to keep what's there.</p>
+      <label>Finnhub API key <small class="hint" data-secret="FINNHUB_API_KEY"></small><input name="FINNHUB_API_KEY" type="text" autocomplete="off" placeholder="free key from finnhub.io/register"></label>
+      <label>Outlook calendar link (if not listed under Calendars) <small class="hint" data-secret="OUTLOOK_ICS_URL"></small><input name="OUTLOOK_ICS_URL" type="text" autocomplete="off" placeholder="https://outlook.office365.com/owa/calendar/…/calendar.ics"></label>
+      <label>Spotify Client ID <small class="hint" data-secret="SPOTIFY_CLIENT_ID"></small><input name="SPOTIFY_CLIENT_ID" type="text" autocomplete="off"></label>
+      <label>Settings page PIN <small class="hint" data-secret="DASHBOARD_PIN"></small><input name="DASHBOARD_PIN" type="text" inputmode="numeric" autocomplete="off" placeholder="leave blank for no PIN"></label>
+      <div class="row end"><button type="button" class="ghost" id="clear-pin">Remove PIN</button><button type="submit">Save</button></div>
+    </form>
+  </section>
+
+  <!-- MUSIC -->
+  <section id="tab-music" class="tab">
+    <div class="card" id="music-card">
+      <h2>Now playing (Spotify)</h2>
+      <p class="muted">Coming in the next update.</p>
+    </div>
+  </section>
+
+  <!-- SYSTEM -->
+  <section id="tab-system" class="tab">
+    <div class="card">
+      <h2>Status</h2>
+      <dl class="kv" id="system-info"></dl>
+    </div>
+    <div class="card">
+      <h2>Actions</h2>
+      <div class="actions">
+        <button type="button" data-action="restart">Restart dashboard</button>
+        <button type="button" data-action="update">Update to latest version</button>
+        <button type="button" data-action="screen-off">Screen off now</button>
+        <button type="button" data-action="screen-on">Screen on now</button>
+        <button type="button" class="danger" data-action="reboot">Reboot the Pi</button>
+      </div>
+      <pre id="action-log" class="log hidden"></pre>
+    </div>
+  </section>
+</main>
+
+<div id="kbd" class="kbd hidden"></div>
+<script src="/static/manage.js"></script>
+</body>
+</html>

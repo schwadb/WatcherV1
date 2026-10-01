@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import mock
+from . import manage, mock
 from .cache import SourceCache, refresh_once, run_poller
 from .config import Settings, load_settings
 from .sources import alerts as alerts_src
@@ -141,6 +141,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Watcher Dashboard", lifespan=lifespan)
+app.state.started = STARTED
+app.include_router(manage.router)  # literal routes first; the /api/{name} catch-all below comes last
 
 
 def _cache(name: str) -> SourceCache:

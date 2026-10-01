@@ -58,6 +58,8 @@ body.show-cursor { cursor: auto; }
 .ticker   { grid-column: 1 / 13; grid-row: 4; padding: 0; display: flex; align-items: center; }
 
 /* hidden panels give their space to a neighbor */
+.todo { display: none; }
+body.has-todo .todo { display: block; }
 body.has-todo .calendar { grid-row: 2; }
 body.no-radar .radar { display: none; }
 body.no-radar .weather { grid-row: 1 / 4; }
@@ -83,6 +85,7 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 .cd { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 0.7rem; padding: 0.2rem 0; }
 .cd .n { font-size: 2rem; font-weight: 600; line-height: 1; text-align: right; min-width: 3.2rem; }
 .cd .n.today { color: var(--accent); font-size: 1.4rem; }
+.cd .n.big { font-size: 1.3rem; }
 .cd .t { font-size: 1.05rem; color: var(--text-2); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cd .t small { display: block; color: var(--muted); font-size: 0.85rem; }
 
@@ -200,9 +203,25 @@ body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
 .ticker-item::after { content: "•"; color: var(--muted); margin-left: 2.5rem; }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
+/* ---- to-do + notes ---- */
+.todo-list { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+.todo-list li { display: grid; grid-template-columns: 1.8rem 1fr; gap: 0.6rem; align-items: baseline; font-size: 1.25rem; padding: 0.3rem 0; }
+.todo-list li .box { width: 1.3rem; height: 1.3rem; border: 2px solid var(--text-2); border-radius: 0.3rem; display: inline-block; position: relative; top: 0.15rem; }
+.todo-list li.done { color: var(--muted); text-decoration: line-through; }
+.todo-list li.done .box { border-color: var(--up); background: var(--up); }
+.todo-list li.done .box::after { content: "✓"; color: #0b0f14; font-size: 1rem; line-height: 1.1rem; position: absolute; left: 0.2rem; top: 0; text-decoration: none; }
+.todo-list li .more { color: var(--muted); font-size: 1rem; }
+.notes { margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--panel-edge); font-size: 1.1rem; color: var(--text-2); white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.notes::before { content: "Note"; display: block; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+.todo .empty-hint { color: var(--muted); font-size: 1.1rem; }
+
+/* ---- settings gear (appears when a mouse moves or the screen is touched) ---- */
+.gear { position: fixed; right: 1.2rem; top: 1.2rem; z-index: 960; width: 3.4rem; height: 3.4rem; border-radius: 50%; background: rgba(20,26,34,0.9); border: 1px solid rgba(255,255,255,0.2); color: var(--text); font-size: 2rem; line-height: 3.3rem; text-align: center; text-decoration: none; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+body.show-cursor .gear { opacity: 1; pointer-events: auto; }
+
 /* ---- overlays ---- */
 #dim-overlay { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; z-index: 900; }
-.setup-note { position: fixed; right: 1.5rem; bottom: 5.5rem; z-index: 950; background: rgba(90,169,255,0.15); border: 1px solid rgba(90,169,255,0.5); color: var(--text); padding: 0.6rem 1rem; border-radius: 0.6rem; font-size: 1rem; }
+.setup-note { position: fixed; left: 1.5rem; bottom: 5.5rem; z-index: 950; background: rgba(90,169,255,0.15); border: 1px solid rgba(90,169,255,0.5); color: var(--text); padding: 0.6rem 1rem; border-radius: 0.6rem; font-size: 1rem; }
 
 /* ---- small screens (a phone opening the LAN address) just stack the panels ---- */
 @media (max-width: 900px) and (orientation: portrait) {

@@ -148,7 +148,7 @@
       .slice(0, 3);
     box.classList.toggle("hidden", items.length === 0);
     box.innerHTML = items.map((c) => {
-      const n = c.days === 0 ? '<span class="n today">Today!</span>' : `<span class="n">${c.days}</span>`;
+      const n = c.days === 0 ? '<span class="n today">Today!</span>' : `<span class="n${c.days > 999 ? " big" : ""}">${c.days}</span>`;
       const sub = c.days === 0 ? "" : c.days === 1 ? "day to go" : "days until";
       return `<div class="cd">${n}<span class="t">${escapeHTML(c.icon ? c.icon + " " : "")}${escapeHTML(c.title)}<small>${sub}</small></span></div>`;
     }).join("");
@@ -419,6 +419,45 @@
     slideshow.timer = setTimeout(nextPhoto, slideshow.seconds * 1000);
   }
 
+  // ---------- to-do + notes ------------------------------------------------------------------
+  const todoState = { items: 0, notes: false };
+  function updateTodoVisibility() {
+    const enabled = cfg("panels.todo", true) !== false;
+    document.body.classList.toggle("has-todo", enabled && (todoState.items > 0 || todoState.notes));
+  }
+  function renderTodo(d) {
+    const max = Number(d.max_items) || 8;
+    const items = d.items || [];
+    todoState.items = items.length;
+    const list = $("todo-list");
+    const undone = items.filter((i) => !i.done);
+    const done = items.filter((i) => i.done);
+    const shown = undone.slice(0, max).concat(done.slice(0, Math.max(0, max - undone.length)));
+    list.innerHTML = shown.map((i) => `<li class="${i.done ? "done" : ""}"><span class="box"></span><span>${escapeHTML(i.text)}</span></li>`).join("")
+      + (undone.length > max ? `<li><span></span><span class="more">+${undone.length - max} more</span></li>` : "");
+    updateTodoVisibility();
+  }
+  function renderNotes(d) {
+    const text = (d.text || "").trim();
+    todoState.notes = !!text;
+    $("notes").textContent = text;
+    $("notes").classList.toggle("hidden", !text);
+    updateTodoVisibility();
+  }
+
+  // ---------- settings gear + cursor -------------------------------------------------------------
+  function startInputWatch() {
+    let timer = null;
+    const show = () => {
+      document.body.classList.add("show-cursor");
+      clearTimeout(timer);
+      timer = setTimeout(() => document.body.classList.remove("show-cursor"), 5000);
+    };
+    window.addEventListener("mousemove", show, { passive: true });
+    window.addEventListener("touchstart", show, { passive: true });
+    window.addEventListener("keydown", (e) => { if (e.key === "s" || e.key === "S") location.href = "/manage?kiosk=1"; });
+  }
+
   // ---------- config, panels, setup note ------------------------------------------------------
   function applyPanels() {
     const panels = cfg("panels", {});
@@ -458,6 +497,11 @@
     startWidget("calendar", every("calendar", 300), renderCalendar);
     startWidget("news", every("news", 600), renderNews);
     startWidget("photos", every("photos", 300), renderPhotos);
+    if (cfg("panels.todo", true) !== false) {
+      startWidget("todo", 30, renderTodo, () => {});
+      startWidget("notes", 30, renderNotes, () => {});
+    }
+    startInputWatch();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
   }

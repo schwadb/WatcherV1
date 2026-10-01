@@ -88,6 +88,7 @@ class Settings:
     spotify_client_id: str = ""
     mock: bool = False
     root: Path = ROOT
+    config_path: Path = ROOT / "config.yaml"
     errors: list[str] = field(default_factory=list)
     version: int = 1
 
@@ -174,6 +175,7 @@ class Settings:
             "display": c["display"],
             "reload_at": c["display"]["reload_at"],
             "mock": self.mock,
+            "manage": True,
             "setup_needed": self.setup_needed(),
             "pin_required": bool(self.pin),
             "config_version": self.version,
@@ -196,9 +198,12 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
     path = Path(config_path or os.environ.get("DASHBOARD_CONFIG") or ROOT / "config.yaml")
     user_cfg: dict = {}
     errors: list[str] = []
-    if path.exists():
-        with open(path, encoding="utf-8") as fh:
+    source = path if path.exists() else (ROOT / "config.example.yaml" if (ROOT / "config.example.yaml").exists() else None)
+    if source is not None:
+        with open(source, encoding="utf-8") as fh:
             user_cfg = yaml.safe_load(fh) or {}
+        if source != path:
+            errors.append(f"{path.name} not found; using {source.name} (the settings page will create {path.name})")
     else:
         errors.append(f"config file not found: {path} (using defaults)")
     merged = _merge(DEFAULTS, user_cfg)
@@ -212,6 +217,7 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
     return Settings(
         cfg=cfg,
         raw_cfg=merged,
+        config_path=path,
         finnhub_key=os.environ.get("FINNHUB_API_KEY", "").strip(),
         ics_url=os.environ.get("OUTLOOK_ICS_URL", "").strip(),
         pin=os.environ.get("DASHBOARD_PIN", "").strip(),
