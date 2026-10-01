@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Turn the dashboard's screen off or on.  Usage: deploy/screen.sh on|off|status
+# Works from the dashboard service, cron, SSH, or a terminal on the Pi.
+#
+# How: on Raspberry Pi OS Bookworm (Wayland/labwc) it switches the HDMI output with wlr-randr.
+# If the TV supports HDMI-CEC (Samsung "Anynet+", LG "SimpLink", Sony "Bravia Sync", usually on
+# by default) it also puts the TV itself into standby and wakes it again with cec-ctl.
+# On an X11 desktop it falls back to xrandr.
+set -u
+ACTION="${1:-status}"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+  # labwc names its socket wayland-0; the older Wayfire desktop used wayland-1
+  WAYLAND_DISPLAY="$(ls "$XDG_RUNTIME_DIR" 2>/dev/null | grep -E '^wayland-[0-9]+$' | head -1)"
+  export WAYLAND_DISPLAY
+fi
+OUTPUT="${SCREEN_OUTPUT:-}"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+cec() {  # best effort; ignore every error
+  if [ -e /dev/cec0 ] && have cec-ctl; then
+    case "$1" in
+      off) cec-ctl -s --to 0 --standby >/dev/null 2>&1 || true ;;
+      on)  cec-ctl -s --to 0 --image-view-on >/dev/null 2>&1 || true
+           cec-ctl -s --to 0 --active-source phys-addr=1.0.0.0 >/dev/null 2>&1 || true ;;
+    esac
+  fi
+}
+
+wayland_output() {
+  if [ -n "$OUTPUT" ]; then echo "$OUTPUT"; return; fi
+  wlr-randr 2>/dev/null | grep -E '^[A-Za-z]' | awk '{print $1}' | grep -E '^(HDMI|DSI|DP)' | head -1
+}
+
+relaunch_kiosk() {
+  # After the output comes back, make sure the full-screen browser is still there.
+  if ! pgrep -f -- "--kiosk" >/dev/null 2>&1; then
+    nohup "$DIR/deploy/kiosk.sh" >/dev/null 2>&1 &
+  fi
+}
+
+if have wlr-randr && [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+  OUT="$(wayland_output)"
+  [ -z "$OUT" ] && { echo "no HDMI output found (wlr-randr)"; exit 2; }
+  case "$ACTION" in
+    off) wlr-randr --output "$OUT" --off && cec off && echo "screen off ($OUT)" ;;
+    on)  cec on; wlr-randr --output "$OUT" --on || wlr-randr --output "$OUT" --on --mode 1920x1080; relaunch_kiosk; echo "screen on ($OUT)" ;;
+    status) wlr-randr | grep -A3 "^$OUT" ;;
+    *) echo "usage: $0 on|off|status"; exit 1 ;;
+  esac
+elif have xrandr && [ -n "${DISPLAY:-}" ]; then
+  OUT="${OUTPUT:-$(xrandr 2>/dev/null | awk '/ connected/{print $1; exit}')}"
+  case "$ACTION" in
+    off) xrandr --output "$OUT" --off && cec off && echo "screen off ($OUT)" ;;
+    on)  cec on; xrandr --output "$OUT" --auto; relaunch_kiosk; echo "screen on ($OUT)" ;;
+    status) xrandr | grep "$OUT" ;;
+    *) echo "usage: $0 on|off|status"; exit 1 ;;
+  esac
+else
+  echo "no display control tool available (install wlr-randr on Raspberry Pi OS)"; exit 2
+fi

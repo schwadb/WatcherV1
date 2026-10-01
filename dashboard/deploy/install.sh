@@ -12,7 +12,7 @@ TZ_NAME="$(grep -E '^\s*timezone:' "$DIR/config.yaml" | head -1 | sed -E 's/.*ti
 
 echo "==> Installing system packages"
 sudo apt-get update -qq
-PKGS="git python3 python3-venv python3-pip curl fonts-noto-color-emoji"
+PKGS="git python3 python3-venv python3-pip curl fonts-noto-color-emoji wlr-randr v4l-utils"
 sudo apt-get install -y -qq $PKGS chromium >/dev/null || sudo apt-get install -y -qq $PKGS chromium-browser >/dev/null
 
 echo "==> Creating the Python environment in $DIR/.venv"
@@ -55,7 +55,7 @@ if command -v raspi-config >/dev/null 2>&1; then
 fi
 
 echo "==> Setting up the full-screen browser at login (Wayland/labwc autostart)"
-chmod +x "$DIR/deploy/kiosk.sh"
+chmod +x "$DIR/deploy/kiosk.sh" "$DIR/deploy/screen.sh"
 AUTOSTART="$HOME/.config/labwc/autostart"
 mkdir -p "$(dirname "$AUTOSTART")"
 touch "$AUTOSTART"

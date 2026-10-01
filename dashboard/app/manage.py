@@ -25,13 +25,15 @@ from zoneinfo import ZoneInfo, available_timezones
 import httpx
 from dotenv import set_key, unset_key
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from PIL import Image
 from ruamel.yaml import YAML
 
 from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
+from .screen import run_screen
 from .sources import photos as photos_src
+from .sources import spotify as spotify_src
 from .store import JsonStore
 
 try:  # iPhone HEIC photos, when the optional package is present
@@ -693,3 +695,113 @@ async def system_reboot(request: Request):
     if code != 0:
         raise HTTPException(500, f"Reboot not permitted on this machine: {out}")
     return {"ok": True, "message": "Rebooting the Pi."}
+
+
+# ---------------------------------------------------------------------------------------------
+# screen on/off
+# ---------------------------------------------------------------------------------------------
+@router.get("/api/display")
+async def display_get(request: Request):
+    from .screen import desired_mode, schedule_enabled
+
+    settings = _settings(request)
+    state = request.app.state.display
+    return {**state.summary(), "schedule_enabled": schedule_enabled(settings), "desired_now": desired_mode(settings), "display": settings.cfg["display"]}
+
+
+@router.post("/api/display/{action}")
+async def display_set(request: Request, action: str):
+    require_pin(request)
+    if action not in ("on", "off"):
+        raise HTTPException(404)
+    ok, result = await run_screen(request.app.state.display, action)
+    if not ok:
+        raise HTTPException(500, f"Could not turn the screen {action}: {result}")
+    return {"ok": True, "message": f"Screen {action}.", "result": result}
+
+
+# ---------------------------------------------------------------------------------------------
+# spotify
+# ---------------------------------------------------------------------------------------------
+async def _spotify_finish(request: Request, code: str, state: str) -> dict[str, Any]:
+    settings = _settings(request)
+    pending: dict = request.app.state.spotify_pending
+    verifier = pending.pop(state, None)
+    if not verifier:
+        raise HTTPException(400, "That sign-in link has expired. Press Connect Spotify again and use the new link.")
+    await spotify_src.exchange_code(request.app.state.client, settings, code, verifier)
+    # Turn the panel on and reload so the now-playing poller starts.
+    await asyncio.to_thread(write_config, settings.config_path, {"now_playing": {"provider": "spotify"}})
+    from .main import reload_sources
+
+    await reload_sources(request.app)
+    return {"ok": True, "connected": True}
+
+
+@router.get("/api/spotify/status")
+async def spotify_status(request: Request):
+    settings = _settings(request)
+    tok = spotify_src.token_store(settings).read()
+    source = request.app.state.sources.get("nowplaying")
+    return {
+        "configured": bool(settings.spotify_client_id),
+        "connected": bool(tok.get("refresh_token")),
+        "provider": (settings.cfg.get("now_playing") or {}).get("provider", "off"),
+        "redirect_uri": spotify_src.redirect_uri(settings),
+        "now": source[0].envelope() if source else None,
+    }
+
+
+@router.get("/api/spotify/login")
+async def spotify_login(request: Request):
+    require_pin(request)
+    settings = _settings(request)
+    if not settings.spotify_client_id:
+        raise HTTPException(422, "Add your Spotify Client ID first (Settings → Keys & links).")
+    verifier, challenge = spotify_src.make_pkce()
+    state = secrets.token_urlsafe(16)
+    pending: dict = request.app.state.spotify_pending
+    pending.clear()
+    pending[state] = verifier
+    return {"url": spotify_src.auth_url(settings, challenge, state), "redirect_uri": spotify_src.redirect_uri(settings)}
+
+
+@router.get("/api/spotify/callback")
+async def spotify_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    if error or not code:
+        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{error or 'no code returned'}</p>", status_code=400)
+    try:
+        await _spotify_finish(request, code, state)
+    except HTTPException as exc:
+        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{exc.detail}</p>", status_code=exc.status_code)
+    except Exception as exc:  # noqa: BLE001
+        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{exc}</p>", status_code=500)
+    return HTMLResponse("<h2>Spotify connected</h2><p>You can close this page. The dashboard shows what's playing within a few seconds.</p><p><a href='/manage#music'>Back to settings</a></p>")
+
+
+@router.post("/api/spotify/paste")
+async def spotify_paste(request: Request):
+    require_pin(request)
+    body = await request.json()
+    try:
+        code, state = spotify_src.parse_pasted_url(str(body.get("url", "")))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    try:
+        return await _spotify_finish(request, code, state)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(500, str(exc)) from exc
+
+
+@router.post("/api/spotify/disconnect")
+async def spotify_disconnect(request: Request):
+    require_pin(request)
+    settings = _settings(request)
+    spotify_src.token_store(settings).path.unlink(missing_ok=True)
+    await asyncio.to_thread(write_config, settings.config_path, {"now_playing": {"provider": "off"}})
+    from .main import reload_sources
+
+    await reload_sources(request.app)
+    return {"ok": True}

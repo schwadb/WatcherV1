@@ -1,0 +1,12 @@
+{
+  "playing": true,
+  "provider": "spotify",
+  "title": "Harvest Moon",
+  "artist": "Neil Young",
+  "album": "Harvest Moon",
+  "art_url": "/static/mock/art.png",
+  "device": "Living Room",
+  "progress_ms": 61000,
+  "duration_ms": 303000,
+  "progress_pct": 20.1
+}

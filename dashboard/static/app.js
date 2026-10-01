@@ -419,6 +419,25 @@
     slideshow.timer = setTimeout(nextPhoto, slideshow.seconds * 1000);
   }
 
+  // ---------- now playing --------------------------------------------------------------------
+  const np = { progress: 0, duration: 0, at: 0, playing: false, timer: null };
+  function renderNowPlaying(d) {
+    const card = $("now-playing");
+    np.playing = !!d.playing;
+    if (!d.playing) { card.classList.add("hidden"); return; }
+    card.classList.remove("hidden");
+    if ($("np-art").src !== d.art_url) { $("np-art").src = d.art_url || ""; }
+    $("np-art").classList.toggle("hidden", !d.art_url);
+    $("np-title").textContent = d.title || "";
+    $("np-artist").textContent = d.artist || "";
+    np.progress = Number(d.progress_ms) || 0; np.duration = Number(d.duration_ms) || 0; np.at = Date.now();
+    if (!np.timer) np.timer = setInterval(() => {
+      if (!np.playing || !np.duration) return;
+      const pos = Math.min(np.duration, np.progress + (Date.now() - np.at));
+      $("np-progress").style.width = `${(pos / np.duration) * 100}%`;
+    }, 1000);
+  }
+
   // ---------- to-do + notes ------------------------------------------------------------------
   const todoState = { items: 0, notes: false };
   function updateTodoVisibility() {
@@ -500,6 +519,9 @@
     if (cfg("panels.todo", true) !== false) {
       startWidget("todo", 30, renderTodo, () => {});
       startWidget("notes", 30, renderNotes, () => {});
+    }
+    if (cfg("now_playing.provider", "off") !== "off" && cfg("panels.nowplaying", true) !== false) {
+      startWidget("nowplaying", Number(cfg("now_playing.refresh_seconds", 10)) || 10, renderNowPlaying, () => $("now-playing").classList.add("hidden"));
     }
     startInputWatch();
     setTimeout(watchConfigVersion, 60000);

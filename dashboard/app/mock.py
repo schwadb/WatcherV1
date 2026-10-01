@@ -76,6 +76,13 @@ async def news(settings: Settings) -> dict[str, Any]:
     return {"headlines": news_src.merge([items], int(settings.cfg["news"]["max_headlines"])), "errors": []}
 
 
+async def nowplaying(settings: Settings) -> dict[str, Any]:
+    data = _load(settings, "nowplaying.json")
+    data["progress_ms"] = (int(time.time() * 1000) % data["duration_ms"])
+    data["progress_pct"] = round(data["progress_ms"] / data["duration_ms"] * 100, 1)
+    return data
+
+
 async def sports(settings: Settings) -> dict[str, Any]:
     # Parse the saved ESPN responses as of the day they were captured so "next/last" stay meaningful.
     team = sports_src.parse_team(

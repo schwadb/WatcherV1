@@ -215,7 +215,20 @@
   <section id="tab-music" class="tab">
     <div class="card" id="music-card">
       <h2>Now playing (Spotify)</h2>
-      <p class="muted">Coming in the next update.</p>
+      <p id="music-status" class="status"></p>
+      <ol class="steps">
+        <li>Go to <strong>developer.spotify.com/dashboard</strong> on a computer, log in with your Spotify account (it must be Premium), and click <strong>Create app</strong>. Any name is fine.</li>
+        <li>Under <strong>Redirect URIs</strong> paste exactly: <code id="music-redirect"></code> then save.</li>
+        <li>Copy the app's <strong>Client ID</strong> into Settings → Keys &amp; links, and save.</li>
+        <li>Press <strong>Connect Spotify</strong> below and approve. Your browser then jumps to a page that cannot load (that's expected). Copy that page's <em>address</em> from the address bar and paste it in the box below.</li>
+      </ol>
+      <div class="row">
+        <button type="button" id="spotify-connect">Connect Spotify</button>
+        <button type="button" class="ghost" id="spotify-disconnect">Disconnect</button>
+      </div>
+      <label>Paste the address Spotify sent you to <input id="spotify-paste" type="text" placeholder="http://127.0.0.1:8080/api/spotify/callback?code=…" autocomplete="off"></label>
+      <div class="row end"><button type="button" id="spotify-paste-btn">Finish connecting</button></div>
+      <p class="muted">Doing this on the Pi's own browser (or over <code>ssh -L 8080:127.0.0.1:8080 pi@dashboard.local</code> from a laptop) finishes by itself, no pasting needed.</p>
     </div>
   </section>
 

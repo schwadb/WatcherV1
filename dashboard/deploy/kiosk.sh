@@ -10,6 +10,11 @@ for _ in $(seq 1 120); do
   sleep 2
 done
 
+# Register as an HDMI-CEC playback device so deploy/screen.sh can put the TV on standby (ignored if unsupported).
+if [ -e /dev/cec0 ] && command -v cec-ctl >/dev/null 2>&1; then
+  cec-ctl -d /dev/cec0 --playback -S >/dev/null 2>&1 || true
+fi
+
 # Bookworm ships the package as "chromium"; older images used "chromium-browser".
 if command -v chromium >/dev/null 2>&1; then BROWSER=chromium; else BROWSER=chromium-browser; fi
 

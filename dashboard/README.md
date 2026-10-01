@@ -11,6 +11,7 @@ Raspberry Pi 4B plugged into a TV or monitor. It shows:
 - **Your calendars**, as many as you like, each in its own color (published ICS links, no Microsoft or Google developer setup)
 - **Photo slideshow** from photos you add from your phone
 - **Shared to-do list and a note** everyone in the house can see and edit from a phone
+- **Now playing** card for Spotify, and a **screen schedule** that turns the TV off at night and on in the morning
 - **Scrolling news ticker** from RSS feeds (NPR, BBC, CBS by default)
 
 ![Dashboard](docs/dashboard.png)
@@ -113,7 +114,7 @@ Wi-Fi.
 | **To-do** | A shared household list. Add, check off, delete. Checked items disappear the next day. |
 | **Notes** | A short message shown on the dashboard; saves as you type |
 | **Settings** | Every setting: location by ZIP code, units, 24-hour clock, which panels to show, weather options, radar zoom, calendars with colors, stock symbols, your sports team (search by name), countdowns, news feeds, photo speed, screen schedule, and your keys and links |
-| **Music** | Now-playing setup (Spotify) |
+| **Music** | Connect Spotify so the dashboard shows what's playing |
 | **System** | Dashboard address, version, free disk, Pi temperature, which keys are set, and buttons to restart, update to the latest version, turn the screen off or on, and reboot |
 
 Changes apply right away; the dashboard page reloads itself when settings change.
@@ -165,11 +166,42 @@ baseball, hockey, MLS) and pick your team. The tile shows the record and
 standing, the next game with TV channel, the last result, and the live score
 while a game is on. The data comes from ESPN's public site.
 
-### Screen schedule
+### Turning the TV off at night
 
-Settings → Screen schedule: a time to turn the screen off at night and on in the
-morning, and a time from which the page dims. See the "Turning the TV off at
-night" section once that update is installed.
+Settings → Screen schedule: a time to turn the screen off and a time to turn it
+back on (for example 23:00 and 06:00), plus an optional time from which the page
+dims. The Pi switches its HDMI output off at bedtime and on in the morning. If
+your TV has HDMI-CEC switched on (Samsung "Anynet+", LG "SimpLink", Sony "Bravia
+Sync", usually on by default), the TV itself goes to standby and wakes up too.
+The page also goes black during off hours, so even a TV without CEC shows
+nothing bright.
+
+Try it from the System tab with **Screen off now** and **Screen on now**. If
+the TV does not come back on by itself, turn CEC on in the TV's menu or just
+switch the TV on with its remote; the dashboard is already running.
+"HDMI control: only dim the page" turns the output switching off and keeps the
+black overlay.
+
+### Now playing (Spotify)
+
+The Music tab shows what's playing on your Spotify account as a small card over
+the photo, with album art and a progress bar. Spotify's rules make the one-time
+connection a bit fiddly, so the tab walks you through it:
+
+1. On a computer, go to <https://developer.spotify.com/dashboard>, log in
+   (the account must be **Spotify Premium**, a Spotify rule since 2026) and
+   create an app with any name.
+2. Under **Redirect URIs** paste exactly `http://127.0.0.1:8080/api/spotify/callback`
+   (the Music tab shows the exact value for your port).
+3. Copy the app's **Client ID** into Settings → Keys & links.
+4. On the Music tab press **Connect Spotify** and approve. Your browser then
+   lands on a page that cannot load (Spotify only allows that local address).
+   Copy that page's address from the address bar and paste it into the box on
+   the Music tab, then press **Finish connecting**.
+
+Done on the Pi's own browser (Alt+F4 out of the kiosk, open the address in
+Chromium) the last step finishes by itself. The card hides when nothing is
+playing, and **Disconnect** on the Music tab removes the connection.
 
 ## If something goes wrong
 

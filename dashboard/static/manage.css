@@ -102,3 +102,6 @@ button:disabled { opacity: 0.5; cursor: default; }
 .kbd button.space { min-width: 14rem; }
 .kbd button.go { background: var(--accent); color: #06111f; }
 body.kiosk .kbd button { min-height: 3.4rem; min-width: 3rem; font-size: 1.1rem; }
+.steps { padding-left: 1.2rem; color: var(--text-2); font-size: 0.95rem; }
+.steps li { margin: 0.4rem 0; }
+code { background: #0d1117; border: 1px solid var(--edge); border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.9em; word-break: break-all; }

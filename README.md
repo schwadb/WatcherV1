@@ -68,7 +68,7 @@ Screenshots in `docs/` are generated with Playwright.
 [`dashboard/`](dashboard/) is a separate project: a free, self-hosted wall
 display for a Raspberry Pi (weather with hourly and 5-day forecasts, severe
 weather alerts, live radar, stocks, a favorite-team tile, color-coded calendars,
-countdowns, photo slideshow, shared to-do list, clock, and a news ticker, all
-managed from a settings page on your phone), built as a replacement
+countdowns, photo slideshow, shared to-do list, Spotify now playing, a night-time
+screen schedule, clock, and a news ticker, all managed from a settings page on your phone), built as a replacement
 for a paid DAKboard subscription. See [dashboard/README.md](dashboard/README.md) for the
 step-by-step Pi setup.

@@ -24,7 +24,9 @@ from .sources import alerts as alerts_src
 from .sources import calendar as calendar_src
 from .sources import news as news_src
 from .sources import photos as photos_src
+from .screen import DisplayState, display_scheduler
 from .sources import radar as radar_src
+from .sources import spotify as spotify_src
 from .sources import sports as sports_src
 from .sources import stocks as stocks_src
 from .sources import weather as weather_src
@@ -49,6 +51,7 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
             "calendar": partial(mock.calendar, settings),
             "news": partial(mock.news, settings),
             "sports": partial(mock.sports, settings),
+            "nowplaying": partial(mock.nowplaying, settings),
         }
     else:
         fetchers = {
@@ -59,6 +62,7 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
             "calendar": partial(calendar_src.fetch, client, settings),
             "news": partial(news_src.fetch, client, settings),
             "sports": partial(sports_src.fetch, client, settings),
+            "nowplaying": partial(spotify_src.fetch, client, settings),
         }
     fetchers["photos"] = partial(photos_src.fetch, settings)
 
@@ -67,6 +71,8 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
         fetchers.pop("alerts")
     if not (settings.panel("sports") and sports_src.teams(settings)):
         fetchers.pop("sports")
+    if not (settings.panel("nowplaying") and str((settings.cfg.get("now_playing") or {}).get("provider", "off")).lower() == "spotify"):
+        fetchers.pop("nowplaying")
     for name in ("radar", "stocks", "calendar", "news", "photos"):
         if not settings.panel(name):
             fetchers.pop(name, None)
@@ -80,11 +86,15 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
         "news": lambda: minutes("news") * 60,
         "photos": lambda: minutes("photos", "rescan_minutes") * 60,
         "sports": lambda: sports_src.refresh_minutes(settings) * 60,
+        "nowplaying": lambda: 60.0,
     }
     sources = {name: (SourceCache(name, intervals[name]), fetchers[name]) for name in fetchers}
     if "sports" in sources:  # poll faster while a game is live
         cache = sources["sports"][0]
         cache.interval = lambda: sports_src.interval_seconds(settings, cache)
+    if "nowplaying" in sources:  # poll fast while music plays, slowly when idle
+        np_cache = sources["nowplaying"][0]
+        np_cache.interval = lambda: spotify_src.interval_seconds(settings, np_cache)
     return sources
 
 
@@ -132,10 +142,15 @@ async def lifespan(app: FastAPI):
     app.state.client = httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0 (compatible; WatcherDashboard/1.0)"})
     app.state.reload_lock = asyncio.Lock()
     app.state.sources = {}
+    app.state.display = DisplayState()
+    app.state.spotify_pending = {}
     await start_sources(app, settings)
+    scheduler = asyncio.create_task(display_scheduler(app), name="display-scheduler")
     try:
         yield
     finally:
+        scheduler.cancel()
+        await asyncio.gather(scheduler, return_exceptions=True)
         await stop_sources(app)
         await app.state.client.aclose()
 

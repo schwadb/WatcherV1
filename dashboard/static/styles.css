@@ -220,7 +220,7 @@ body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
 body.show-cursor .gear { opacity: 1; pointer-events: auto; }
 
 /* ---- overlays ---- */
-#dim-overlay { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; z-index: 900; }
+#dim-overlay { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; z-index: 970; }
 .setup-note { position: fixed; left: 1.5rem; bottom: 5.5rem; z-index: 950; background: rgba(90,169,255,0.15); border: 1px solid rgba(90,169,255,0.5); color: var(--text); padding: 0.6rem 1rem; border-radius: 0.6rem; font-size: 1rem; }
 
 /* ---- small screens (a phone opening the LAN address) just stack the panels ---- */

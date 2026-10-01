@@ -12,7 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import load_settings  # noqa: E402
-from app.sources import alerts, astro, calendar, news, sports, weather  # noqa: E402
+from app import screen  # noqa: E402
+from app.sources import alerts, astro, calendar, news, spotify, sports, weather  # noqa: E402
 
 settings = load_settings()
 FX = settings.fixtures_dir
@@ -73,6 +74,27 @@ check("calendars: parse() wrapper still works", calendar.parse((FX / "calendar.i
 items = news.parse_feed("Sample", (FX / "news.xml").read_bytes())
 merged = news.merge([items, items], 40)
 check("news: duplicates removed across feeds", len(merged) == 7)
+
+# ---- spotify + screen schedule ----------------------------------------------------------------
+raw_np = {"is_playing": True, "progress_ms": 30000, "currently_playing_type": "track", "item": {"name": "Song", "duration_ms": 120000, "artists": [{"name": "A"}, {"name": "B"}], "album": {"name": "Album", "images": [{"url": "big"}, {"url": "mid"}, {"url": "small"}]}}}
+npd = spotify.parse_now_playing(raw_np)
+check("spotify: track parsed with artists joined and medium art", npd["playing"] and npd["artist"] == "A, B" and npd["art_url"] == "mid" and npd["progress_pct"] == 25.0)
+check("spotify: nothing playing", spotify.parse_now_playing(None)["playing"] is False)
+check("spotify: pasted callback address parsed", spotify.parse_pasted_url("http://127.0.0.1:8080/api/spotify/callback?code=abc123&state=xyz") == ("abc123", "xyz"))
+try:
+    spotify.parse_pasted_url("http://127.0.0.1:8080/api/spotify/callback?error=access_denied"); check("spotify: error address raises", False)
+except ValueError as exc:
+    check("spotify: error address raises", "access_denied" in str(exc))
+check("spotify: PKCE challenge is base64url without padding", "=" not in spotify.make_pkce()[1])
+from datetime import datetime as _dt
+from zoneinfo import ZoneInfo as _Z
+class _S:  # minimal stand-in for Settings
+    cfg = {"display": {"screen_off": "23:00", "screen_on": "06:00", "control": "auto"}}
+    timezone = "America/Chicago"
+check("screen: midnight-crossing window -> off at 01:00", screen.desired_mode(_S(), _dt(2026, 10, 1, 1, 0, tzinfo=_Z("America/Chicago"))) == "off")
+check("screen: on at 12:00", screen.desired_mode(_S(), _dt(2026, 10, 1, 12, 0, tzinfo=_Z("America/Chicago"))) == "on")
+check("screen: on at exactly screen_on", screen.desired_mode(_S(), _dt(2026, 10, 1, 6, 0, tzinfo=_Z("America/Chicago"))) == "on")
+check("screen: schedule enabled only with both times", screen.schedule_enabled(_S()) and not screen.schedule_enabled(type("T", (), {"cfg": {"display": {"screen_off": "", "screen_on": "06:00"}}, "timezone": "UTC"})()))
 
 print(f"\n{sum(checks)}/{len(checks)} checks passed")
 sys.exit(0 if all(checks) else 1)

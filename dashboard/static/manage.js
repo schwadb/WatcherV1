@@ -264,10 +264,35 @@
   $("team-search-btn").addEventListener("click", searchTeam);
   $("team-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchTeam(); } });
 
-  // ---------- music (filled in by the Spotify update) --------------------------------------
+  // ---------- music --------------------------------------------------------------------------
   async function loadMusic() {
-    if (window.loadMusicTab) return window.loadMusicTab(api, toast, esc);
+    const d = await api("/api/spotify/status");
+    $("music-redirect").textContent = d.redirect_uri;
+    let status = d.connected ? "Connected to Spotify." : d.configured ? "Client ID saved. Not connected yet: follow step 4." : "Not set up yet: follow the steps below.";
+    if (d.connected && d.now && d.now.data) status += d.now.data.playing ? ` Playing now: ${d.now.data.title} – ${d.now.data.artist}.` : " Nothing is playing right now.";
+    if (d.connected && d.now && d.now.error) status += ` (${d.now.error})`;
+    $("music-status").textContent = status;
+    $("spotify-disconnect").classList.toggle("hidden", !d.connected);
   }
+  $("spotify-connect").addEventListener("click", async () => {
+    try {
+      const d = await api("/api/spotify/login");
+      if (KIOSK) location.href = d.url; else window.open(d.url, "_blank");
+      toast("Approve in Spotify, then paste the address here.");
+    } catch (err) { toast(err.message, true); }
+  });
+  $("spotify-paste-btn").addEventListener("click", async () => {
+    try {
+      await api("/api/spotify/paste", { method: "POST", json: { url: $("spotify-paste").value } });
+      $("spotify-paste").value = "";
+      toast("Spotify connected");
+      loadMusic();
+    } catch (err) { toast(err.message, true); }
+  });
+  $("spotify-disconnect").addEventListener("click", async () => {
+    if (!(await confirmAction("Disconnect Spotify?"))) return;
+    try { await api("/api/spotify/disconnect", { method: "POST" }); toast("Disconnected"); loadMusic(); } catch (err) { toast(err.message, true); }
+  });
 
   // ---------- system -------------------------------------------------------------------------
   function fmtUptime(s) { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; }
