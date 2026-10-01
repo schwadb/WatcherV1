@@ -11,15 +11,28 @@
 <main class="board">
 
   <section class="panel clock" data-widget="clock">
-    <div class="time"><span id="clock-time">--:--</span><span id="clock-ampm" class="ampm"></span></div>
-    <div id="clock-date" class="date">&nbsp;</div>
+    <div class="main">
+      <div class="time"><span id="clock-time">--:--</span><span id="clock-ampm" class="ampm"></span></div>
+      <div id="clock-date" class="date">&nbsp;</div>
+    </div>
+    <div class="countdowns hidden" id="countdowns"></div>
   </section>
 
   <section class="panel photo" data-widget="photos">
     <img id="photo-a" class="layer" alt="">
     <img id="photo-b" class="layer" alt="">
     <div id="photo-empty" class="empty hidden">Add photos to the photo folder on the Pi to start the slideshow.</div>
+    <div id="alert-banner" class="alert hidden" role="alert">
+      <div class="alert-event" id="alert-event"></div>
+      <div class="alert-text" id="alert-text"></div>
+      <div class="alert-until" id="alert-until"></div>
+    </div>
+    <div id="now-playing" class="now-playing hidden">
+      <img id="np-art" alt="">
+      <div class="np-text"><div class="np-title" id="np-title"></div><div class="np-artist" id="np-artist"></div><div class="np-bar"><div id="np-progress"></div></div></div>
+    </div>
     <span class="badge" id="badge-photos"></span>
+    <span class="badge alerts-badge" id="badge-alerts"></span>
   </section>
 
   <section class="panel weather" data-widget="weather">
@@ -33,17 +46,22 @@
       </div>
     </div>
     <div class="today-line" id="weather-today">&nbsp;</div>
+    <div class="chips" id="weather-chips"></div>
+    <ul class="hourly" id="hourly"></ul>
     <ul class="forecast" id="forecast"></ul>
   </section>
 
   <section class="panel calendar" data-widget="calendar">
-    <header><h2>Calendar</h2><span class="badge" id="badge-calendar"></span></header>
+    <header><h2>Calendar</h2><span class="legend" id="cal-legend"></span><span class="badge" id="badge-calendar"></span></header>
     <div class="agenda" id="agenda"><div class="muted">Loading…</div></div>
   </section>
 
   <section class="panel stocks" data-widget="stocks">
-    <header><h2>Markets</h2><span class="market" id="market-state"></span><span class="badge" id="badge-stocks"></span></header>
-    <div class="quotes" id="quotes"><div class="muted">Loading…</div></div>
+    <header><h2 id="markets-title">Markets</h2><span class="market" id="market-state"></span><span class="badge" id="badge-stocks"></span><span class="badge sports-badge" id="badge-sports"></span></header>
+    <div class="tiles">
+      <div class="quotes" id="quotes"><div class="muted">Loading…</div></div>
+      <div class="tile sports hidden" id="sports"></div>
+    </div>
   </section>
 
   <section class="panel radar" data-widget="radar">
@@ -60,6 +78,8 @@
   </section>
 
 </main>
+<div id="dim-overlay"></div>
+<div id="setup-note" class="setup-note hidden"></div>
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/icons.js"></script>
 <script src="/static/app.js"></script>

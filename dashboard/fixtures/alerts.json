@@ -1,0 +1,53 @@
+{
+  "type": "FeatureCollection",
+  "title": "Current watches, warnings, and advisories for 40.3039 N, 97.0012 W",
+  "updated": "2026-10-01T00:00:00+00:00",
+  "features": [
+    {
+      "id": "https://api.weather.gov/alerts/sample-tornado-watch",
+      "type": "Feature",
+      "properties": {
+        "id": "sample-tornado-watch",
+        "areaDesc": "Saline, NE; Jefferson, NE; Gage, NE; Lancaster, NE",
+        "sent": "2026-10-01T18:05:00-05:00",
+        "effective": "2026-10-01T18:05:00-05:00",
+        "onset": "2026-10-01T18:05:00-05:00",
+        "expires": "2099-01-01T00:00:00-06:00",
+        "ends": "2099-01-01T00:00:00-06:00",
+        "status": "Actual",
+        "messageType": "Alert",
+        "category": "Met",
+        "severity": "Severe",
+        "certainty": "Possible",
+        "urgency": "Expected",
+        "event": "Tornado Watch",
+        "senderName": "NWS Omaha/Valley NE",
+        "headline": "Tornado Watch issued October 1 at 6:05PM CDT until October 2 at 1:00AM CDT by NWS Omaha/Valley NE",
+        "description": "TORNADO WATCH 512 REMAINS VALID UNTIL 1 AM CDT EARLY THIS MORNING FOR THE FOLLOWING AREAS: in southeast Nebraska this watch includes Gage, Jefferson, Lancaster and Saline counties. Supercells capable of producing tornadoes, large hail and damaging winds are possible this evening.",
+        "instruction": "A Tornado Watch means conditions are favorable for tornadoes in and close to the watch area. Be prepared to move to a place of safety if a warning is issued."
+      }
+    },
+    {
+      "id": "https://api.weather.gov/alerts/sample-expired-wind",
+      "type": "Feature",
+      "properties": {
+        "id": "sample-expired-wind",
+        "areaDesc": "Saline, NE",
+        "effective": "2026-09-01T06:00:00-05:00",
+        "onset": "2026-09-01T06:00:00-05:00",
+        "expires": "2026-09-01T18:00:00-05:00",
+        "ends": "2026-09-01T18:00:00-05:00",
+        "status": "Actual",
+        "messageType": "Alert",
+        "severity": "Minor",
+        "certainty": "Likely",
+        "urgency": "Expected",
+        "event": "Wind Advisory",
+        "senderName": "NWS Omaha/Valley NE",
+        "headline": "Wind Advisory (expired; must never be shown)",
+        "description": "Expired sample used by the tests.",
+        "instruction": ""
+      }
+    }
+  ]
+}

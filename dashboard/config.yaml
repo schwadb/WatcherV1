@@ -1,5 +1,6 @@
 # Watcher Dashboard settings (no secrets here; secrets go in .env)
-# After editing on the Pi: sudo systemctl restart dashboard
+# Easiest way to change these: open http://dashboard.local:8080/manage on your phone.
+# If you edit this file by hand on the Pi: sudo systemctl restart dashboard
 
 location:
   name: "Plymouth, NE"        # shown in the weather panel
@@ -10,9 +11,25 @@ location:
 units: imperial               # imperial = °F / mph, metric = °C / km/h
 clock_24h: false
 
+# Show or hide whole panels. Hidden panels give their space to their neighbors.
+panels:
+  alerts: true                # severe weather banner
+  radar: true
+  stocks: true
+  sports: true
+  calendar: true
+  todo: true
+  news: true
+  photos: true
+  nowplaying: true
+
 weather:
   refresh_minutes: 10
   forecast_days: 5            # days shown after today
+  hourly_hours: 8             # hours in the hourly strip
+  air_quality: true           # US air quality index from Open-Meteo
+  alerts: true                # National Weather Service watches and warnings (US only)
+  alerts_refresh_minutes: 5
 
 radar:
   provider: rainviewer        # rainviewer (default) or mesonet (US NEXRAD fallback)
@@ -31,10 +48,41 @@ stocks:
   refresh_minutes_open: 2     # during US market hours
   refresh_minutes_closed: 15
 
+# Calendars: any number of ICS links, each with its own color.
+# "${NAME}" reads the link from .env, so secrets stay out of this file.
+calendars:
+  - name: Work
+    url: "${OUTLOOK_ICS_URL}"
+    color: "#5aa9ff"
+  # - name: Family
+  #   url: "${FAMILY_ICS_URL}"
+  #   color: "#f5b942"
+
 calendar:
   days_ahead: 7               # today + this many days
   refresh_minutes: 15
-  max_events: 12
+  max_events: 9
+
+# Countdown chips in the clock panel ("N days"). Past dates disappear by themselves.
+countdowns:
+  - title: Halloween
+    date: 2026-10-31
+    icon: "🎃"
+  - title: Thanksgiving
+    date: 2026-11-26
+    icon: "🦃"
+  - title: Christmas
+    date: 2026-12-25
+    icon: "🎄"
+
+# Favorite team tile (ESPN). team = ESPN team id or abbreviation.
+# Find other teams with: .venv/bin/python tools/find_team.py "kansas city"
+sports:
+  refresh_minutes: 10
+  teams:
+    - sport: football
+      league: college-football
+      team: 158               # Nebraska Cornhuskers
 
 news:
   refresh_minutes: 10
@@ -53,9 +101,22 @@ photos:
   order: shuffle              # shuffle or name
   rescan_minutes: 5
   max_size: 1920              # longest edge after resizing, in pixels
+  max_upload_mb: 25           # per photo, for uploads from the manage page
+
+todo:
+  max_items: 8                # shown on the dashboard
+
+now_playing:
+  provider: "off"             # off | spotify
+  refresh_seconds: 10
 
 display:
   reload_at: "03:30"          # daily browser reload (keeps Chromium's memory in check)
+  screen_off: ""              # e.g. "23:00" turns the TV off; "" = never
+  screen_on: ""               # e.g. "06:00"
+  dim_from: ""                # e.g. "21:30" dims the page until screen_on
+  dim_level: 0.5              # 0 = no dimming, 0.9 = very dark
+  control: auto               # auto = switch the HDMI output on/off; off = only dim the page
 
 server:
   host: "0.0.0.0"

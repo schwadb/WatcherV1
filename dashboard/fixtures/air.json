@@ -1,0 +1,21 @@
+{
+    "latitude": 40.300003,
+    "longitude": -97.0,
+    "generationtime_ms": 0.2886056900024414,
+    "utc_offset_seconds": -18000,
+    "timezone": "America/Chicago",
+    "timezone_abbreviation": "GMT-5",
+    "elevation": 437.0,
+    "current_units": {
+        "time": "iso8601",
+        "interval": "seconds",
+        "us_aqi": "USAQI",
+        "pm2_5": "\u03bcg/m\u00b3"
+    },
+    "current": {
+        "time": "2026-09-30T20:00",
+        "interval": 3600,
+        "us_aqi": 24,
+        "pm2_5": 3.1
+    }
+}

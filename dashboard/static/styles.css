@@ -25,6 +25,7 @@ body {
   cursor: none; user-select: none; -webkit-user-select: none;
   font-variant-numeric: tabular-nums;
 }
+body.show-cursor { cursor: auto; }
 
 .board {
   display: grid;
@@ -43,70 +44,143 @@ body {
 .badge { position: absolute; top: 0.75rem; right: 1rem; z-index: 5; font-size: 0.8rem; color: var(--warn); background: rgba(0,0,0,0.45); padding: 0.15rem 0.5rem; border-radius: 0.4rem; display: none; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badge.show { display: inline-block; }
 .badge.error { color: var(--down); }
+.badge.alerts-badge { top: auto; bottom: 0.75rem; right: 1rem; }
+.badge.sports-badge { right: auto; left: 1rem; }
 
 /* ---- grid placement ---- */
 .clock    { grid-column: 1 / 5;  grid-row: 1; }
 .calendar { grid-column: 1 / 5;  grid-row: 2 / 4; }
+.todo     { grid-column: 1 / 5;  grid-row: 3; }
 .photo    { grid-column: 5 / 10; grid-row: 1 / 3; padding: 0; background: #000; }
 .stocks   { grid-column: 5 / 10; grid-row: 3; }
 .weather  { grid-column: 10 / 13; grid-row: 1 / 3; }
 .radar    { grid-column: 10 / 13; grid-row: 3; padding: 0; }
 .ticker   { grid-column: 1 / 13; grid-row: 4; padding: 0; display: flex; align-items: center; }
 
-/* ---- clock ---- */
-.clock { display: flex; flex-direction: column; justify-content: center; }
+/* hidden panels give their space to a neighbor */
+body.has-todo .calendar { grid-row: 2; }
+body.no-radar .radar { display: none; }
+body.no-radar .weather { grid-row: 1 / 4; }
+body.no-stocks .stocks { display: none; }
+body.no-stocks .photo { grid-row: 1 / 4; }
+body.no-photos .photo { display: none; }
+body.no-photos .stocks { grid-row: 1 / 4; }
+body.no-photos .tiles { flex-direction: column; }
+body.no-calendar .calendar { display: none; }
+body.no-calendar .clock { grid-row: 1 / 3; }
+body.no-calendar.has-todo .todo { grid-row: 3; }
+body.no-calendar:not(.has-todo) .clock { grid-row: 1 / 4; }
+body.no-todo .todo { display: none; }
+body.no-news .ticker { display: none; }
+body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
+
+/* ---- clock + countdowns ---- */
+.clock { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; }
 .clock .time { font-size: 7rem; font-weight: 300; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 0.6rem; }
 .clock .ampm { font-size: 2rem; font-weight: 500; color: var(--text-2); }
-.clock .date { margin-top: 0.75rem; font-size: 1.75rem; color: var(--text-2); }
+.clock .date { margin-top: 0.75rem; font-size: 1.6rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.countdowns { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; max-width: 14rem; }
+.cd { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 0.7rem; padding: 0.2rem 0; }
+.cd .n { font-size: 2rem; font-weight: 600; line-height: 1; text-align: right; min-width: 3.2rem; }
+.cd .n.today { color: var(--accent); font-size: 1.4rem; }
+.cd .t { font-size: 1.05rem; color: var(--text-2); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd .t small { display: block; color: var(--muted); font-size: 0.85rem; }
 
-/* ---- photo ---- */
+/* ---- photo, alert banner, now playing ---- */
 .photo .layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.4s ease-in-out; }
 .photo .layer.visible { opacity: 1; }
 .photo .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 3rem; text-align: center; color: var(--muted); font-size: 1.5rem; }
 
+.alert { position: absolute; left: 0; right: 0; top: 0; z-index: 6; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2rem; padding: 0.8rem 1.4rem; background: rgba(230, 60, 60, 0.92); color: #fff; backdrop-filter: blur(4px); }
+.alert.sev-moderate { background: rgba(240, 150, 40, 0.92); }
+.alert.sev-minor { background: rgba(220, 190, 40, 0.92); color: #1a1500; }
+.alert.sev-extreme { animation: alert-pulse 1.2s ease-in-out infinite; }
+.alert-event { font-size: 1.5rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.alert-text { font-size: 1.05rem; line-height: 1.3; max-height: 2.7rem; overflow: hidden; }
+.alert-until { font-size: 1rem; font-weight: 600; white-space: nowrap; opacity: 0.9; }
+@keyframes alert-pulse { 0%, 100% { background: rgba(230, 60, 60, 0.92); } 50% { background: rgba(170, 20, 20, 0.95); } }
+body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
+
+.now-playing { position: absolute; left: 1rem; bottom: 1rem; z-index: 6; display: flex; gap: 0.9rem; align-items: center; padding: 0.7rem 1rem 0.7rem 0.7rem; background: rgba(0,0,0,0.65); border-radius: 0.8rem; backdrop-filter: blur(6px); max-width: 60%; }
+.now-playing img { width: 5rem; height: 5rem; border-radius: 0.4rem; object-fit: cover; background: #222; }
+.np-text { min-width: 0; }
+.np-title { font-size: 1.3rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-artist { font-size: 1.05rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-bar { height: 0.25rem; background: rgba(255,255,255,0.2); border-radius: 0.2rem; margin-top: 0.5rem; overflow: hidden; }
+.np-bar div { height: 100%; width: 0; background: var(--accent); transition: width 1s linear; }
+
 /* ---- weather ---- */
 .weather .now { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 1rem; margin-top: 0.25rem; }
-.weather .now-icon { width: 6rem; height: 6rem; color: var(--accent); }
+.weather .now-icon { width: 5rem; height: 5rem; color: var(--accent); }
 .weather .now-icon svg { width: 100%; height: 100%; }
-.weather .now-temp { font-size: 5.5rem; font-weight: 300; line-height: 1; letter-spacing: -0.03em; }
-.weather .now-temp .deg { font-size: 2.5rem; vertical-align: top; color: var(--text-2); margin-left: 0.1rem; }
-.weather .now-label { font-size: 1.5rem; font-weight: 500; }
-.weather .now-detail { font-size: 1.05rem; color: var(--text-2); margin-top: 0.3rem; line-height: 1.45; }
-.weather .today-line { margin: 0.9rem 0 0.6rem; padding-top: 0.75rem; border-top: 1px solid var(--panel-edge); font-size: 1.1rem; color: var(--text-2); }
+.weather .now-temp { font-size: 4.6rem; font-weight: 300; line-height: 1; letter-spacing: -0.03em; }
+.weather .now-temp .deg { font-size: 2rem; vertical-align: top; color: var(--text-2); margin-left: 0.1rem; }
+.weather .now-label { font-size: 1.3rem; font-weight: 500; }
+.weather .now-detail { font-size: 0.95rem; color: var(--text-2); margin-top: 0.2rem; line-height: 1.4; }
+.weather .today-line { margin: 0.6rem 0 0.4rem; padding-top: 0.6rem; border-top: 1px solid var(--panel-edge); font-size: 1rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chips { display: flex; flex-wrap: nowrap; gap: 0.4rem; margin-bottom: 0.5rem; overflow: hidden; }
+.chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--text-2); background: rgba(255,255,255,0.04); border: 1px solid var(--panel-edge); border-radius: 2rem; padding: 0.1rem 0.55rem; white-space: nowrap; }
+.chip .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; }
+.chip svg { width: 1.1rem; height: 1.1rem; }
+.hourly { list-style: none; margin: 0 0 0.2rem; padding: 0.4rem 0 0.45rem; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.2rem; border-top: 1px solid var(--panel-edge); border-bottom: 1px solid var(--panel-edge); }
+.hourly li { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; font-size: 0.95rem; color: var(--text-2); }
+.hourly li .h { font-size: 0.85rem; color: var(--muted); }
+.hourly li .icon { width: 1.7rem; height: 1.7rem; color: var(--text-2); }
+.hourly li .icon svg { width: 100%; height: 100%; }
+.hourly li .t { font-size: 1.05rem; color: var(--text); font-weight: 500; }
+.hourly li .p { font-size: 0.8rem; color: var(--accent); min-height: 1em; }
 .forecast { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.forecast li { display: grid; grid-template-columns: 4.5rem 2.6rem 1fr auto; align-items: center; gap: 0.75rem; padding: 0.8rem 0; border-top: 1px solid var(--panel-edge); font-size: 1.25rem; }
+.forecast li { display: grid; grid-template-columns: 4.2rem 2.4rem 1fr auto; align-items: center; gap: 0.7rem; padding: 0.42rem 0; border-top: 1px solid var(--panel-edge); font-size: 1.25rem; }
+.forecast li:first-child { border-top: none; }
 .forecast li .day { font-weight: 600; }
-.forecast li .icon { width: 2.4rem; height: 2.4rem; color: var(--text-2); }
+.forecast li .icon { width: 2.2rem; height: 2.2rem; color: var(--text-2); }
 .forecast li .icon svg { width: 100%; height: 100%; }
-.forecast li .label { color: var(--text-2); font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.forecast li .label { color: var(--text-2); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .forecast li .label .pct { color: var(--accent); margin-left: 0.4rem; }
 .forecast li .temps { font-variant-numeric: tabular-nums; }
 .forecast li .temps .lo { color: var(--muted); margin-left: 0.5rem; }
 
 /* ---- calendar ---- */
+.legend { display: inline-flex; gap: 0.8rem; font-size: 0.85rem; color: var(--muted); margin-left: auto; margin-right: 0.5rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.legend i { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; }
 .agenda { display: flex; flex-direction: column; gap: 0.25rem; overflow: hidden; height: calc(100% - 2.25rem); }
 .agenda .day { margin-top: 0.75rem; }
 .agenda .day:first-child { margin-top: 0; }
 .agenda .day-head { font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 0.3rem; border-bottom: 1px solid var(--panel-edge); margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
 .agenda .day.today .day-head { color: var(--accent); }
-.agenda .event { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.75rem; align-items: baseline; padding: 0.35rem 0; font-size: 1.3rem; }
+.agenda .event { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.75rem; align-items: baseline; padding: 0.35rem 0 0.35rem 0.7rem; font-size: 1.3rem; border-left: 0.3rem solid var(--cal, transparent); margin: 0.15rem 0; }
 .agenda .event .when { color: var(--text-2); font-size: 1.05rem; white-space: nowrap; }
 .agenda .event .what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda .event .where { color: var(--muted); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda .none { color: var(--muted); font-size: 1.1rem; padding: 0.3rem 0; }
 .agenda::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3rem; background: linear-gradient(to bottom, transparent, var(--panel)); pointer-events: none; }
 
-/* ---- stocks ---- */
+/* ---- markets & sports ---- */
 .stocks header .market { font-size: 0.9rem; color: var(--muted); }
-.quotes { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 1rem; height: calc(100% - 2.5rem); }
-.quote { display: flex; flex-direction: column; justify-content: center; padding: 1rem 1.25rem; border-radius: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-edge); min-width: 0; }
-.quote .sym { font-size: 1.1rem; letter-spacing: 0.08em; color: var(--muted); }
-.quote .name { font-size: 1.35rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.quote .price { font-size: 3rem; font-weight: 300; line-height: 1.1; margin-top: 0.4rem; letter-spacing: -0.02em; }
-.quote .chg { font-size: 1.3rem; margin-top: 0.35rem; font-weight: 500; }
+.tiles { display: flex; gap: 1rem; height: calc(100% - 2.5rem); }
+.quotes { flex: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 1rem; min-width: 0; }
+.quote, .tile { display: flex; flex-direction: column; justify-content: center; padding: 0.9rem 1rem; border-radius: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-edge); min-width: 0; }
+.quote .sym { font-size: 0.95rem; letter-spacing: 0.08em; color: var(--muted); }
+.quote .name { font-size: 1.1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quote .price { font-size: 1.9rem; font-weight: 300; line-height: 1.1; margin-top: 0.4rem; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; }
+.quote .chg { font-size: 1.2rem; margin-top: 0.3rem; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.quote .abs { font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
 .quote.up .chg { color: var(--up); }
 .quote.down .chg { color: var(--down); }
 .quote.flat .chg { color: var(--text-2); }
+.tile.sports { flex: 1.35; border-left: 0.35rem solid var(--team, var(--accent)); }
+.sports .head { display: flex; align-items: center; gap: 0.8rem; }
+.sports .head img { width: 3.2rem; height: 3.2rem; object-fit: contain; }
+.sports .team { font-size: 1.25rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sports .record { font-size: 0.95rem; color: var(--text-2); line-height: 1.2; }
+.sports .line { display: grid; grid-template-columns: 3rem 1fr; gap: 0.5rem; align-items: baseline; margin-top: 0.5rem; font-size: 1.05rem; line-height: 1.25; }
+.sports .line .k { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.sports .line .w { color: var(--up); font-weight: 600; }
+.sports .line .l { color: var(--down); font-weight: 600; }
+.sports .live { color: var(--accent); font-weight: 700; }
+.sports .live::before { content: ""; display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--down); margin-right: 0.5rem; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: 0.2; } }
 
 /* ---- radar ---- */
 #map { position: absolute; inset: 0; background: #0b0f14; }
@@ -126,6 +200,10 @@ body {
 .ticker-item::after { content: "•"; color: var(--muted); margin-left: 2.5rem; }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
+/* ---- overlays ---- */
+#dim-overlay { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; z-index: 900; }
+.setup-note { position: fixed; right: 1.5rem; bottom: 5.5rem; z-index: 950; background: rgba(90,169,255,0.15); border: 1px solid rgba(90,169,255,0.5); color: var(--text); padding: 0.6rem 1rem; border-radius: 0.6rem; font-size: 1rem; }
+
 /* ---- small screens (a phone opening the LAN address) just stack the panels ---- */
 @media (max-width: 900px) and (orientation: portrait) {
   html { font-size: 2.6vw; }
@@ -135,4 +213,6 @@ body {
   .panel { min-height: 14rem; }
   .photo, .radar { height: 24rem; }
   .agenda::after { display: none; }
+  .tiles { flex-direction: column; height: auto; }
+  .quotes { grid-auto-flow: row; }
 }

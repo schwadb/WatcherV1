@@ -1,4 +1,4 @@
-/* Inline SVG weather icons, keyed by the icon names the server sends. */
+/* Inline SVG weather and moon icons, keyed by the names the server sends. */
 (function () {
   const wrap = (body) =>
     `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -30,5 +30,24 @@
   window.weatherIcon = function (name, isDay) {
     if (isDay === false && icons[name + "-night"]) return icons[name + "-night"];
     return icons[name] || icons.cloudy;
+  };
+
+  /** Moon disc for a phase 0..1 (0 = new, 0.5 = full). Lit part in currentColor, dark part dim. */
+  window.moonIcon = function (phase) {
+    const r = 22, cx = 32, top = cx - r, bottom = cx + r;
+    const p = ((Number(phase) || 0) % 1 + 1) % 1;
+    const rx = Math.abs(Math.cos(2 * Math.PI * p)) * r;
+    let lit = "";
+    if (p < 0.02 || p > 0.98) lit = "";                              // new moon
+    else if (Math.abs(p - 0.5) < 0.02) lit = `<circle cx="${cx}" cy="${cx}" r="${r}" fill="currentColor" stroke="none"/>`;
+    else {
+      const waxing = p < 0.5;
+      const crescent = waxing ? p < 0.25 : p > 0.75;
+      // outer edge on the lit side, then back along the terminator ellipse
+      const outerSweep = waxing ? 1 : 0;
+      const backSweep = waxing ? (crescent ? 0 : 1) : (crescent ? 1 : 0);
+      lit = `<path d="M${cx} ${top} A${r} ${r} 0 0 ${outerSweep} ${cx} ${bottom} A${rx.toFixed(2)} ${r} 0 0 ${backSweep} ${cx} ${top}Z" fill="currentColor" stroke="none"/>`;
+    }
+    return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="${cx}" cy="${cx}" r="${r}" fill="rgba(255,255,255,0.12)"/>${lit}</svg>`;
   };
 })();

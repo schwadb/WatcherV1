@@ -12,8 +12,8 @@ TZ_NAME="$(grep -E '^\s*timezone:' "$DIR/config.yaml" | head -1 | sed -E 's/.*ti
 
 echo "==> Installing system packages"
 sudo apt-get update -qq
-sudo apt-get install -y -qq git python3 python3-venv python3-pip curl chromium >/dev/null || \
-  sudo apt-get install -y -qq git python3 python3-venv python3-pip curl chromium-browser >/dev/null
+PKGS="git python3 python3-venv python3-pip curl fonts-noto-color-emoji"
+sudo apt-get install -y -qq $PKGS chromium >/dev/null || sudo apt-get install -y -qq $PKGS chromium-browser >/dev/null
 
 echo "==> Creating the Python environment in $DIR/.venv"
 if [ ! -x "$DIR/.venv/bin/python" ]; then

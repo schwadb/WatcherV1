@@ -3,11 +3,12 @@
 A free, self-hosted replacement for a DAKboard-style wall display, built for a
 Raspberry Pi 4B plugged into a TV or monitor. It shows:
 
-- **Clock and date**
-- **Current weather and a 5-day outlook** (Open-Meteo, no account needed)
+- **Clock and date**, with **countdowns** to dates you care about
+- **Current weather, an hourly strip and a 5-day outlook**, plus UV, air quality, sunrise/sunset and moon phase (Open-Meteo, no account needed)
+- **Severe weather banner** for active National Weather Service watches and warnings (US)
 - **Live animated radar** for the last two hours (RainViewer, no account needed)
-- **Stocks** (Finnhub, free API key)
-- **Your Outlook calendar** (the calendar's published ICS link, no Microsoft developer setup)
+- **Stocks** (Finnhub, free API key) and a **favorite team tile** with record, next game and last result (ESPN)
+- **Your calendars**, as many as you like, each in its own color (published ICS links, no Microsoft or Google developer setup)
 - **Photo slideshow** from a folder on the Pi
 - **Scrolling news ticker** from RSS feeds (NPR, BBC, CBS by default)
 
@@ -161,6 +162,61 @@ The screen picks the change up on its next refresh or at the nightly reload.
 | `radar.zoom` | 5 shows several states, 7 is the most detail the radar offers |
 | `radar.provider` | `rainviewer` (default) or `mesonet` (US NEXRAD, a fallback if RainViewer changes) |
 | `display.reload_at` | Time of the nightly browser reload |
+| `panels` | Show or hide whole panels (`radar`, `stocks`, `sports`, `calendar`, `news`, `photos`, `alerts`…). Hidden panels give their space to their neighbors. |
+| `weather.hourly_hours`, `weather.air_quality`, `weather.alerts` | How many hours the hourly strip shows, and whether to fetch air quality and NWS alerts |
+| `calendars` | The list of calendars (name, link, color). See below. |
+| `countdowns` | Dates for the countdown chips in the clock panel |
+| `sports.teams` | The team for the sports tile. See below. |
+
+### Several calendars, each with a color
+
+Any calendar that can give you a public ICS link works: Outlook (Publish a calendar),
+Google Calendar (Settings → your calendar → "Secret address in iCal format"), iCloud
+(share the calendar as public). Put each link in `.env` under its own name and list the
+calendars in `config.yaml`:
+
+```yaml
+calendars:
+  - name: Work
+    url: "${OUTLOOK_ICS_URL}"
+    color: "#5aa9ff"
+  - name: Family
+    url: "${FAMILY_ICS_URL}"
+    color: "#f5b942"
+```
+
+Each event on the dashboard gets a stripe in its calendar's color, and a small legend
+appears in the panel header. One calendar failing never hides the others.
+
+### Severe weather banner
+
+When the National Weather Service has an active watch, warning or advisory for your
+location, a red (warning), orange (watch) or yellow (advisory) banner appears across the
+top of the photo panel with the alert name and when it ends. Nothing shows when there are
+no alerts. Set `weather.alerts: false` to turn it off (outside the US it does nothing).
+
+### Countdowns
+
+```yaml
+countdowns:
+  - title: Halloween
+    date: 2026-10-31
+    icon: "🎃"
+```
+
+The clock panel shows up to three upcoming countdowns. Past dates disappear by themselves.
+
+### Favorite team
+
+The sports tile follows one team using ESPN's public data. To find your team's id:
+
+```bash
+.venv/bin/python tools/find_team.py "kansas city"
+```
+
+and put the result under `sports.teams` in `config.yaml` (`sport`, `league`, `team`). It
+shows the record and standing, the next game (with TV channel), the last result, and the
+live score while a game is on.
 
 ## If something goes wrong
 
@@ -196,11 +252,13 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 DASHBOARD_MOCK=1 .venv/bin/uvicorn app.main:app --port 8080   # sample data, no network needed
 bash tools/smoke.sh                                 # checks every /api/* endpoint
 .venv/bin/python tools/check_calendar.py            # recurring-event parsing checks
+.venv/bin/python tools/check_parsers.py             # alerts, moon, hourly, sports, multi-calendar checks
 node tools/screenshot.mjs http://127.0.0.1:8080 out.png   # needs Playwright for Node
 ```
 
 Data sources and their terms: [Open-Meteo](https://open-meteo.com/) (free for
-non-commercial use), [RainViewer](https://www.rainviewer.com/api.html) (free
-for personal use, attribution shown on the map), [Finnhub](https://finnhub.io/)
-(free tier), Esri World Dark Gray basemap tiles, and each news site's public
-RSS feed.
+non-commercial use, weather and air quality), the [National Weather Service API](https://www.weather.gov/documentation/services-web-api)
+(free, US), [RainViewer](https://www.rainviewer.com/api.html) (free for personal use,
+attribution shown on the map), [Finnhub](https://finnhub.io/) (free tier), ESPN's public
+site API (unofficial; the sports tile fails softly if it changes), Esri World Dark Gray
+basemap tiles, and each news site's public RSS feed.
