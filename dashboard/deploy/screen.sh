@@ -5,7 +5,7 @@
 # How: on Raspberry Pi OS Bookworm (Wayland/labwc) it switches the HDMI output with wlr-randr.
 # If the TV supports HDMI-CEC (Samsung "Anynet+", LG "SimpLink", Sony "Bravia Sync", usually on
 # by default) it also puts the TV itself into standby and wakes it again with cec-ctl.
-# On an X11 desktop it falls back to xrandr.
+# On Hyprland (Omarchy) it uses hyprctl's dpms switch; on an X11 desktop it falls back to xrandr.
 set -u
 ACTION="${1:-status}"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,6 +16,14 @@ if [ -z "${WAYLAND_DISPLAY:-}" ]; then
   export WAYLAND_DISPLAY
 fi
 OUTPUT="${SCREEN_OUTPUT:-}"
+# Hyprland: find the running instance so hyprctl works from the dashboard service too.
+if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -d "$XDG_RUNTIME_DIR/hypr" ]; then
+  HYPRLAND_INSTANCE_SIGNATURE="$(ls -t "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | head -1)"
+  export HYPRLAND_INSTANCE_SIGNATURE
+fi
+# X11 from a service: point at the user's display.
+[ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && export DISPLAY=:0
+[ -z "${XAUTHORITY:-}" ] && [ -f "$HOME/.Xauthority" ] && export XAUTHORITY="$HOME/.Xauthority"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
@@ -38,12 +46,19 @@ wayland_output() {
 
 relaunch_kiosk() {
   # After the output comes back, make sure the full-screen browser is still there.
-  if ! pgrep -f -- "--kiosk" >/dev/null 2>&1; then
+  if ! pgrep -f -- "--class=watcher-dashboard" >/dev/null 2>&1; then
     nohup "$DIR/deploy/kiosk.sh" >/dev/null 2>&1 &
   fi
 }
 
-if have wlr-randr && [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+if have hyprctl && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && hyprctl monitors >/dev/null 2>&1; then
+  case "$ACTION" in
+    off) hyprctl dispatch dpms off >/dev/null && cec off && echo "screen off (hyprland)" ;;
+    on)  cec on; hyprctl dispatch dpms on >/dev/null; relaunch_kiosk; echo "screen on (hyprland)" ;;
+    status) hyprctl monitors | grep -E "Monitor|dpmsStatus" ;;
+    *) echo "usage: $0 on|off|status"; exit 1 ;;
+  esac
+elif have wlr-randr && [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
   OUT="$(wayland_output)"
   [ -z "$OUT" ] && { echo "no HDMI output found (wlr-randr)"; exit 2; }
   case "$ACTION" in
@@ -52,7 +67,7 @@ if have wlr-randr && [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WA
     status) wlr-randr | grep -A3 "^$OUT" ;;
     *) echo "usage: $0 on|off|status"; exit 1 ;;
   esac
-elif have xrandr && [ -n "${DISPLAY:-}" ]; then
+elif have xrandr && [ -n "${DISPLAY:-}" ] && xrandr >/dev/null 2>&1; then
   OUT="${OUTPUT:-$(xrandr 2>/dev/null | awk '/ connected/{print $1; exit}')}"
   case "$ACTION" in
     off) xrandr --output "$OUT" --off && cec off && echo "screen off ($OUT)" ;;
@@ -61,5 +76,5 @@ elif have xrandr && [ -n "${DISPLAY:-}" ]; then
     *) echo "usage: $0 on|off|status"; exit 1 ;;
   esac
 else
-  echo "no display control tool available (install wlr-randr on Raspberry Pi OS)"; exit 2
+  echo "no display control available here (needs hyprctl, wlr-randr or xrandr with a running desktop)"; exit 2
 fi

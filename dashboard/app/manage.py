@@ -342,7 +342,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off")},
-        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control", "start_at_login", "locked_kiosk")},
+        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
     }
 
 
@@ -470,6 +470,7 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         out["control"] = "off" if str(d.get("control", "auto")).lower() == "off" else "auto"
         out["start_at_login"] = bool(d.get("start_at_login", True))
         out["locked_kiosk"] = bool(d.get("locked_kiosk", False))
+        out["stop_idle_lock"] = bool(d.get("stop_idle_lock", True))
         clean["display"] = out
     return clean, errors
 
@@ -634,6 +635,29 @@ def _lan_ip() -> str:
         return ""
 
 
+def _machine() -> dict[str, str]:
+    """A human name for this computer and which kind of system it is."""
+    model = ""
+    for path in ("/proc/device-tree/model", "/sys/devices/virtual/dmi/id/product_name"):
+        try:
+            model = Path(path).read_text(errors="replace").strip("\x00\n ")
+            if model:
+                break
+        except OSError:
+            continue
+    if "raspberry pi" in model.lower():
+        platform = "Raspberry Pi OS"
+    elif Path("/etc/arch-release").exists():
+        platform = "Omarchy / Arch Linux" if (Path.home() / ".config" / "hypr").exists() else "Arch Linux"
+    elif Path("/etc/debian_version").exists():
+        platform = "Debian / Ubuntu"
+    else:
+        platform = "Linux"
+    if model.startswith("MacPro6"):
+        model = "Mac Pro (2013)"
+    return {"machine": model or "Linux PC", "platform": platform}
+
+
 def _cpu_temp() -> float | None:
     try:
         return round(int(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000, 1)
@@ -660,6 +684,7 @@ async def system_get(request: Request):
         "setup_needed": settings.setup_needed(),
         "heic_supported": HEIC_SUPPORTED,
         "python": sys.version.split()[0],
+        **_machine(),
     }
 
 

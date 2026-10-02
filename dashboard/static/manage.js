@@ -198,7 +198,7 @@
     setField(p, "photos.seconds_per_photo", c.photos.seconds_per_photo); setField(p, "photos.order", c.photos.order);
     setField(p, "photos.max_upload_mb", c.photos.max_upload_mb); setField(p, "todo.max_items", c.todo.max_items);
     const d = forms.display;
-    for (const k of ["screen_off", "screen_on", "dim_from", "dim_level", "reload_at", "control", "start_at_login", "locked_kiosk"]) setField(d, "display." + k, c.display[k]);
+    for (const k of ["screen_off", "screen_on", "dim_from", "dim_level", "reload_at", "control", "start_at_login", "locked_kiosk", "stop_idle_lock"]) setField(d, "display." + k, c.display[k]);
     document.querySelectorAll("[data-secret]").forEach((el) => { const s = settings.secrets[el.dataset.secret]; el.textContent = s && s.set ? `currently: ${s.hint}` : "not set"; });
   }
 
@@ -214,7 +214,7 @@
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")) }, todo: { max_items: Number(g("todo.max_items")) } } };
-      case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk") } } };
+      case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk"), stop_idle_lock: g("display.stop_idle_lock") } } };
       case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
     }
     return {};
@@ -301,6 +301,7 @@
     let win = "unknown";
     try { const disp = await api("/api/display"); win = disp.dashboard_window === "running" ? "showing on the Pi's screen" : "closed (the Pi is showing its desktop)"; } catch (e) { /* ignore */ }
     const rows = [
+      ["Computer", `${d.machine} · ${d.platform}`],
       ["Dashboard window", win],
       ["Dashboard address", `http://${d.hostname}.local:${d.port}  (${d.ip ? "http://" + d.ip + ":" + d.port : "IP unknown"})`],
       ["Version", d.version], ["Running for", fmtUptime(d.uptime_seconds)], ["Free disk", `${d.disk_free_gb} GB`],

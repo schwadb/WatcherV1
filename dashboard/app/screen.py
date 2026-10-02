@@ -132,21 +132,49 @@ async def close_dashboard() -> tuple[bool, str]:
         return False, str(exc)
 
 
-def autostart_path() -> Path:
-    return Path(os.environ.get("DASHBOARD_AUTOSTART") or Path.home() / ".config" / "labwc" / "autostart")
+def autostart_target(home: Path | None = None) -> tuple[str, Path]:
+    """Which login-autostart mechanism this desktop uses: (kind, file)."""
+    home = home or Path(os.environ.get("DASHBOARD_HOME") or Path.home())
+    hypr = home / ".config" / "hypr"
+    if (hypr / "autostart.lua").exists() or (hypr / "hyprland.lua").exists():
+        return "omarchy", hypr / "autostart.lua"              # Omarchy 4+: Lua config
+    if (hypr / "hyprland.conf").exists():
+        return "hyprland", hypr / "autostart.conf"            # plain Hyprland / Omarchy 3: exec-once
+    if (home / ".config" / "labwc").exists():
+        return "labwc", home / ".config" / "labwc" / "autostart"   # Raspberry Pi OS
+    return "xdg", home / ".config" / "autostart" / "watcher-dashboard.desktop"  # GNOME, KDE, XFCE, Cinnamon
 
 
-def set_autostart(enabled: bool, port: int, path: Path | None = None) -> str:
-    """Add or remove the kiosk line in labwc's autostart file. No-op when its folder doesn't exist."""
-    path = path or autostart_path()
-    if not path.parent.exists():
-        return "no desktop autostart folder here (not a Raspberry Pi desktop)"
-    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    kept = [ln for ln in lines if AUTOSTART_LINE_MARK not in ln]
-    if enabled:
-        kept.append(f"DASHBOARD_PORT={port} {ROOT / 'deploy' / 'kiosk.sh'} &")
-    path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
-    return "dashboard will open at login" if enabled else "dashboard will not open at login (desktop launcher still works)"
+def set_autostart(enabled: bool, port: int, home: Path | None = None) -> str:
+    """Make the dashboard open at login (or not) using this desktop's own mechanism. Idempotent."""
+    kind, path = autostart_target(home)
+    script = ROOT / "deploy" / "kiosk.sh"
+    command = f"DASHBOARD_PORT={port} {script}"
+    if kind == "xdg":
+        if enabled:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "[Desktop Entry]\nType=Application\nName=Watcher Dashboard\n"
+                f"Exec=env {command}\nIcon={ROOT / 'static' / 'icon.png'}\nTerminal=false\n"
+                "X-GNOME-Autostart-enabled=true\n", encoding="utf-8")
+        else:
+            path.unlink(missing_ok=True)
+        how = "desktop autostart entry"
+    else:
+        if not path.parent.exists():
+            return "no desktop session found here, so nothing was set to open at login"
+        lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        kept = [ln for ln in lines if AUTOSTART_LINE_MARK not in ln]
+        if enabled:
+            if kind == "omarchy":
+                kept.append(f'o.exec_on_start("{command}")')
+            elif kind == "hyprland":
+                kept.append(f"exec-once = {command}")
+            else:
+                kept.append(f"{command} &")
+        path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+        how = {"omarchy": "Omarchy autostart.lua", "hyprland": "Hyprland autostart.conf", "labwc": "Raspberry Pi desktop autostart"}[kind]
+    return f"dashboard will open at login ({how})" if enabled else f"dashboard will not open at login ({how} entry removed; the launcher still works)"
 
 
 async def display_scheduler(app) -> None:

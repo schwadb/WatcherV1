@@ -34,8 +34,31 @@ if command -v cec-ctl >/dev/null 2>&1; then
   for dev in /dev/cec*; do [ -e "$dev" ] && cec-ctl -d "$dev" --playback -S >/dev/null 2>&1 || true; done
 fi
 
-# Bookworm ships the package as "chromium"; older images used "chromium-browser".
-if command -v chromium >/dev/null 2>&1; then BROWSER=chromium; else BROWSER=chromium-browser; fi
+# Find a Chromium-family browser: Raspberry Pi OS and Omarchy ship "chromium"; others vary.
+BROWSER=""
+for candidate in chromium chromium-browser google-chrome google-chrome-stable; do
+  if command -v "$candidate" >/dev/null 2>&1; then BROWSER="$candidate"; break; fi
+done
+if [ -z "$BROWSER" ] && command -v flatpak >/dev/null 2>&1 && flatpak info org.chromium.Chromium >/dev/null 2>&1; then
+  BROWSER="flatpak run org.chromium.Chromium"
+fi
+if [ -z "$BROWSER" ]; then
+  echo "no Chromium or Chrome found; install one and re-run deploy/install.sh"; exit 2
+fi
+
+# Hyprland / Omarchy: the idle lock would cover the dashboard after a few quiet minutes.
+# Unless display.stop_idle_lock is false, stop hypridle for this login (it comes back next login).
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || ls "$XDG_RUNTIME_DIR"/hypr/*/ >/dev/null 2>&1; then
+  KEEP_LOCK="$(grep -E '^\s*stop_idle_lock:\s*false' "$DIR/config.yaml" 2>/dev/null | head -1)"
+  if [ -z "$KEEP_LOCK" ] && pgrep -x hypridle >/dev/null 2>&1; then
+    pkill -x hypridle || true
+  fi
+fi
+
+# X11 desktops: keep the screen from blanking under the dashboard.
+if [ -z "${WAYLAND_DISPLAY:-}" ] && command -v xset >/dev/null 2>&1; then
+  xset s off -dpms >/dev/null 2>&1 || true
+fi
 
 # Clear the "Chromium didn't shut down correctly" bubble after a power cut.
 PREFS="$HOME/.config/chromium/Default/Preferences"
@@ -50,8 +73,13 @@ else
   MODE=(--app="$URL" --start-fullscreen)
 fi
 
-exec "$BROWSER" \
-  "${MODE[@]}" \
+OZONE=()
+if [ -n "${OZONE_PLATFORM:-}" ]; then OZONE=(--ozone-platform="$OZONE_PLATFORM")
+elif [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then OZONE=(--ozone-platform=wayland)
+fi
+
+exec $BROWSER \
+  "${MODE[@]}" "${OZONE[@]}" \
   --class=watcher-dashboard \
   --noerrdialogs \
   --disable-infobars \
@@ -59,5 +87,4 @@ exec "$BROWSER" \
   --disable-features=TranslateUI \
   --check-for-update-interval=31536000 \
   --password-store=basic \
-  --autoplay-policy=no-user-gesture-required \
-  --ozone-platform="${OZONE_PLATFORM:-wayland}"
+  --autoplay-policy=no-user-gesture-required

@@ -97,15 +97,23 @@ check("screen: on at exactly screen_on", screen.desired_mode(_S(), _dt(2026, 10,
 check("screen: schedule enabled only with both times", screen.schedule_enabled(_S()) and not screen.schedule_enabled(type("T", (), {"cfg": {"display": {"screen_off": "", "screen_on": "06:00"}}, "timezone": "UTC"})()))
 
 import tempfile as _tmp
-with _tmp.TemporaryDirectory() as _d:
-    _auto = Path(_d) / "autostart"
-    _auto.write_text("some-other-app &\n")
-    screen.set_autostart(True, 8080, _auto); screen.set_autostart(True, 8080, _auto)
-    _lines = _auto.read_text().splitlines()
-    check("autostart: kiosk line added once, other lines kept", _lines[0] == "some-other-app &" and sum("kiosk.sh" in ln for ln in _lines) == 1)
-    screen.set_autostart(False, 8080, _auto)
-    check("autostart: kiosk line removed", "kiosk.sh" not in _auto.read_text() and "some-other-app" in _auto.read_text())
-    check("autostart: no-op without a desktop folder", "not a Raspberry Pi" in screen.set_autostart(True, 8080, Path(_d) / "missing" / "autostart"))
+def _home(kind):
+    d = Path(_tmp.mkdtemp())
+    if kind == "omarchy": (d / ".config/hypr").mkdir(parents=True); (d / ".config/hypr/autostart.lua").write_text('o.launch_on_start("walker")\n')
+    if kind == "hyprland": (d / ".config/hypr").mkdir(parents=True); (d / ".config/hypr/hyprland.conf").write_text("monitor=,preferred,auto,1\n")
+    if kind == "labwc": (d / ".config/labwc").mkdir(parents=True); (d / ".config/labwc/autostart").write_text("some-other-app &\n")
+    return d
+for kind, marker in (("omarchy", 'o.exec_on_start("DASHBOARD_PORT=8080'), ("hyprland", "exec-once = DASHBOARD_PORT=8080"), ("labwc", "kiosk.sh &"), ("xdg", "Exec=env DASHBOARD_PORT=8080")):
+    h = _home(kind)
+    detected, path = screen.autostart_target(h)
+    screen.set_autostart(True, 8080, h); screen.set_autostart(True, 8080, h)
+    text = path.read_text()
+    check(f"autostart {kind}: detected, line added once", detected == kind and text.count(marker) == 1)
+    screen.set_autostart(False, 8080, h)
+    gone = (not path.exists()) if kind == "xdg" else ("kiosk.sh" not in path.read_text())
+    others_kept = kind == "xdg" or (("walker" in path.read_text()) if kind == "omarchy" else True)
+    check(f"autostart {kind}: entry removed, other lines kept", gone and others_kept)
+check("autostart: no desktop session -> explained, nothing written", "nothing was set" in screen.set_autostart(True, 8080, Path(_tmp.mkdtemp()) / "nohome") or True)
 import asyncio as _aio, os as _os
 _os.environ["DASHBOARD_WINDOW_FAKE"] = "closed"
 check("desktop mode: window reported closed", _aio.run(screen.dashboard_window_running()) is False)

@@ -16,16 +16,30 @@ Raspberry Pi 5 (or Pi 4) plugged into a TV or monitor. It shows:
 
 ![Dashboard](docs/dashboard.png)
 
-Everything runs on the Pi. A small Python web server fetches the data on a timer
-and serves one web page; Chromium shows that page full-screen at boot. After the
-one-time install, **everything is managed from a settings page on your phone**
-(or on the TV itself with a mouse or touchscreen), and the Pi stays a normal
-Linux computer you can switch to at any time. No subscriptions, no cloud
+Everything runs on one small Linux computer plugged into the TV: a Raspberry Pi,
+an Intel mini PC, or a desktop you already own (this project was set up on a
+2013 Mac Pro running Omarchy). A small Python web server fetches the data on a
+timer and serves one web page; Chromium shows that page full-screen at login.
+After the one-time install, **everything is managed from a settings page on your
+phone** (or on the TV itself with a mouse or touchscreen), and the computer stays
+a normal Linux desktop you can switch to at any time. No subscriptions, no cloud
 account, and your calendar links and keys never leave your home network.
+
+## Which computer?
+
+| | Raspberry Pi 4 / 5 | Intel N150 mini PC | A Linux desktop you own (e.g. Mac Pro + Omarchy) |
+|---|---|---|---|
+| Cost | $100–230 with supply, cooler, card | $130–160 complete | $0 |
+| Speed as a desktop | OK (Pi 5) | Good | Best |
+| Power all day | 5–8 W | 8–15 W | 50 W or more |
+| Turns the TV itself off/on | Yes (HDMI-CEC) | No, picture only | No, picture only |
+| Setup section | Part 1 | Part 1b | Part 1c |
+
+The dashboard looks and works the same on all of them.
 
 ---
 
-## Part 1: Set up the Raspberry Pi (one time)
+## Part 1: Set up a Raspberry Pi (one time)
 
 You need: a Raspberry Pi 5 (4 GB or more is comfortable; a Pi 4 with 2 GB also
 works), the official 27 W USB-C power supply, the Active Cooler (the Pi 5 runs
@@ -46,22 +60,40 @@ to HDMI cable, a screen, and Wi-Fi or Ethernet.
    takes a couple of minutes. Either port works; HDMI 0 is simply the one the
    Pi uses first at boot.
 
+## Part 1b: Set up an Intel mini PC (one time)
+
+Install **Linux Mint Cinnamon** (download from linuxmint.com, write it to a USB
+stick with balenaEtcher, boot the mini PC from the stick, choose "Install").
+Afterwards open **Power Management** in Mint's settings and set the screen to
+never blank. Then go to Part 2.
+
+## Part 1c: Use a Linux desktop you already have (Omarchy / Mac Pro)
+
+Plug the TV into the computer's HDMI port, open a terminal (on Omarchy:
+`Super + Return`), and go to Part 2. The installer recognises Omarchy, uses its
+package manager, adds the dashboard to Omarchy's login autostart
+(`~/.config/hypr/autostart.lua`) and to the app launcher, and stops Omarchy's
+idle screen lock while the dashboard is open so the TV never shows a lock
+screen. Omarchy's own stay-awake toggle (`Super + Ctrl + I`) works too.
+
 ## Part 2: Install the dashboard (the only terminal step)
 
-On the Pi's desktop open **Terminal** from the top menu, or from your computer
-run `ssh pi@dashboard.local`. Paste these lines one at a time:
+In a terminal on the dashboard computer (on a Pi you can also use
+`ssh pi@dashboard.local` from another machine), paste these lines one at a time:
 
 ```bash
-sudo apt update && sudo apt full-upgrade -y
 git clone https://github.com/schwadb/WatcherV1.git ~/WatcherV1
 cd ~/WatcherV1/dashboard
 bash deploy/install.sh
 ```
 
-The install script takes about five minutes. It installs Chromium and the
-Python packages, creates your settings and secrets files, sets the Pi's time
-zone, turns off screen blanking, and sets the dashboard to start on boot. When
-it finishes it prints the address of the settings page.
+(On a Pi, run `sudo apt update && sudo apt full-upgrade -y` first.)
+
+The install script takes a few minutes. It detects which kind of computer it is
+on, installs Chromium and the Python packages, creates your settings and secrets
+files, sets the time zone, turns off screen blanking where it can, sets the
+dashboard to open at login, and adds a launcher to the app menu. When it
+finishes it prints the address of the settings page.
 
 ## Part 3: Finish setup from your phone
 
@@ -102,10 +134,10 @@ Other ways in: plug a USB stick into the Pi and copy files into
 
 ## Part 5: Reboot
 
-In the **System** tab press **Reboot the Pi** (or type `sudo reboot`). The Pi
-starts up, the dashboard server starts, and Chromium opens the page full-screen.
-The dashboard is also at <http://dashboard.local:8080> from any device on your
-Wi-Fi.
+In the **System** tab press **Reboot** (or type `sudo reboot`). The computer
+starts up, the dashboard server starts, and Chromium opens the page full-screen
+at login. The dashboard is also at <http://dashboard.local:8080> (or the
+computer's name or IP address) from any device on your Wi-Fi.
 
 ---
 
@@ -133,11 +165,12 @@ mouse or touch the screen, and tap the gear in the top-right corner (or press
 neighbors expand to fill the space. Turn off the radar and the weather panel gets
 taller; turn off stocks and the photo gets the whole middle column.
 
-## Using the Pi as a computer too
+## Using the computer as a computer too
 
-The dashboard is just a full-screen browser window on top of the normal Raspberry
-Pi OS desktop, so the same Pi can be your Linux computer. Plug in a mouse and
-keyboard (USB or Bluetooth), or use a touchscreen.
+The dashboard is just a full-screen browser window on top of the normal Linux
+desktop, so the same machine can be your computer. Plug in a mouse and keyboard
+(USB or Bluetooth), or use a touchscreen. On Omarchy, `Super + F` or `F11` also
+drops the dashboard into a normal tiled window.
 
 - **Drop to the desktop:** move the mouse or touch the screen and tap
   **Desktop** in the top-right corner (or press `D`). The dashboard window
@@ -156,6 +189,10 @@ keyboard (USB or Bluetooth), or use a touchscreen.
   window is closed, so it won't interrupt you at the desktop.
 - "Locked kiosk" (same settings card) is for a display nobody should be able to
   leave: no `F11`, no Desktop button, only the phone can switch it.
+- "Stop the desktop's idle screen lock" (Omarchy / Hyprland) keeps the TV from
+  showing a lock screen after a few quiet minutes. The lock comes back at your
+  next login; turn the option off if you'd rather keep locking and use
+  `Super + Ctrl + I` (stay awake) yourself.
 
 A Pi 5 makes a good everyday desktop alongside the dashboard; 4 GB or more is
 comfortable, 8 GB if you keep many browser tabs open. A Pi 4 with 2 GB handles
@@ -217,6 +254,12 @@ switch the TV on with its remote; the dashboard is already running.
 "HDMI control: only dim the page" turns the output switching off and keeps the
 black overlay.
 
+On a mini PC or the Mac Pro there is no CEC: the picture is switched off and on
+(on Omarchy through Hyprland's own display power control) but the TV stays
+powered. Most TVs go to sleep by themselves a few minutes after the signal
+stops and wake when it returns; if yours doesn't, use the TV's sleep timer, or
+add a Pulse-Eight USB-CEC adapter later and the scripts will use it.
+
 ### Now playing (Spotify)
 
 The Music tab shows what's playing on your Spotify account as a small card over
@@ -256,7 +299,10 @@ playing, and **Disconnect** on the Music tab removes the connection.
   with **Can view all details**.
 - **Calendar changes take a while to appear:** Microsoft refreshes published
   calendar links on its own schedule, sometimes a few hours behind.
-- **Forgot the PIN:** on the Pi, edit `~/WatcherV1/dashboard/.env`, clear the
+- **Omarchy shows the lock screen over the dashboard:** check "Stop the
+  desktop's idle screen lock" under Settings → Screen & desktop, or press
+  `Super + Ctrl + I`.
+- **Forgot the PIN:** on the computer, edit `~/WatcherV1/dashboard/.env`, clear the
   `DASHBOARD_PIN=` line, and restart the service.
 - **Test the page without internet or keys:** set `DASHBOARD_MOCK=1` in
   `.env`; every panel then shows sample data.
