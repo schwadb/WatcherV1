@@ -215,9 +215,11 @@ body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
 .notes::before { content: "Note"; display: block; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
 .todo .empty-hint { color: var(--muted); font-size: 1.1rem; }
 
-/* ---- settings gear (appears when a mouse moves or the screen is touched) ---- */
-.gear { position: fixed; right: 1.2rem; top: 1.2rem; z-index: 960; width: 3.4rem; height: 3.4rem; border-radius: 50%; background: rgba(20,26,34,0.9); border: 1px solid rgba(255,255,255,0.2); color: var(--text); font-size: 2rem; line-height: 3.3rem; text-align: center; text-decoration: none; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-body.show-cursor .gear { opacity: 1; pointer-events: auto; }
+/* ---- corner buttons (appear when a mouse moves or the screen is touched) ---- */
+.corner-buttons { position: fixed; right: 1.2rem; top: 1.2rem; z-index: 960; display: flex; gap: 0.6rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+body.show-cursor .corner-buttons { opacity: 1; pointer-events: auto; }
+.corner { display: inline-flex; align-items: center; gap: 0.5rem; height: 3rem; padding: 0 1.1rem; border-radius: 1.5rem; background: rgba(20,26,34,0.92); border: 1px solid rgba(255,255,255,0.25); color: var(--text); font: inherit; font-size: 1.1rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+.corner:hover { background: rgba(90,169,255,0.25); }
 
 /* ---- overlays ---- */
 #dim-overlay { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; z-index: 970; }

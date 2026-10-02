@@ -198,7 +198,7 @@
     setField(p, "photos.seconds_per_photo", c.photos.seconds_per_photo); setField(p, "photos.order", c.photos.order);
     setField(p, "photos.max_upload_mb", c.photos.max_upload_mb); setField(p, "todo.max_items", c.todo.max_items);
     const d = forms.display;
-    for (const k of ["screen_off", "screen_on", "dim_from", "dim_level", "reload_at", "control"]) setField(d, "display." + k, c.display[k]);
+    for (const k of ["screen_off", "screen_on", "dim_from", "dim_level", "reload_at", "control", "start_at_login", "locked_kiosk"]) setField(d, "display." + k, c.display[k]);
     document.querySelectorAll("[data-secret]").forEach((el) => { const s = settings.secrets[el.dataset.secret]; el.textContent = s && s.set ? `currently: ${s.hint}` : "not set"; });
   }
 
@@ -214,7 +214,7 @@
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")) }, todo: { max_items: Number(g("todo.max_items")) } } };
-      case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), reload_at: g("display.reload_at"), control: g("display.control") } } };
+      case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk") } } };
       case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
     }
     return {};
@@ -227,7 +227,7 @@
       const body = collect(form.dataset.section, form);
       const r = await api("/api/settings", { method: "PUT", json: body });
       if (body.secrets && body.secrets.DASHBOARD_PIN) { pin = body.secrets.DASHBOARD_PIN.trim(); sessionStorage.setItem("dashboard_pin", pin); }
-      toast("Saved. The dashboard updates by itself.");
+      toast(r.autostart ? `Saved. ${r.autostart}.` : "Saved. The dashboard updates by itself.");
       form.querySelectorAll('input[type=text][name]').forEach((el) => { if (form.dataset.section === "secrets") el.value = ""; });
       await loadSettings();
     } catch (err) { toast(err.message, true); }
@@ -298,7 +298,10 @@
   function fmtUptime(s) { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; }
   async function loadSystem() {
     const d = await api("/api/system");
+    let win = "unknown";
+    try { const disp = await api("/api/display"); win = disp.dashboard_window === "running" ? "showing on the Pi's screen" : "closed (the Pi is showing its desktop)"; } catch (e) { /* ignore */ }
     const rows = [
+      ["Dashboard window", win],
       ["Dashboard address", `http://${d.hostname}.local:${d.port}  (${d.ip ? "http://" + d.ip + ":" + d.port : "IP unknown"})`],
       ["Version", d.version], ["Running for", fmtUptime(d.uptime_seconds)], ["Free disk", `${d.disk_free_gb} GB`],
       ["Pi temperature", d.cpu_temp_c != null ? `${d.cpu_temp_c} °C` : "n/a"],
@@ -314,6 +317,8 @@
     update: { path: "/api/system/update", confirm: "Download the latest version and restart?" },
     reboot: { path: "/api/system/reboot", confirm: "Reboot the Pi? It takes about a minute." },
     "screen-off": { path: "/api/display/off" }, "screen-on": { path: "/api/display/on" },
+    desktop: { path: "/api/display/desktop", confirm: "Close the dashboard window on the Pi and show its desktop?" },
+    dashboard: { path: "/api/display/dashboard" },
   };
   document.querySelectorAll("[data-action]").forEach((btn) => btn.addEventListener("click", async () => {
     const a = ACTIONS[btn.dataset.action];
@@ -324,6 +329,7 @@
       const d = await api(a.path, { method: "POST" });
       toast(d.message || "Done");
       if (d.log) { log.textContent = d.log; log.classList.remove("hidden"); }
+      if (btn.dataset.action === "desktop" || btn.dataset.action === "dashboard") setTimeout(loadSystem, 2500);
     } catch (err) { toast(err.message, true); }
     btn.disabled = false;
   }));

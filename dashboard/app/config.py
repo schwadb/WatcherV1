@@ -50,7 +50,7 @@ DEFAULTS: dict[str, Any] = {
         "alerts": True, "radar": True, "stocks": True, "sports": True, "calendar": True,
         "todo": True, "news": True, "photos": True, "nowplaying": True,
     },
-    "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "control": "auto"},
+    "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "control": "auto", "start_at_login": True, "locked_kiosk": False},
     "server": {"host": "0.0.0.0", "port": 8080},
 }
 

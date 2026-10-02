@@ -96,5 +96,22 @@ check("screen: on at 12:00", screen.desired_mode(_S(), _dt(2026, 10, 1, 12, 0, t
 check("screen: on at exactly screen_on", screen.desired_mode(_S(), _dt(2026, 10, 1, 6, 0, tzinfo=_Z("America/Chicago"))) == "on")
 check("screen: schedule enabled only with both times", screen.schedule_enabled(_S()) and not screen.schedule_enabled(type("T", (), {"cfg": {"display": {"screen_off": "", "screen_on": "06:00"}}, "timezone": "UTC"})()))
 
+import tempfile as _tmp
+with _tmp.TemporaryDirectory() as _d:
+    _auto = Path(_d) / "autostart"
+    _auto.write_text("some-other-app &\n")
+    screen.set_autostart(True, 8080, _auto); screen.set_autostart(True, 8080, _auto)
+    _lines = _auto.read_text().splitlines()
+    check("autostart: kiosk line added once, other lines kept", _lines[0] == "some-other-app &" and sum("kiosk.sh" in ln for ln in _lines) == 1)
+    screen.set_autostart(False, 8080, _auto)
+    check("autostart: kiosk line removed", "kiosk.sh" not in _auto.read_text() and "some-other-app" in _auto.read_text())
+    check("autostart: no-op without a desktop folder", "not a Raspberry Pi" in screen.set_autostart(True, 8080, Path(_d) / "missing" / "autostart"))
+import asyncio as _aio, os as _os
+_os.environ["DASHBOARD_WINDOW_FAKE"] = "closed"
+check("desktop mode: window reported closed", _aio.run(screen.dashboard_window_running()) is False)
+check("desktop mode: launch marks it running", _aio.run(screen.launch_dashboard(8080))[0] and _aio.run(screen.dashboard_window_running()) is True)
+check("desktop mode: close marks it closed", _aio.run(screen.close_dashboard())[0] and _aio.run(screen.dashboard_window_running()) is False)
+del _os.environ["DASHBOARD_WINDOW_FAKE"]
+
 print(f"\n{sum(checks)}/{len(checks)} checks passed")
 sys.exit(0 if all(checks) else 1)

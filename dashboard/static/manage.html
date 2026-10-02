@@ -183,8 +183,12 @@
     </form>
 
     <form class="card" data-section="display">
-      <h2>Screen schedule</h2>
-      <p class="muted">Times are 24-hour (22:30). Leave blank to never turn off.</p>
+      <h2>Screen &amp; desktop</h2>
+      <div class="row two">
+        <label class="check"><input name="display.start_at_login" type="checkbox"> Open the dashboard when the Pi starts</label>
+        <label class="check"><input name="display.locked_kiosk" type="checkbox"> Locked kiosk (no F11, no desktop button)</label>
+      </div>
+      <p class="muted">Screen schedule. Times are 24-hour (22:30). Leave blank to never turn off. The screen is never turned off while you're using the desktop.</p>
       <div class="row two">
         <label>Screen off at <input name="display.screen_off" type="time"></label>
         <label>Screen on at <input name="display.screen_on" type="time"></label>
@@ -243,6 +247,8 @@
       <div class="actions">
         <button type="button" data-action="restart">Restart dashboard</button>
         <button type="button" data-action="update">Update to latest version</button>
+        <button type="button" data-action="desktop">Switch Pi to desktop</button>
+        <button type="button" data-action="dashboard">Show dashboard on the Pi</button>
         <button type="button" data-action="screen-off">Screen off now</button>
         <button type="button" data-action="screen-on">Screen on now</button>
         <button type="button" class="danger" data-action="reboot">Reboot the Pi</button>

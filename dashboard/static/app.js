@@ -474,7 +474,20 @@
     };
     window.addEventListener("mousemove", show, { passive: true });
     window.addEventListener("touchstart", show, { passive: true });
-    window.addEventListener("keydown", (e) => { if (e.key === "s" || e.key === "S") location.href = "/manage?kiosk=1"; });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "s" || e.key === "S") location.href = "/manage?kiosk=1";
+      if (e.key === "d" || e.key === "D") switchToDesktop();
+    });
+    $("desktop-btn").addEventListener("click", switchToDesktop);
+  }
+  async function switchToDesktop() {
+    if (!window.confirm("Close the dashboard and use the Pi as a computer? Open it again from the desktop icon, the app menu, or the settings page on your phone.")) return;
+    try {
+      const headers = { "Content-Type": "application/json" };
+      const resp = await fetch("/api/display/desktop", { method: "POST", headers });
+      if (resp.status === 401) { location.href = "/manage?kiosk=1#system"; return; }  // PIN set: do it from the settings page
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    } catch (err) { console.warn("desktop switch failed", err); alert("Could not switch: " + err.message + ". Press F11 for a normal window, or Alt+F4 to close the dashboard."); }
   }
 
   // ---------- config, panels, setup note ------------------------------------------------------

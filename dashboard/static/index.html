@@ -86,7 +86,10 @@
 </main>
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
-<a id="gear" class="gear" href="/manage?kiosk=1" title="Settings" aria-label="Settings">&#9881;</a>
+<div class="corner-buttons">
+  <button id="desktop-btn" class="corner" type="button" title="Use the Pi as a computer (D)">&#128421; Desktop</button>
+  <a id="gear" class="corner" href="/manage?kiosk=1" title="Settings (S)">&#9881; Settings</a>
+</div>
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/icons.js"></script>
 <script src="/static/app.js"></script>

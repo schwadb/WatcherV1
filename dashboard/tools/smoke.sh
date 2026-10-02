@@ -14,7 +14,7 @@ if name == "config":
     assert "timezone" in d and "symbols" in d and "panels" in d, "config missing keys"
     print(f"ok    /api/config     tz={d['timezone']} symbols={list(d['symbols'])} countdowns={len(d['countdowns'])} version={d['config_version']}")
 elif name == "display":
-    print(f"ok    /api/display    mode={d['mode']} schedule_enabled={d['schedule_enabled']} desired_now={d['desired_now']} last={d['last_result']}")
+    print(f"ok    /api/display    mode={d['mode']} window={d['dashboard_window']} schedule_enabled={d['schedule_enabled']} desired_now={d['desired_now']} last={d['last_result']}")
 elif name == "health":
     bad = {k: v["error"] for k, v in d["sources"].items() if not v["ok"]}
     print(f"ok    /api/health     all_ok={d['ok']} failing={bad or 'none'}")

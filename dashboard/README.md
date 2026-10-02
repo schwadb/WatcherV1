@@ -19,7 +19,8 @@ Raspberry Pi 4B plugged into a TV or monitor. It shows:
 Everything runs on the Pi. A small Python web server fetches the data on a timer
 and serves one web page; Chromium shows that page full-screen at boot. After the
 one-time install, **everything is managed from a settings page on your phone**
-(or on the TV itself with a mouse or touchscreen). No subscriptions, no cloud
+(or on the TV itself with a mouse or touchscreen), and the Pi stays a normal
+Linux computer you can switch to at any time. No subscriptions, no cloud
 account, and your calendar links and keys never leave your home network.
 
 ---
@@ -128,6 +129,35 @@ mouse or touch the screen, and tap the gear in the top-right corner (or press
 neighbors expand to fill the space. Turn off the radar and the weather panel gets
 taller; turn off stocks and the photo gets the whole middle column.
 
+## Using the Pi as a computer too
+
+The dashboard is just a full-screen browser window on top of the normal Raspberry
+Pi OS desktop, so the same Pi can be your Linux computer. Plug in a mouse and
+keyboard (USB or Bluetooth), or use a touchscreen.
+
+- **Drop to the desktop:** move the mouse or touch the screen and tap
+  **Desktop** in the top-right corner (or press `D`). The dashboard window
+  closes and the normal desktop with its menu and taskbar is there. From a
+  phone, System tab → **Switch Pi to desktop** does the same.
+- **Keep both:** press `F11` instead. The dashboard shrinks to a normal window
+  you can move aside; `F11` again makes it full-screen.
+- **Bring the dashboard back:** double-click **Watcher Dashboard** on the
+  desktop, pick it from the app menu (Accessories), or on a phone use System tab
+  → **Show dashboard on the Pi**.
+- **Choose what happens at boot:** Settings → Screen & desktop → "Open the
+  dashboard when the Pi starts". Turn it off and the Pi boots to the desktop;
+  phones can still open the dashboard page at any time because the server keeps
+  running in the background.
+- The night-time screen schedule never turns the screen off while the dashboard
+  window is closed, so it won't interrupt you at the desktop.
+- "Locked kiosk" (same settings card) is for a display nobody should be able to
+  leave: no `F11`, no Desktop button, only the phone can switch it.
+
+A Pi 4 with 2 GB handles the dashboard plus light desktop use (browser with a
+few tabs, documents). 4 GB or more is comfortable. Two screens (dashboard on the
+TV, desktop on a monitor) is possible with the Pi 4's second HDMI port but not
+set up by this project yet.
+
 ## Where your settings live
 
 - `~/WatcherV1/dashboard/config.yaml` holds every setting. The settings page edits
@@ -208,6 +238,8 @@ playing, and **Disconnect** on the Music tab removes the connection.
 - **System tab** shows what is still missing and lets you restart.
 - **See what the server is doing:** `journalctl -u dashboard -f`
 - **Check every data source:** `curl http://localhost:8080/api/health`
+- **Dashboard closed and you want it back:** desktop icon, app menu, or the
+  phone's System tab.
 - **Black screen after boot on the Pi:** run
   `OZONE_PLATFORM=x11 ~/WatcherV1/dashboard/deploy/kiosk.sh` in a terminal.
   If that works, edit `~/.config/labwc/autostart` and add `OZONE_PLATFORM=x11`

@@ -31,7 +31,7 @@ from ruamel.yaml import YAML
 
 from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
-from .screen import run_screen
+from .screen import close_dashboard, dashboard_window_running, launch_dashboard, run_screen, set_autostart
 from .sources import photos as photos_src
 from .sources import spotify as spotify_src
 from .store import JsonStore
@@ -342,7 +342,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off")},
-        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control")},
+        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control", "start_at_login", "locked_kiosk")},
     }
 
 
@@ -468,6 +468,8 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             out["reload_at"] = "03:30"
         out["dim_level"] = num("display", "dim_level", 0, 0.9) if d.get("dim_level") not in (None, "") else 0.5
         out["control"] = "off" if str(d.get("control", "auto")).lower() == "off" else "auto"
+        out["start_at_login"] = bool(d.get("start_at_login", True))
+        out["locked_kiosk"] = bool(d.get("locked_kiosk", False))
         clean["display"] = out
     return clean, errors
 
@@ -527,6 +529,9 @@ async def settings_put(request: Request):
         return JSONResponse({"ok": False, "errors": errors}, status_code=422)
     if clean:
         await asyncio.to_thread(write_config, settings.config_path, clean)
+    autostart_note = None
+    if "display" in clean:
+        autostart_note = await asyncio.to_thread(set_autostart, clean["display"]["start_at_login"], int(settings.cfg["server"]["port"]))
     changed_secrets = []
     for key, value in secrets_in.items():
         value = str(value or "")
@@ -544,7 +549,7 @@ async def settings_put(request: Request):
     from .main import reload_sources  # late import: main imports this module
 
     new_settings = await reload_sources(request.app)
-    return {"ok": True, "config_version": new_settings.version, "changed_secrets": changed_secrets, "warnings": new_settings.errors}
+    return {"ok": True, "config_version": new_settings.version, "changed_secrets": changed_secrets, "warnings": new_settings.errors, "autostart": autostart_note}
 
 
 @router.get("/api/zip/{zipcode}")
@@ -706,18 +711,31 @@ async def display_get(request: Request):
 
     settings = _settings(request)
     state = request.app.state.display
-    return {**state.summary(), "schedule_enabled": schedule_enabled(settings), "desired_now": desired_mode(settings), "display": settings.cfg["display"]}
+    return {
+        **state.summary(), "schedule_enabled": schedule_enabled(settings), "desired_now": desired_mode(settings),
+        "dashboard_window": "running" if await dashboard_window_running() else "closed", "display": settings.cfg["display"],
+    }
 
 
 @router.post("/api/display/{action}")
 async def display_set(request: Request, action: str):
     require_pin(request)
-    if action not in ("on", "off"):
-        raise HTTPException(404)
-    ok, result = await run_screen(request.app.state.display, action)
-    if not ok:
-        raise HTTPException(500, f"Could not turn the screen {action}: {result}")
-    return {"ok": True, "message": f"Screen {action}.", "result": result}
+    if action in ("on", "off"):
+        ok, result = await run_screen(request.app.state.display, action)
+        if not ok:
+            raise HTTPException(500, f"Could not turn the screen {action}: {result}")
+        return {"ok": True, "message": f"Screen {action}.", "result": result}
+    if action == "desktop":
+        ok, result = await close_dashboard()
+        if not ok:
+            raise HTTPException(500, f"Could not close the dashboard window: {result}")
+        return {"ok": True, "message": "The Pi is now showing its desktop. Open the dashboard again from the desktop icon or this page.", "result": result}
+    if action == "dashboard":
+        ok, result = await launch_dashboard(int(_settings(request).cfg["server"]["port"]))
+        if not ok:
+            raise HTTPException(500, f"Could not open the dashboard window: {result}")
+        return {"ok": True, "message": "Opening the dashboard on the Pi's screen.", "result": result}
+    raise HTTPException(404)
 
 
 # ---------------------------------------------------------------------------------------------

@@ -15,6 +15,8 @@ from .config import ROOT, Settings
 
 log = logging.getLogger("dashboard")
 _HHMM = re.compile(r"^(\d{1,2}):(\d{2})$")
+WINDOW_PATTERN = "--class=watcher-dashboard"   # set by deploy/kiosk.sh
+AUTOSTART_LINE_MARK = "deploy/kiosk.sh"
 
 
 @dataclass
@@ -89,6 +91,64 @@ async def run_screen(state: DisplayState, action: str) -> tuple[bool, str]:
             return False, state.last_result
 
 
+# ---- dashboard window (desktop mode = the window is closed) ---------------------------------
+async def dashboard_window_running() -> bool:
+    fake = os.environ.get("DASHBOARD_WINDOW_FAKE")  # tests on a machine without a desktop
+    if fake:
+        return fake == "running"
+    try:
+        proc = await asyncio.create_subprocess_exec("pgrep", "-f", "--", WINDOW_PATTERN, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        return await proc.wait() == 0
+    except OSError:
+        return False
+
+
+async def launch_dashboard(port: int) -> tuple[bool, str]:
+    if os.environ.get("DASHBOARD_WINDOW_FAKE"):
+        os.environ["DASHBOARD_WINDOW_FAKE"] = "running"
+        return True, "fake dashboard window opened"
+    script = ROOT / "deploy" / "kiosk.sh"
+    if not script.exists():
+        return False, "deploy/kiosk.sh not found"
+    try:
+        await asyncio.create_subprocess_exec(
+            "bash", str(script), env={**os.environ, "DASHBOARD_PORT": str(port)},
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, start_new_session=True,
+        )
+        return True, "dashboard window opening"
+    except OSError as exc:
+        return False, str(exc)
+
+
+async def close_dashboard() -> tuple[bool, str]:
+    if os.environ.get("DASHBOARD_WINDOW_FAKE"):
+        os.environ["DASHBOARD_WINDOW_FAKE"] = "closed"
+        return True, "fake dashboard window closed"
+    try:
+        proc = await asyncio.create_subprocess_exec("pkill", "-f", "--", WINDOW_PATTERN, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        code = await proc.wait()
+        return code in (0, 1), "dashboard window closed" if code == 0 else "no dashboard window was open"
+    except OSError as exc:
+        return False, str(exc)
+
+
+def autostart_path() -> Path:
+    return Path(os.environ.get("DASHBOARD_AUTOSTART") or Path.home() / ".config" / "labwc" / "autostart")
+
+
+def set_autostart(enabled: bool, port: int, path: Path | None = None) -> str:
+    """Add or remove the kiosk line in labwc's autostart file. No-op when its folder doesn't exist."""
+    path = path or autostart_path()
+    if not path.parent.exists():
+        return "no desktop autostart folder here (not a Raspberry Pi desktop)"
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    kept = [ln for ln in lines if AUTOSTART_LINE_MARK not in ln]
+    if enabled:
+        kept.append(f"DASHBOARD_PORT={port} {ROOT / 'deploy' / 'kiosk.sh'} &")
+    path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+    return "dashboard will open at login" if enabled else "dashboard will not open at login (desktop launcher still works)"
+
+
 async def display_scheduler(app) -> None:
     """Every 30 s: if the schedule's desired state changed (or at startup), run the script once."""
     state: DisplayState = app.state.display
@@ -100,8 +160,11 @@ async def display_scheduler(app) -> None:
                 desired = desired_mode(settings)
                 if desired != state.last_desired:  # edge-triggered so a manual override holds until the next change
                     state.last_desired = desired
-                    ok, result = await run_screen(state, desired)
-                    log.info("screen schedule -> %s: %s", desired, result if not ok else "ok")
+                    if desired == "off" and not await dashboard_window_running():
+                        log.info("screen schedule: skipping 'off' because the desktop is in use")
+                    else:
+                        ok, result = await run_screen(state, desired)
+                        log.info("screen schedule -> %s: %s", desired, result if not ok else "ok")
             else:
                 state.last_desired = None
         except Exception as exc:  # noqa: BLE001

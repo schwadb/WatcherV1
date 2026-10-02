@@ -59,9 +59,26 @@ chmod +x "$DIR/deploy/kiosk.sh" "$DIR/deploy/screen.sh"
 AUTOSTART="$HOME/.config/labwc/autostart"
 mkdir -p "$(dirname "$AUTOSTART")"
 touch "$AUTOSTART"
-if ! grep -q "deploy/kiosk.sh" "$AUTOSTART"; then
+START_AT_LOGIN="$(grep -E '^\s*start_at_login:\s*false' "$DIR/config.yaml" | head -1 || true)"
+if [ -z "$START_AT_LOGIN" ] && ! grep -q "deploy/kiosk.sh" "$AUTOSTART"; then
   echo "DASHBOARD_PORT=$PORT $DIR/deploy/kiosk.sh &" >> "$AUTOSTART"
 fi
+
+echo "==> Adding the dashboard to the app menu and the desktop"
+mkdir -p "$HOME/.local/share/applications" "$HOME/Desktop"
+cat > "$HOME/.local/share/applications/watcher-dashboard.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Watcher Dashboard
+Comment=Open the wall dashboard full-screen (F11 for a window, Alt+F4 to close)
+Exec=env DASHBOARD_PORT=$PORT $DIR/deploy/kiosk.sh
+Icon=$DIR/static/icon.png
+Terminal=false
+Categories=Utility;
+DESKTOP
+cp "$HOME/.local/share/applications/watcher-dashboard.desktop" "$HOME/Desktop/Watcher Dashboard.desktop"
+chmod +x "$HOME/Desktop/Watcher Dashboard.desktop"
+command -v gio >/dev/null 2>&1 && gio set "$HOME/Desktop/Watcher Dashboard.desktop" metadata::trusted true 2>/dev/null || true
 # Older images (X11 / LXDE) use a different autostart file; add it there too if that folder exists.
 LX_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
 if [ -d "$(dirname "$LX_AUTOSTART")" ] && ! grep -qs "deploy/kiosk.sh" "$LX_AUTOSTART"; then
