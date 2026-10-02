@@ -19,14 +19,16 @@ OUTPUT="${SCREEN_OUTPUT:-}"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-cec() {  # best effort; ignore every error
-  if [ -e /dev/cec0 ] && have cec-ctl; then
+cec() {  # best effort on every CEC adapter (Pi 4 has /dev/cec0; Pi 5 has one per HDMI port); ignore errors
+  have cec-ctl || return 0
+  for dev in /dev/cec*; do
+    [ -e "$dev" ] || continue
     case "$1" in
-      off) cec-ctl -s --to 0 --standby >/dev/null 2>&1 || true ;;
-      on)  cec-ctl -s --to 0 --image-view-on >/dev/null 2>&1 || true
-           cec-ctl -s --to 0 --active-source phys-addr=1.0.0.0 >/dev/null 2>&1 || true ;;
+      off) cec-ctl -d "$dev" -s --to 0 --standby >/dev/null 2>&1 || true ;;
+      on)  cec-ctl -d "$dev" -s --to 0 --image-view-on >/dev/null 2>&1 || true
+           cec-ctl -d "$dev" -s --to 0 --active-source phys-addr=1.0.0.0 >/dev/null 2>&1 || true ;;
     esac
-  fi
+  done
 }
 
 wayland_output() {

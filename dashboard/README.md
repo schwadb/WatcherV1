@@ -1,7 +1,7 @@
 # Watcher Dashboard
 
 A free, self-hosted replacement for a DAKboard-style wall display, built for a
-Raspberry Pi 4B plugged into a TV or monitor. It shows:
+Raspberry Pi 5 (or Pi 4) plugged into a TV or monitor. It shows:
 
 - **Clock and date**, with **countdowns** to dates you care about
 - **Current weather, an hourly strip and a 5-day outlook**, plus UV, air quality, sunrise/sunset and moon phase (Open-Meteo, no account needed)
@@ -27,20 +27,24 @@ account, and your calendar links and keys never leave your home network.
 
 ## Part 1: Set up the Raspberry Pi (one time)
 
-You need: a Raspberry Pi 4B (2 GB or more), a microSD card (16 GB+), a screen
-with HDMI, and Wi-Fi or Ethernet.
+You need: a Raspberry Pi 5 (4 GB or more is comfortable; a Pi 4 with 2 GB also
+works), the official 27 W USB-C power supply, the Active Cooler (the Pi 5 runs
+warm with a browser full-screen all day), a microSD card (16 GB+), a micro-HDMI
+to HDMI cable, a screen, and Wi-Fi or Ethernet.
 
 1. On your computer, install **Raspberry Pi Imager** from
    <https://www.raspberrypi.com/software/>.
-2. In Imager choose your Pi 4, then the OS **Raspberry Pi OS (64-bit)** (the
-   normal one *with desktop*), then your SD card.
+2. In Imager choose your Pi model, then the OS **Raspberry Pi OS (64-bit)**
+   (the normal one *with desktop*), then your SD card.
 3. When Imager asks to customize settings, click **Edit settings** and set:
    - Hostname: `dashboard`
    - Username `pi` and a password you will remember
    - Your Wi-Fi name and password
    - Under **Services**, turn on **SSH** with password login
-4. Write the card, put it in the Pi, connect the screen, and power it on. The
-   first boot takes a couple of minutes.
+4. Write the card, put it in the Pi, connect the screen to the HDMI port
+   **next to the power connector** (HDMI 0), and power it on. The first boot
+   takes a couple of minutes. Either port works; HDMI 0 is simply the one the
+   Pi uses first at boot.
 
 ## Part 2: Install the dashboard (the only terminal step)
 
@@ -153,10 +157,11 @@ keyboard (USB or Bluetooth), or use a touchscreen.
 - "Locked kiosk" (same settings card) is for a display nobody should be able to
   leave: no `F11`, no Desktop button, only the phone can switch it.
 
-A Pi 4 with 2 GB handles the dashboard plus light desktop use (browser with a
-few tabs, documents). 4 GB or more is comfortable. Two screens (dashboard on the
-TV, desktop on a monitor) is possible with the Pi 4's second HDMI port but not
-set up by this project yet.
+A Pi 5 makes a good everyday desktop alongside the dashboard; 4 GB or more is
+comfortable, 8 GB if you keep many browser tabs open. A Pi 4 with 2 GB handles
+the dashboard plus light desktop use. Two screens (dashboard on the TV, desktop
+on a monitor) is possible with the second HDMI port but not set up by this
+project yet.
 
 ## Where your settings live
 
@@ -240,6 +245,9 @@ playing, and **Disconnect** on the Music tab removes the connection.
 - **Check every data source:** `curl http://localhost:8080/api/health`
 - **Dashboard closed and you want it back:** desktop icon, app menu, or the
   phone's System tab.
+- **TV does not switch off or on with the schedule:** the Pi 5 has a CEC
+  adapter per HDMI port and the scripts try both; make sure CEC is on in the
+  TV's menu. The HDMI output itself is switched regardless.
 - **Black screen after boot on the Pi:** run
   `OZONE_PLATFORM=x11 ~/WatcherV1/dashboard/deploy/kiosk.sh` in a terminal.
   If that works, edit `~/.config/labwc/autostart` and add `OZONE_PLATFORM=x11`
