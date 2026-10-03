@@ -132,13 +132,16 @@ chmod +x "$HOME/Desktop/Watcher Dashboard.desktop"
 command -v gio >/dev/null 2>&1 && gio set "$HOME/Desktop/Watcher Dashboard.desktop" metadata::trusted true 2>/dev/null || true
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 
-IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-[ -z "$IP" ] && IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)"
+# Find this computer's LAN address (hostname -I is Debian-only; Arch uses ip route).
+IP="$( (hostname -I 2>/dev/null || true) | awk '{print $1}' || true)"
+[ -z "$IP" ] && IP="$( (ip -4 route get 1.1.1.1 2>/dev/null || true) | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1 || true)"
+HOST="$(hostname 2>/dev/null || echo localhost)"
 echo
 echo "Done. Everything else happens on the settings page, from your phone:"
-echo "    http://$(hostname).local:$PORT/manage      (or http://${IP:-<this-computer-ip>}:$PORT/manage)"
+echo "    http://$HOST.local:$PORT/manage      (or http://${IP:-<this-computer-ip>}:$PORT/manage)"
 echo "  1. Settings tab -> Keys & links: paste your Finnhub key and your Outlook calendar link"
 echo "  2. Photos tab: add photos from your phone"
 echo "  3. Log out and back in (or reboot) -> the dashboard opens full screen on this computer"
 echo
-echo "The dashboard itself: http://$(hostname).local:$PORT     Logs: journalctl -u dashboard -f"
+echo "The dashboard itself: http://$HOST.local:$PORT     Logs: journalctl -u dashboard -f"
+echo "Open it full-screen right now without logging out:  $DIR/deploy/kiosk.sh &"
