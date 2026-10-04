@@ -145,13 +145,14 @@
     const items = list
       .map((c) => ({ ...c, days: Math.round((new Date(c.date + "T00:00:00Z").getTime() - today) / 86400000) }))
       .filter((c) => c.days >= 0)
-      .slice(0, 3);
+      .sort((a, b) => a.days - b.days);  // soonest first; the box scrolls when there are more than fit
     box.classList.toggle("hidden", items.length === 0);
     box.innerHTML = items.map((c) => {
       const n = c.days === 0 ? '<span class="n today">Today!</span>' : `<span class="n${c.days > 999 ? " big" : ""}">${c.days}</span>`;
       const sub = c.days === 0 ? "" : c.days === 1 ? "day to go" : "days until";
       return `<div class="cd">${n}<span class="t">${escapeHTML(c.icon ? c.icon + " " : "")}${escapeHTML(c.title)}<small>${sub}</small></span></div>`;
     }).join("");
+    if (items.length) autoScroll(box);
   }
 
   let reloadArmed = true;

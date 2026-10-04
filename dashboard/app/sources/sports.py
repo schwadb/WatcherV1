@@ -28,8 +28,9 @@ def teams(settings: Settings) -> list[dict[str, str]]:
         if "/" in league and not sport:  # allow "football/college-football"
             sport, league = league.split("/", 1)
         team = str(e.get("team") or e.get("team_id") or "").strip()
-        if sport and league and team:
-            out.append({"sport": sport, "league": league, "team": team})
+        entry = {"sport": sport, "league": league, "team": team}
+        if sport and league and team and entry not in out:
+            out.append(entry)
     return out
 
 
@@ -116,6 +117,7 @@ def parse_team(team_raw: dict[str, Any], schedule_raw: dict[str, Any], now: date
     if live:
         live["clock"] = live.get("detail")
     return {
+        "id": str(team.get("id") or ""),
         "name": team.get("displayName") or team.get("name") or "",
         "short": team.get("shortDisplayName") or team.get("nickname") or team.get("name") or "",
         "abbr": team.get("abbreviation") or "",
@@ -179,11 +181,12 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
         return parsed
 
     results = await asyncio.gather(*(one(t) for t in wanted), return_exceptions=True)
-    out, errors = [], []
+    out, errors, seen = [], [], set()
     for t, result in zip(wanted, results):
         if isinstance(result, BaseException):
             errors.append(f"{t['team']}: {result}")
-        else:
+        elif (result["league"], result.get("id") or result.get("abbr")) not in seen:  # "158" and "NEB" are the same team
+            seen.add((result["league"], result.get("id") or result.get("abbr")))
             out.append(result)
     if not out:
         raise RuntimeError("; ".join(errors))

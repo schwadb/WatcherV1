@@ -81,7 +81,9 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 .clock .time { font-size: 7rem; font-weight: 300; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 0.6rem; }
 .clock .ampm { font-size: 2rem; font-weight: 500; color: var(--text-2); }
 .clock .date { margin-top: 0.75rem; font-size: 1.6rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.countdowns { display: flex; flex-direction: column; gap: 0.35rem; justify-content: center; max-width: 14rem; }
+.countdowns { display: flex; flex-direction: column; gap: 0.35rem; justify-content: safe center; max-width: 14rem; align-self: stretch; min-height: 0; overflow-y: auto; scrollbar-width: none; transition: opacity 0.3s; }
+.countdowns::-webkit-scrollbar { display: none; }
+.countdowns.rewind { opacity: 0; }
 .cd { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 0.7rem; padding: 0.2rem 0; }
 .cd .n { font-size: 2rem; font-weight: 600; line-height: 1; text-align: right; min-width: 3.2rem; }
 .cd .n.today { color: var(--accent); font-size: 1.4rem; }

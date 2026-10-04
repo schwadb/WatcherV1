@@ -290,7 +290,7 @@
         b.innerHTML = `${t.logo ? `<img src="${esc(t.logo)}" alt="">` : ""}<span>${esc(t.name)} <small class="hint">${esc(t.sport)} / ${esc(t.league)}</small></span>`;
         b.addEventListener("click", () => {
           const key = (x) => `${x.sport}/${x.league}/${x.team}`;
-          const have = [...$("team-list").children].some((r) => key(JSON.parse(r.dataset.json)) === key(t));
+          const have = [...$("team-list").children].some((r) => { const x = JSON.parse(r.dataset.json); return key(x) === key(t) || (x.name && t.name && x.name.toLowerCase() === t.name.toLowerCase()); });
           if (!have) $("team-list").appendChild(row("team", t));
           $("team-results").innerHTML = ""; $("team-search").value = "";
           toast(have ? "That team is already on the list." : "Team added. Press Save.");

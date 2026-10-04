@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import manage, mock
+from .pages import page_response
 from .cache import SourceCache, refresh_once, run_poller
 from .config import Settings, load_settings
 from .sources import alerts as alerts_src
@@ -211,7 +212,7 @@ async def photo(filename: str):
 
 @app.get("/")
 async def index():
-    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+    return page_response("index.html")
 
 
 class FreshStaticFiles(StaticFiles):

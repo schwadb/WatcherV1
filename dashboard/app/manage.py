@@ -31,6 +31,7 @@ from ruamel.yaml import YAML
 
 from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
+from .pages import page_response
 from .screen import close_dashboard, dashboard_window_running, launch_dashboard, run_screen, set_autostart
 from .sources import photos as photos_src
 from .sources import spotify as spotify_src
@@ -110,7 +111,7 @@ def _today(settings: Settings) -> str:
 # ---------------------------------------------------------------------------------------------
 @router.get("/manage")
 async def manage_page():
-    return FileResponse(STATIC_DIR / "manage.html", headers={"Cache-Control": "no-cache"})
+    return page_response("manage.html")
 
 
 @router.get("/upload")
@@ -455,7 +456,10 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             if not (_LEAGUE.match(sport) and _LEAGUE.match(league) and re.fullmatch(r"[a-z0-9]{1,8}", team)):
                 errors.append(f"team entry '{team}' looks wrong (use the search box)")
                 continue
-            teams.append({"sport": sport, "league": league, "team": team.upper() if team.isalpha() else team, "name": str((t or {}).get("name", "")).strip()[:40]})
+            entry = {"sport": sport, "league": league, "team": team.upper() if team.isalpha() else team, "name": str((t or {}).get("name", "")).strip()[:40]}
+            if any((x["sport"], x["league"], x["team"]) == (entry["sport"], entry["league"], entry["team"]) for x in teams):
+                continue  # same team twice
+            teams.append(entry)
         clean["sports"] = {"teams": teams}
     if "news" in body:
         feeds = []
