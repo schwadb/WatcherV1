@@ -53,7 +53,7 @@ case "$PLATFORM" in
     sudo apt-get install -y -qq $PKGS chromium >/dev/null || sudo apt-get install -y -qq $PKGS chromium-browser >/dev/null
     ;;
   arch)
-    sudo pacman -S --needed --noconfirm python git curl noto-fonts-emoji wlr-randr v4l-utils >/dev/null
+    sudo pacman -S --needed --noconfirm python git curl noto-fonts-emoji wlr-randr v4l-utils fuse2 >/dev/null   # fuse2: lets AppImages such as ChronAlert run
     have_browser || sudo pacman -S --needed --noconfirm chromium >/dev/null
     ;;
   debian)

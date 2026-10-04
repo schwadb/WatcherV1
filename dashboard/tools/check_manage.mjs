@@ -50,6 +50,10 @@ check("bad storm-mode / ChronAlert settings rejected", badChron.status === 422 &
 const goodChron = await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover: true, takeover_minutes: 15, takeover_sound: false }, chronalert: { mode: "button", url: "http://127.0.0.1:8420/", show_seconds: 60, photo_seconds: 120, open_mode: "window" } } } });
 const chronCfg = goodChron.status === 200 ? (await api("/api/config")).data : {};
 check("storm-mode / ChronAlert settings saved and visible", goodChron.status === 200 && chronCfg.takeover && chronCfg.takeover.takeover_minutes === 15 && chronCfg.takeover.takeover_sound === false && chronCfg.chronalert && chronCfg.chronalert.mode === "button" && chronCfg.chronalert.open_mode === "window", JSON.stringify([goodChron.data, chronCfg.takeover, chronCfg.chronalert]));
+const chronApp = await api("/api/chronalert/app");
+check("ChronAlert app info answers", chronApp.status === 200 && "found_path" in chronApp.data && typeof chronApp.data.autostart === "boolean" && typeof chronApp.data.reachable === "boolean", JSON.stringify(chronApp.data));
+const badAuto = await api("/api/chronalert/autostart", { method: "POST", json: { on: true, app_path: "/definitely/not/here.AppImage" } });
+check("autostart with a missing AppImage is refused with a message", badAuto.status === 422 && /does not exist|not found/.test(badAuto.data.detail || ""), JSON.stringify(badAuto.data));
 const chronStatus = await api("/api/chronalert/status");
 check("ChronAlert reachability check answers", chronStatus.status === 200 && typeof chronStatus.data.reachable === "boolean" && chronStatus.data.url.startsWith("http"), JSON.stringify(chronStatus.data));
 await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover_minutes: 10, takeover_sound: true }, chronalert: { mode: "rotate", open_mode: "iframe", show_seconds: 20, photo_seconds: 20 } } } });

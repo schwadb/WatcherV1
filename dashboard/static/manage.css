@@ -27,6 +27,7 @@ main { max-width: 760px; margin: 0 auto; padding: 0.75rem; }
 .card { background: var(--card); border: 1px solid var(--edge); border-radius: var(--radius); padding: 1rem; margin-bottom: 0.9rem; }
 .card h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
 .card.warn { border-color: rgba(245,185,66,0.5); color: var(--warn); white-space: pre-line; }
+h3 { font-size: 1rem; margin: 1.2rem 0 0.3rem; border-top: 1px solid var(--edge); padding-top: 0.9rem; }
 .count { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
 
 label { display: block; font-size: 0.9rem; color: var(--text-2); margin: 0.5rem 0; }

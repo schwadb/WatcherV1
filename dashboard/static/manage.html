@@ -141,6 +141,17 @@
         <label>Photo seconds between <input name="chronalert.photo_seconds" type="number" min="10" max="3600"></label>
       </div>
       <div class="row end"><button type="submit">Save</button></div>
+      <h3>Keep ChronAlert running</h3>
+      <p class="status" id="chron-status">Checking…</p>
+      <div class="row">
+        <input name="chronalert.app_path" type="text" placeholder="ChronAlert AppImage, e.g. /home/you/Applications/ChronAlert-x86_64.AppImage">
+        <button type="button" class="ghost" id="chron-find">Find it</button>
+      </div>
+      <div class="row">
+        <button type="button" id="chron-autostart">Start ChronAlert with the dashboard</button>
+        <button type="button" class="ghost" id="chron-recheck">Check again</button>
+      </div>
+      <p class="muted">The dashboard computer then starts ChronAlert at boot (without its own window) and restarts it if it stops. Turn it off with the same button.</p>
     </form>
 
     <form class="card" data-section="calendars">

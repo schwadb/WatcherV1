@@ -259,16 +259,28 @@ that page too. Two ways to use it:
 To set it up on the Mac Pro / any Linux desktop:
 
 1. Download the Linux AppImage from <https://chronalert.com/download> into
-   `~/Applications` (make the folder if it is missing), then make it runnable:
-   `chmod +x ~/Applications/ChronAlert*.AppImage` and double-click it (or run
-   it from a terminal). Sign in and pick your location inside ChronAlert.
-2. On the phone, Settings → **ChronAlert**: choose *Rotate with the photos* or
-   *Button only* and save. Leave the address blank when ChronAlert runs on the
-   dashboard computer; otherwise enter `http://<that-computer>:8420/`.
-3. To open ChronAlert on your phone too, open its port in the firewall once:
+   `~/Applications` (make the folder if it is missing). Nothing to install.
+2. On the phone, Settings → **ChronAlert** → **Keep ChronAlert running**: press
+   **Find it** (it looks in `~/Applications`, `~/Downloads` and your home
+   folder), then **Start ChronAlert with the dashboard**. From now on the
+   computer starts ChronAlert at boot, without its own window, and restarts it
+   if it ever stops. The line above the buttons tells you whether it is
+   running and at which address.
+3. Open ChronAlert once in a browser on the computer (`http://localhost:8420`)
+   to pick your country and location inside it.
+4. Still on the phone, choose *Rotate with the photos* or *Button only* at the
+   top of the card and press **Save**. Leave the address blank when ChronAlert
+   runs on the dashboard computer; otherwise enter `http://<that-computer>:8420/`.
+5. To open ChronAlert on your phone too, open its port in the firewall once:
    `sudo ufw allow 8420/tcp`.
-4. Optional: in ChronAlert's own settings turn on "start with the computer" so
-   it is always running when the dashboard needs it.
+
+If the Map button says ChronAlert isn't running, that is exactly what it
+means: nothing is answering on the computer. Press **Check again** on the
+settings page; if the service is on but still not running, start the AppImage
+by hand in a terminal to see its error (`~/Applications/ChronAlert*.AppImage
+--no-browser`). A missing `libfuse.so.2` message means `sudo pacman -S fuse2`
+on Omarchy. ChronAlert moves to port 8421 and up when 8420 is busy; the
+dashboard checks those too.
 
 If the map stays blank inside the dashboard (some apps refuse to be shown
 inside another page), set *Open full screen as* to **A separate window**. The

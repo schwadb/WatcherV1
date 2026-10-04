@@ -275,16 +275,24 @@
   const chron = { url: "", mode: "off", timer: null, showing: false, paused: false, full: false };
   function chronUrl() { return cfg("chronalert.url", "") || `http://${location.hostname}:8420/`; }
   function chronPause(on) { chron.paused = on; if (on && chron.showing) chronShowPhotos(); }
-  async function chronReachable() {
-    // Ask the server whether ChronAlert answers, so the slideshow never swaps to a black frame.
-    try { const r = await fetch("/api/chronalert/status", { cache: "no-store" }); return (await r.json()).reachable === true; }
-    catch (e) { return true; }  // can't tell: try anyway
+  let noticeTimer = null;
+  function notice(msg, ms = 7000) {
+    const el = $("notice");
+    el.textContent = msg; el.classList.remove("hidden");
+    clearTimeout(noticeTimer); noticeTimer = setTimeout(() => el.classList.add("hidden"), ms);
   }
+  async function chronCheck() {
+    // Ask the server whether ChronAlert answers (and on which port), so we never show a browser error page.
+    try { const r = await fetch("/api/chronalert/status", { cache: "no-store" }); const d = await r.json(); return { reachable: d.reachable === true, url: d.url || chronUrl() }; }
+    catch (e) { return { reachable: true, url: chronUrl() }; }  // can't tell: try anyway
+  }
+  const CHRON_DOWN = "ChronAlert isn't running on the dashboard computer. On the phone's settings page, under ChronAlert, press \"Start ChronAlert with the dashboard\" (or open ChronAlert from the app menu).";
   async function chronShowMap() {
     if (chron.paused || document.body.classList.contains("screen-off")) { chron.timer = setTimeout(chronShowMap, 30000); return; }
-    if (!(await chronReachable())) { chron.timer = setTimeout(chronShowMap, 60000); return; }
+    const st = await chronCheck();
+    if (!st.reachable) { chron.timer = setTimeout(chronShowMap, 60000); return; }
     const f = $("chron-frame");
-    if (!f.src) f.src = chronUrl();
+    if (!f.src || f.src !== st.url) f.src = st.url;
     f.classList.remove("hidden"); requestAnimationFrame(() => f.classList.add("visible"));
     chron.showing = true;
     chron.timer = setTimeout(chronShowPhotos, (Number(cfg("chronalert.show_seconds", 90)) || 90) * 1000);
@@ -296,12 +304,14 @@
     clearTimeout(chron.timer);
     chron.timer = setTimeout(chronShowMap, (Number(cfg("chronalert.photo_seconds", 180)) || 180) * 1000);
   }
-  function chronToggleFull() {
-    if (cfg("chronalert.open_mode", "iframe") === "window") { window.open(chronUrl(), "chronalert"); return; }
-    chron.full = !chron.full;
+  async function chronToggleFull() {
     const box = $("chron-full");
-    if (chron.full) { $("chron-full-frame").src = chronUrl(); box.classList.remove("hidden"); }
-    else { box.classList.add("hidden"); $("chron-full-frame").src = "about:blank"; }
+    if (chron.full) { chron.full = false; box.classList.add("hidden"); $("chron-full-frame").src = "about:blank"; return; }
+    const st = await chronCheck();
+    if (!st.reachable) { notice(CHRON_DOWN); return; }
+    if (cfg("chronalert.open_mode", "iframe") === "window") { window.open(st.url, "chronalert"); return; }
+    chron.full = true;
+    $("chron-full-frame").src = st.url; box.classList.remove("hidden");
   }
   function startChron() {
     chron.mode = cfg("chronalert.mode", "off");

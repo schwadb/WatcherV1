@@ -250,6 +250,7 @@ body.show-cursor .corner-buttons { opacity: 1; pointer-events: auto; }
 
 /* ---- overlays ---- */
 #dim-overlay { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; z-index: 970; }
+.notice { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 960; max-width: 60vw; background: rgba(13,17,23,0.95); border: 1px solid rgba(255,255,255,0.25); color: var(--text); padding: 1.2rem 1.6rem; border-radius: 0.8rem; font-size: 1.3rem; line-height: 1.4; text-align: center; box-shadow: 0 1rem 3rem rgba(0,0,0,0.6); }
 .setup-note { position: fixed; left: 1.5rem; bottom: 5.5rem; z-index: 950; background: rgba(90,169,255,0.15); border: 1px solid rgba(90,169,255,0.5); color: var(--text); padding: 0.6rem 1rem; border-radius: 0.6rem; font-size: 1rem; }
 
 /* ---- small screens (a phone opening the LAN address) just stack the panels ---- */

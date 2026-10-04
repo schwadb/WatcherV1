@@ -29,7 +29,7 @@ DEFAULTS: dict[str, Any] = {
         "takeover_sound": True,
         "takeover_events": ["*Warning", "Tornado Watch"],
     },
-    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe"},
+    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": ""},
     "radar": {
         "provider": "rainviewer",
         "refresh_minutes": 5,

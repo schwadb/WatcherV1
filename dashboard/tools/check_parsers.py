@@ -124,5 +124,22 @@ check("desktop mode: launch marks it running", _aio.run(screen.launch_dashboard(
 check("desktop mode: close marks it closed", _aio.run(screen.close_dashboard())[0] and _aio.run(screen.dashboard_window_running()) is False)
 del _os.environ["DASHBOARD_WINDOW_FAKE"]
 
+from app import chronalert as _ca
+_h = Path(_tmp.mkdtemp()); (_h / "Downloads").mkdir(); (_h / "Downloads/ChronAlert-x86_64.AppImage").write_text("#!/bin/sh\n"); (_h / "Downloads/ChronAlert-x86_64.AppImage").chmod(0o755)
+check("chronalert: AppImage found in ~/Downloads", (_ca.find_appimage(_h) or "").endswith("ChronAlert-x86_64.AppImage"))
+check("chronalert: nothing found in an empty home", _ca.find_appimage(Path(_tmp.mkdtemp())) is None)
+_unit = _ca.service_text("/home/me/Applications/ChronAlert-x86_64.AppImage")
+check("chronalert: service runs the AppImage without a browser and restarts it", "ExecStart=/home/me/Applications/ChronAlert-x86_64.AppImage --no-browser" in _unit and "Restart=always" in _unit)
+_os.environ["DASHBOARD_SYSTEMCTL_FAKE"] = str(_h / "systemctl.log")
+_ca.install(str(_h / "Downloads/ChronAlert-x86_64.AppImage"), _h)
+check("chronalert: install writes the unit and enables it", _ca.service_path(_h).exists() and "enable --now chronalert" in (_h / "systemctl.log").read_text() and _ca.status(_h)["enabled"])
+_ca.remove(_h)
+check("chronalert: remove deletes the unit", not _ca.service_path(_h).exists() and not _ca.status(_h)["enabled"])
+try:
+    _ca.install(str(_h / "missing.AppImage"), _h); check("chronalert: missing AppImage refused", False)
+except ValueError:
+    check("chronalert: missing AppImage refused", True)
+del _os.environ["DASHBOARD_SYSTEMCTL_FAKE"]
+
 print(f"\n{sum(checks)}/{len(checks)} checks passed")
 sys.exit(0 if all(checks) else 1)

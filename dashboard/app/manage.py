@@ -400,7 +400,10 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             "show_seconds": int(num("chronalert", "show_seconds", 10, 3600, int) or 90),
             "photo_seconds": int(num("chronalert", "photo_seconds", 10, 3600, int) or 180),
             "open_mode": "window" if str(ca.get("open_mode", "iframe")).lower() == "window" else "iframe",
+            "app_path": str(ca.get("app_path", "")).strip()[:300],
         }
+        if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
+            errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
     if "radar" in body:
         provider = str((body["radar"] or {}).get("provider", "rainviewer")).lower()
         if provider not in ("rainviewer", "mesonet"):
@@ -589,26 +592,94 @@ async def zip_lookup(request: Request, zipcode: str):
     }
 
 
-_chron_status: dict[str, Any] = {"checked": 0.0, "reachable": False, "url": ""}
+_chron_status: dict[str, Any] = {"checked": 0.0, "reachable": False, "url": "", "found": ""}
+
+
+CHRON_PORTS = (8420, 8421, 8422, 8423, 8424, 8425)  # ChronAlert moves to the next free port if 8420 is busy
+
+
+def _chron_candidates(settings) -> list[str]:
+    url = ((settings.cfg.get("chronalert") or {}).get("url") or "").strip()
+    if url:
+        return [url]
+    return [f"http://127.0.0.1:{port}/" for port in CHRON_PORTS]
+
+
+async def _chron_probe(settings) -> tuple[bool, str]:
+    """(reachable, url): the first candidate address that answers, else the first one."""
+    candidates = _chron_candidates(settings)
+    async with httpx.AsyncClient(timeout=3, follow_redirects=True, verify=False) as client:  # LAN app, plain http
+        for url in candidates:
+            try:
+                resp = await client.get(url)
+                if resp.status_code < 500:
+                    return True, url
+            except Exception:
+                continue
+    return False, candidates[0]
+
+
+def _chron_public_url(url: str, request: Request) -> str:
+    """The TV browser can't use 127.0.0.1 if it isn't on this computer: swap in the host it used for us."""
+    host = (request.headers.get("host") or "").split(":")[0]
+    if host and host not in ("127.0.0.1", "localhost") and "127.0.0.1" in url:
+        return url.replace("127.0.0.1", host)
+    return url
 
 
 @router.get("/api/chronalert/status")
 async def chronalert_status(request: Request):
-    """Is the ChronAlert app answering? The dashboard only rotates to its map when it is."""
+    """Is the ChronAlert app answering, and at what address? The dashboard only shows its map when it is."""
     settings = request.app.state.settings
-    url = (settings.cfg.get("chronalert") or {}).get("url") or "http://127.0.0.1:8420/"
     now = time.monotonic()
-    if _chron_status["url"] == url and now - _chron_status["checked"] < 60:
-        return {"reachable": _chron_status["reachable"], "url": url, "cached": True}
-    reachable = False
+    key = "|".join(_chron_candidates(settings))
+    if _chron_status["url"] == key and now - _chron_status["checked"] < 60:
+        return {"reachable": _chron_status["reachable"], "url": _chron_public_url(_chron_status["found"], request), "cached": True}
+    reachable, found = await _chron_probe(settings)
+    _chron_status.update(checked=now, reachable=reachable, url=key, found=found)
+    return {"reachable": reachable, "url": _chron_public_url(found, request), "cached": False}
+
+
+@router.get("/api/chronalert/app")
+async def chronalert_app(request: Request):
+    """For the settings page: where the AppImage is, whether we start it, whether it answers."""
+    require_pin(request)
+    from . import chronalert
+
+    settings = request.app.state.settings
+    cfg_path = (settings.cfg.get("chronalert") or {}).get("app_path") or ""
+    svc = chronalert.status()
+    reachable, found = await _chron_probe(settings)
+    _chron_status.update(checked=time.monotonic(), reachable=reachable, url="|".join(_chron_candidates(settings)), found=found)
+    return {
+        "app_path": cfg_path, "found_path": chronalert.find_appimage(), "autostart": svc["enabled"], "service_running": svc["running"],
+        "reachable": reachable, "url": _chron_public_url(found, request),
+    }
+
+
+@router.post("/api/chronalert/autostart")
+async def chronalert_autostart(request: Request):
+    """Turn 'the computer starts ChronAlert and keeps it running' on or off."""
+    require_pin(request)
+    from . import chronalert
+    from .main import reload_sources
+
+    settings = request.app.state.settings
+    body = await request.json()
+    if not body.get("on"):
+        return {"ok": True, "message": chronalert.remove(), "autostart": False}
+    app_path = str(body.get("app_path") or (settings.cfg.get("chronalert") or {}).get("app_path") or chronalert.find_appimage() or "").strip()
+    if not app_path:
+        raise HTTPException(422, "ChronAlert's AppImage was not found. Download it from chronalert.com/download into ~/Applications, then try again.")
     try:
-        async with httpx.AsyncClient(timeout=4, follow_redirects=True, verify=False) as client:  # LAN app, often plain http
-            resp = await client.get(url)
-            reachable = resp.status_code < 500
-    except Exception:
-        reachable = False
-    _chron_status.update(checked=now, reachable=reachable, url=url)
-    return {"reachable": reachable, "url": url, "cached": False}
+        message = chronalert.install(app_path)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, str(exc))
+    if app_path != (settings.cfg.get("chronalert") or {}).get("app_path"):
+        write_config(settings.config_path, {"chronalert": {**(settings.cfg.get("chronalert") or {}), "app_path": app_path}})
+        await reload_sources(request.app)
+    _chron_status["checked"] = 0.0  # re-probe next time
+    return {"ok": True, "message": message, "autostart": True, "app_path": app_path}
 
 
 @router.get("/api/sports/search")
