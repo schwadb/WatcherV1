@@ -86,7 +86,8 @@ sports:
   teams:
     - sport: football
       league: college-football
-      team: 158               # Nebraska Cornhuskers
+      team: 158
+      name: Nebraska Cornhuskers   # shown on the settings page; add more teams from there
 
 news:
   refresh_minutes: 10

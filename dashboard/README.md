@@ -280,12 +280,15 @@ Alt+Tab or closing it brings the dashboard back.
 Settings → Countdowns: a title, a date and an optional emoji. The clock panel
 shows up to three upcoming countdowns. Past dates disappear by themselves.
 
-### Favorite team
+### Favorite teams
 
-Settings → Sports team: search by name (college and pro football, basketball,
-baseball, hockey, MLS) and pick your team. The tile shows the record and
-standing, the next game with TV channel, the last result, and the live score
-while a game is on. The data comes from ESPN's public site.
+Settings → Sports teams: search by name (college and pro football, basketball,
+baseball, hockey, MLS) and pick a team; search again to add more. The tile
+shows the record and standing, the next game with TV channel, the last result,
+and the live score while a game is on. With several teams the tile rotates
+through them every 12 seconds (small dots show which one is up), and a team
+that is playing right now stays on screen. The data comes from ESPN's public
+site.
 
 ### Turning the TV off at night
 

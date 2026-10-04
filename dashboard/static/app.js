@@ -436,13 +436,30 @@
     const day = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz() }).format(date);
     return g.time_tbd ? `${day} · TBD` : `${day} · ${fmtShortTime(date)}`;
   }
+  const sportsState = { teams: [], index: 0, timer: null };
   function renderSports(d) {
-    const t = (d.teams || [])[0];
+    clearTimeout(sportsState.timer); sportsState.timer = null;
+    const teams = d.teams || [];
     const tile = $("sports");
-    if (!t) { tile.classList.add("hidden"); return; }
+    if (!teams.length) { tile.classList.add("hidden"); return; }
     tile.classList.remove("hidden");
-    tile.style.setProperty("--team", t.color || "var(--accent)");
     $("markets-title").textContent = "Markets & Sports";
+    const live = teams.findIndex((t) => t.live);
+    sportsState.teams = teams;
+    sportsState.index = live >= 0 ? live : Math.min(sportsState.index, teams.length - 1);
+    drawTeam();
+    if (teams.length > 1 && live < 0) sportsState.timer = setTimeout(stepTeam, cfg("sports.rotate_seconds", 12) * 1000);
+  }
+  function stepTeam() {
+    sportsState.index = (sportsState.index + 1) % sportsState.teams.length;
+    drawTeam();
+    sportsState.timer = setTimeout(stepTeam, cfg("sports.rotate_seconds", 12) * 1000);
+  }
+  function drawTeam() {
+    const teams = sportsState.teams;
+    const t = teams[sportsState.index];
+    const tile = $("sports");
+    tile.style.setProperty("--team", t.color || "var(--accent)");
     const lines = [];
     if (t.live) {
       lines.push(`<div class="line"><span class="k">Live</span><span class="live">${t.live.home ? "vs" : "at"} ${escapeHTML(t.live.opponent)} · ${t.live.score_us ?? 0}–${t.live.score_them ?? 0} · ${escapeHTML(t.live.clock || "")}</span></div>`);
@@ -452,10 +469,11 @@
     if (t.last) {
       lines.push(`<div class="line"><span class="k">Last</span><span><span class="${t.last.won ? "w" : "l"}">${escapeHTML(t.last.result)}</span> ${t.last.home ? "vs" : "at"} ${escapeHTML(t.last.opponent)}</span></div>`);
     }
+    const dots = teams.length > 1 ? `<div class="dots">${teams.map((_, i) => `<i class="${i === sportsState.index ? "on" : ""}"></i>`).join("")}</div>` : "";
     tile.innerHTML = `
       <div class="head">${t.logo ? `<img src="${escapeHTML(t.logo)}" alt="" onerror="this.remove()">` : ""}
         <div><div class="team">${escapeHTML(t.short || t.name)}</div><div class="record">${escapeHTML([t.record, t.standing].filter(Boolean).join(" · "))}</div></div>
-      </div>${lines.join("")}`;
+      </div>${lines.join("")}${dots}`;
   }
 
   // ---------- calendar -----------------------------------------------------------------------

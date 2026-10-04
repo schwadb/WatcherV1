@@ -90,4 +90,9 @@ async def sports(settings: Settings) -> dict[str, Any]:
         now=datetime(2026, 10, 1, tzinfo=timezone.utc),
     )
     team["league"] = "football/college-football"
-    return {"teams": [team], "errors": []}
+    # A second, made-up team so the rotating tile can be seen without network access.
+    other = dict(team, name="Kansas City Chiefs", short="Chiefs", abbr="KC", color="#e31837", logo="", league="football/nfl",
+                 record="3-1", standing="1st in AFC West",
+                 next=dict(team["next"], opponent="Las Vegas Raiders", opp_abbr="LV", home=False, tv="CBS"),
+                 last=dict(team["last"], opponent="Baltimore Ravens", result="L 17-20", won=False))
+    return {"teams": [team, other], "errors": []}

@@ -181,6 +181,9 @@ body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
 .sports .line .k { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .sports .line .w { color: var(--up); font-weight: 600; }
 .sports .line .l { color: var(--down); font-weight: 600; }
+.sports .dots { display: flex; gap: 0.35rem; margin-top: 0.6rem; }
+.sports .dots i { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--edge); }
+.sports .dots i.on { background: var(--team, var(--accent)); }
 .sports .live { color: var(--accent); font-weight: 700; }
 .sports .live::before { content: ""; display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--down); margin-right: 0.5rem; animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: 0.2; } }

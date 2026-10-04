@@ -34,7 +34,7 @@ label input, label select, label textarea { display: block; width: 100%; margin-
 label.check { display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0; color: var(--text); }
 label.check input { width: 1.3rem; height: 1.3rem; margin: 0; }
 input, select, textarea, button { font: inherit; color: var(--text); }
-input[type=text], input[type=number], input[type=password], input[type=time], input[type=date], input[type=color], select, textarea {
+input:not([type]), input[type=text], input[type=number], input[type=password], input[type=time], input[type=date], input[type=color], select, textarea {
   background: #0d1117; border: 1px solid var(--edge); border-radius: 8px; padding: 0.6rem 0.7rem; min-height: 2.6rem;
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }

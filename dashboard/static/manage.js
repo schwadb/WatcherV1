@@ -143,7 +143,7 @@
   });
 
   // ---------- settings -----------------------------------------------------------------------
-  const PANEL_LABELS = { alerts: "Severe weather banner", radar: "Radar", stocks: "Stocks", sports: "Sports team", calendar: "Calendar", todo: "To-do & notes", news: "News ticker", photos: "Photos", nowplaying: "Now playing" };
+  const PANEL_LABELS = { alerts: "Severe weather banner", radar: "Radar", stocks: "Stocks", sports: "Sports teams", calendar: "Calendar", todo: "To-do & notes", news: "News ticker", photos: "Photos", nowplaying: "Now playing" };
   function setField(form, name, value) {
     const el = form.querySelector(`[name="${name}"]`);
     if (!el) return;
@@ -260,7 +260,13 @@
       for (const t of d.teams) {
         const b = document.createElement("button"); b.type = "button";
         b.innerHTML = `${t.logo ? `<img src="${esc(t.logo)}" alt="">` : ""}<span>${esc(t.name)} <small class="hint">${esc(t.sport)} / ${esc(t.league)}</small></span>`;
-        b.addEventListener("click", () => { $("team-list").replaceChildren(row("team", t)); $("team-results").innerHTML = ""; toast("Team picked. Press Save."); });
+        b.addEventListener("click", () => {
+          const key = (x) => `${x.sport}/${x.league}/${x.team}`;
+          const have = [...$("team-list").children].some((r) => key(JSON.parse(r.dataset.json)) === key(t));
+          if (!have) $("team-list").appendChild(row("team", t));
+          $("team-results").innerHTML = ""; $("team-search").value = "";
+          toast(have ? "That team is already on the list." : "Team added. Press Save.");
+        });
         $("team-results").appendChild(b);
       }
     } catch (err) { $("team-results").textContent = err.message; }
