@@ -438,6 +438,7 @@
         <div class="abs">${sign}${q.change.toFixed(2)}</div>
       </div>`;
     }).join("");
+    autoScroll($("quotes"));
   }
 
   function gameWhen(g) {
@@ -486,28 +487,71 @@
       </div>${lines.join("")}${dots}`;
   }
 
+  // ---------- slow auto-scroll for boxes that overflow (calendar, stock tiles) ----------------
+  // Waits at the top, glides to the bottom at a steady pace, waits, fades back to the top.
+  // A finger or mouse wheel on the box pauses it for a while so a person can read.
+  const scrollers = new Map();
+  function autoScroll(el, opts = {}) {
+    if (scrollers.has(el)) { scrollers.get(el).refresh(); return; }
+    const st = { pos: 0, phase: "top", until: 0, holdUntil: 0, last: 0 };
+    const pause = opts.pauseMs || 7000;
+    const speed = () => (opts.pxPerSec || 0.0095 * window.innerWidth);
+    const hold = () => { st.holdUntil = performance.now() + 20000; };
+    el.addEventListener("wheel", hold, { passive: true });
+    el.addEventListener("touchstart", hold, { passive: true });
+    el.addEventListener("pointerdown", hold, { passive: true });
+    function refresh() {
+      const overflow = el.scrollHeight - el.clientHeight;
+      el.classList.toggle("scrolls", overflow > 2);
+      if (overflow <= 2) { el.scrollTop = 0; st.pos = 0; st.phase = "top"; }
+      st.until = performance.now() + pause;
+    }
+    function step(now) {
+      const overflow = el.scrollHeight - el.clientHeight;
+      const dt = Math.min(0.1, (now - st.last) / 1000); st.last = now;
+      if (overflow > 2 && now > st.holdUntil && !document.hidden) {
+        if (st.phase === "top" || st.phase === "bottom") {
+          if (now >= st.until) st.phase = st.phase === "top" ? "down" : "rewind";
+        } else if (st.phase === "down") {
+          st.pos = Math.min(overflow, st.pos + speed() * dt);
+          el.scrollTop = st.pos;
+          if (st.pos >= overflow) { st.phase = "bottom"; st.until = now + pause; }
+        } else if (st.phase === "rewind") {
+          el.classList.add("rewind");
+          st.phase = "top"; st.until = now + pause + 350;
+          setTimeout(() => { el.scrollTop = 0; st.pos = 0; el.classList.remove("rewind"); }, 300);
+        }
+      } else if (overflow > 2) {
+        st.pos = el.scrollTop;  // follow a person's own scrolling
+      }
+      el.classList.toggle("at-top", el.scrollTop < 4);
+      requestAnimationFrame(step);
+    }
+    st.last = performance.now(); refresh(); requestAnimationFrame(step);
+    scrollers.set(el, { refresh });
+  }
+  window.addEventListener("resize", () => scrollers.forEach((s) => s.refresh()));
+
   // ---------- calendar -----------------------------------------------------------------------
   function renderCalendar(d) {
-    const max = cfg("calendar.max_events", 12);
-    let shown = 0;
+    // Every day in the window is listed, empty ones included, so the week reads as a week.
+    // The box auto-scrolls when it is taller than the panel.
     const html = [];
     for (const day of d.days || []) {
       const isToday = day.label === "Today";
-      if (!isToday && !day.events.length) continue;
-      if (shown >= max) break;
       const date = new Date(day.date + "T12:00:00");
       const dateStr = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
-      const rows = day.events.slice(0, max - shown).map((e) => {
+      const rows = day.events.map((e) => {
         const when = e.all_day ? "All day" : fmtShortTime(new Date(e.start));
         return `<div class="event" style="--cal:${escapeHTML(e.color || "transparent")}"><span class="when">${escapeHTML(when)}</span><span class="what">${escapeHTML(e.title)}${e.location ? `<div class="where">${escapeHTML(e.location)}</div>` : ""}</span></div>`;
       });
-      shown += day.events.length;
-      html.push(`<div class="day${isToday ? " today" : ""}"><div class="day-head"><span>${escapeHTML(day.label)}</span><span>${dateStr}</span></div>${rows.join("") || '<div class="none">Nothing scheduled</div>'}</div>`);
+      html.push(`<div class="day${isToday ? " today" : ""}${day.events.length ? "" : " empty"}"><div class="day-head"><span>${escapeHTML(day.label)}</span><span>${dateStr}</span></div>${rows.join("") || '<div class="none">Nothing scheduled</div>'}</div>`);
     }
     $("agenda").dataset.hasData = "1";
     $("agenda").innerHTML = html.join("") || '<div class="none">Nothing coming up</div>';
     const cals = d.calendars || [];
     $("cal-legend").innerHTML = cals.length > 1 ? cals.map((c) => `<span><i style="background:${escapeHTML(c.color)}"></i>${escapeHTML(c.name)}${c.ok === false ? " ⚠" : ""}</span>`).join("") : "";
+    autoScroll($("agenda"));
   }
 
   // ---------- news ticker --------------------------------------------------------------------

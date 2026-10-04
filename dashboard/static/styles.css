@@ -147,7 +147,10 @@ body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
 .legend { display: inline-flex; gap: 0.8rem; font-size: 0.85rem; color: var(--muted); margin-left: auto; margin-right: 0.5rem; }
 .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
 .legend i { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; }
-.agenda { display: flex; flex-direction: column; gap: 0.25rem; overflow: hidden; height: calc(100% - 2.25rem); }
+.agenda { display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; height: calc(100% - 2.25rem); scrollbar-width: none; transition: opacity 0.3s; }
+.agenda::-webkit-scrollbar, .quotes::-webkit-scrollbar { display: none; }
+.agenda.rewind, .quotes.rewind { opacity: 0; }
+.agenda .day.empty .none { font-size: 1.05rem; color: var(--muted); padding: 0.1rem 0 0.1rem 0.7rem; }
 .agenda .day { margin-top: 0.75rem; }
 .agenda .day:first-child { margin-top: 0; }
 .agenda .day-head { font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 0.3rem; border-bottom: 1px solid var(--panel-edge); margin-bottom: 0.4rem; display: flex; justify-content: space-between; }
@@ -157,13 +160,16 @@ body.alert-extreme .photo { box-shadow: 0 0 0 0.3rem rgba(255, 70, 70, 0.9); }
 .agenda .event .what { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda .event .where { color: var(--muted); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda .none { color: var(--muted); font-size: 1.1rem; padding: 0.3rem 0; }
-.agenda::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3rem; background: linear-gradient(to bottom, transparent, var(--panel)); pointer-events: none; }
+.calendar::after, .stocks::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3rem; background: linear-gradient(to bottom, transparent, var(--panel)); pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+.calendar:has(.agenda.scrolls)::after, .stocks:has(.quotes.scrolls)::after { opacity: 1; }
 
 /* ---- markets & sports ---- */
 .stocks header .market { font-size: 0.9rem; color: var(--muted); }
 .tiles { display: flex; gap: 1rem; height: calc(100% - 2.5rem); }
-.quotes { flex: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 1rem; min-width: 0; }
-.quote, .tile { display: flex; flex-direction: column; justify-content: center; padding: 0.9rem 1rem; border-radius: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-edge); min-width: 0; }
+.quotes { flex: 3; display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: minmax(8.9rem, auto); align-content: start; gap: 0.8rem; min-width: 0; overflow-y: auto; scrollbar-width: none; transition: opacity 0.3s; padding-bottom: 0.5rem; }
+body.no-photos .quotes { grid-template-columns: repeat(3, 1fr); }
+.quote, .tile { display: flex; flex-direction: column; justify-content: center; padding: 0.7rem 1rem; border-radius: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-edge); min-width: 0; }
+.quote > div { flex-shrink: 0; }
 .quote .sym { font-size: 0.95rem; letter-spacing: 0.08em; color: var(--muted); }
 .quote .name { font-size: 1.1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .quote .price { font-size: 1.9rem; font-weight: 300; line-height: 1.1; margin-top: 0.4rem; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; }
@@ -261,7 +267,7 @@ body.show-cursor .corner-buttons { opacity: 1; pointer-events: auto; }
   .board { display: flex; flex-direction: column; height: auto; }
   .panel { min-height: 14rem; }
   .photo, .radar { height: 24rem; }
-  .agenda::after { display: none; }
+  .calendar::after, .stocks::after { display: none; }
   .tiles { flex-direction: column; height: auto; }
-  .quotes { grid-auto-flow: row; }
+  .quotes { grid-template-columns: repeat(2, 1fr); overflow: visible; }
 }

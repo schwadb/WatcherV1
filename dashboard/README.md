@@ -218,6 +218,10 @@ its calendar's color and a small legend appears in the panel header. One calenda
 failing never hides the others. (In `config.yaml` a link can also be written as
 `"${NAME}"` to read it from `.env`.)
 
+The calendar lists every day of the week ahead, empty days included. When
+the week is taller than the panel it scrolls down slowly by itself, pauses, and
+starts over. The stock tiles do the same when you add more symbols than fit.
+
 ### Severe weather banner
 
 When the National Weather Service has an active watch, warning or advisory for

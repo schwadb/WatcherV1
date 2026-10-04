@@ -336,7 +336,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "radar": {k: c["radar"].get(k, DEFAULTS["radar"][k]) for k in ("provider", "zoom")},
         "stocks": {"symbols": symbols},
         "calendars": [{"name": x.get("name", ""), "url": x.get("url", ""), "color": x.get("color", "")} for x in (c.get("calendars") or []) if isinstance(x, dict)],
-        "calendar": {k: c["calendar"].get(k, DEFAULTS["calendar"][k]) for k in ("days_ahead", "max_events")},
+        "calendar": {"days_ahead": c["calendar"].get("days_ahead", DEFAULTS["calendar"]["days_ahead"])},
         "countdowns": [{"title": x.get("title", ""), "date": str(x.get("date", "")), "icon": x.get("icon", "")} for x in (c.get("countdowns") or []) if isinstance(x, dict)],
         "sports": {"teams": [{"sport": t.get("sport", ""), "league": t.get("league", ""), "team": str(t.get("team", t.get("team_id", ""))), "name": t.get("name", "")} for t in (sports_cfg.get("teams") or []) if isinstance(t, dict)]},
         "news": {"feeds": [{"name": f.get("name", ""), "url": f.get("url", "")} for f in (c["news"].get("feeds") or []) if isinstance(f, dict)]},
@@ -431,7 +431,7 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
                 cals.append({"name": str((cal or {}).get("name", "")).strip()[:30] or f"Calendar {i + 1}", "url": url.replace("webcal://", "https://"), "color": color})
         clean["calendars"] = cals
     if "calendar" in body:
-        clean["calendar"] = {"days_ahead": int(num("calendar", "days_ahead", 1, 14, int) or 7), "max_events": int(num("calendar", "max_events", 3, 20, int) or 9)}
+        clean["calendar"] = {"days_ahead": int(num("calendar", "days_ahead", 1, 14, int) or 7)}  # max_events is no longer used: the list scrolls
     if "countdowns" in body:
         cds = []
         for i, cd in enumerate(body["countdowns"] or []):

@@ -202,7 +202,7 @@
     loadChron();
     setField(w, "radar.zoom", c.radar.zoom); setField(w, "radar.provider", c.radar.provider);
     $("calendar-list").replaceChildren(...c.calendars.map((x) => row("cal", x)));
-    setField(forms.calendars, "calendar.days_ahead", c.calendar.days_ahead); setField(forms.calendars, "calendar.max_events", c.calendar.max_events);
+    setField(forms.calendars, "calendar.days_ahead", c.calendar.days_ahead);
     $("stock-list").replaceChildren(...Object.entries(c.stocks.symbols).map(([sym, name]) => row("stock", { sym, name })));
     $("team-list").replaceChildren(...c.sports.teams.map((t) => row("team", t)));
     $("countdown-list").replaceChildren(...c.countdowns.map((x) => row("cd", x)));
@@ -224,7 +224,7 @@
       case "panels": return { config: { panels: Object.fromEntries(Object.keys(PANEL_LABELS).map((k) => [k, g("panels." + k)])) } };
       case "weather": return { config: { weather: { hourly_hours: Number(g("weather.hourly_hours")), forecast_days: Number(g("weather.forecast_days")), air_quality: g("weather.air_quality"), alerts: g("weather.alerts"), takeover: g("weather.takeover"), takeover_minutes: Number(g("weather.takeover_minutes")), takeover_sound: g("weather.takeover_sound") }, radar: { zoom: Number(g("radar.zoom")), provider: g("radar.provider") } } };
       case "chronalert": return { config: { chronalert: { mode: g("chronalert.mode"), open_mode: g("chronalert.open_mode"), url: g("chronalert.url"), show_seconds: Number(g("chronalert.show_seconds")), photo_seconds: Number(g("chronalert.photo_seconds")), app_path: g("chronalert.app_path") } } };
-      case "calendars": return { config: { calendars: [...$("calendar-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value, color: r.querySelector(".color").value })), calendar: { days_ahead: Number(g("calendar.days_ahead")), max_events: Number(g("calendar.max_events")) } } };
+      case "calendars": return { config: { calendars: [...$("calendar-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value, color: r.querySelector(".color").value })), calendar: { days_ahead: Number(g("calendar.days_ahead")) } } };
       case "stocks": return { config: { stocks: { symbols: Object.fromEntries([...$("stock-list").children].map((r) => [r.querySelector(".sym").value.trim().toUpperCase(), r.querySelector(".name").value.trim()]).filter(([s]) => s)) } } };
       case "sports": return { config: { sports: { teams: [...$("team-list").children].map((r) => JSON.parse(r.dataset.json)) } } };
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };

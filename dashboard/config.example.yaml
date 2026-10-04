@@ -65,7 +65,7 @@ calendars:
 calendar:
   days_ahead: 7               # today + this many days
   refresh_minutes: 15
-  max_events: 9
+  max_events: 9               # no longer used: the calendar scrolls by itself to show every day
 
 # Countdown chips in the clock panel ("N days"). Past dates disappear by themselves.
 countdowns:

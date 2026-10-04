@@ -52,7 +52,13 @@ async def radar(settings: Settings) -> dict[str, Any]:
 
 
 async def stocks(settings: Settings) -> dict[str, Any]:
-    return _load(settings, "stocks.json")
+    data = _load(settings, "stocks.json")
+    # A few more made-up quotes so the scrolling tile grid can be seen without a Finnhub key.
+    extra = [("AAPL", "Apple", 231.55, 1.84), ("MSFT", "Microsoft", 512.10, -3.22), ("NVDA", "Nvidia", 187.42, 5.61), ("AMZN", "Amazon", 221.08, -0.95)]
+    for sym, name, price, change in extra:
+        data["quotes"].append({"symbol": sym, "name": name, "price": price, "change": change, "change_pct": round(change / (price - change) * 100, 3),
+                               "prev_close": round(price - change, 2), "high": price + 1, "low": price - 2, "quote_time": data["quotes"][0]["quote_time"]})
+    return data
 
 
 async def calendar(settings: Settings) -> dict[str, Any]:
