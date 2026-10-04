@@ -226,6 +226,55 @@ appears across the top of the photo panel with the alert name and when it ends.
 Nothing shows when there are no alerts. Outside the US it does nothing; turn it
 off under Settings → Weather.
 
+### Storm mode (a warning takes over the screen)
+
+When the alert is a **Warning** (Tornado, Severe Thunderstorm, Flash Flood, …)
+or a **Tornado Watch**, the dashboard does more than a banner: the whole screen
+turns into the alert. The left half shows the alert name, when it ends, the
+Weather Service text and what to do; the right half is the radar, zoomed in one
+step. A three-note chime plays when it appears. It stays for ten minutes (or
+until someone presses **Esc** or the **Dismiss** button), then the normal
+dashboard comes back. The red banner keeps showing until the alert expires.
+
+Settings → Weather: turn storm mode off, change how many minutes it stays, or
+turn the chime off. Which alerts trigger it is the `takeover_events` list in
+`config.yaml` (`*Warning` matches every kind of warning).
+
+### ChronAlert radar inside the dashboard
+
+[ChronAlert](https://chronalert.com) is a free weather-tracking program for
+radio and storm enthusiasts (the Pro version adds more layers). It runs on your
+computer and shows its map in a web page on port 8420, so the dashboard can show
+that page too. Two ways to use it:
+
+- **Rotate with the photos:** every few minutes the photo panel swaps to the
+  ChronAlert map for a while, then goes back to photos. If ChronAlert is not
+  running, the photos just keep going.
+- **Button only:** a **Map** button appears in the corner (move the mouse or
+  touch the screen to see it). Press it, or the **C** key, for the map full
+  screen; **Esc** or **Close map** goes back. Storm mode never shows the
+  ChronAlert map on its own, so the radar you see in a warning is always the
+  dashboard's.
+
+To set it up on the Mac Pro / any Linux desktop:
+
+1. Download the Linux AppImage from <https://chronalert.com/download> into
+   `~/Applications` (make the folder if it is missing), then make it runnable:
+   `chmod +x ~/Applications/ChronAlert*.AppImage` and double-click it (or run
+   it from a terminal). Sign in and pick your location inside ChronAlert.
+2. On the phone, Settings → **ChronAlert**: choose *Rotate with the photos* or
+   *Button only* and save. Leave the address blank when ChronAlert runs on the
+   dashboard computer; otherwise enter `http://<that-computer>:8420/`.
+3. To open ChronAlert on your phone too, open its port in the firewall once:
+   `sudo ufw allow 8420/tcp`.
+4. Optional: in ChronAlert's own settings turn on "start with the computer" so
+   it is always running when the dashboard needs it.
+
+If the map stays blank inside the dashboard (some apps refuse to be shown
+inside another page), set *Open full screen as* to **A separate window**. The
+Map button then opens ChronAlert in its own Chromium window on the TV;
+Alt+Tab or closing it brings the dashboard back.
+
 ### Countdowns
 
 Settings → Countdowns: a title, a date and an optional emoji. The clock panel
@@ -302,6 +351,10 @@ playing, and **Disconnect** on the Music tab removes the connection.
 - **Omarchy shows the lock screen over the dashboard:** check "Stop the
   desktop's idle screen lock" under Settings → Screen & desktop, or press
   `Super + Ctrl + I`.
+- **Phone says the page took too long to respond, but it works on the
+  computer itself:** the computer's firewall is blocking it. Omarchy turns on
+  `ufw`; run `sudo ufw allow 8080/tcp` (the installer now does this for you)
+  and try again.
 - **Forgot the PIN:** on the computer, edit `~/WatcherV1/dashboard/.env`, clear the
   `DASHBOARD_PIN=` line, and restart the service.
 - **Test the page without internet or keys:** set `DASHBOARD_MOCK=1` in

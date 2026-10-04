@@ -25,7 +25,7 @@ else:
     data = d.get("data") or {}
     if name == "weather" and d["ok"]:
         detail = f"{data['current']['temp']}{data['units']['temp']} {data['current']['label']}, {len(data['daily'])} days, {len(data['hourly'])} hours, uv={data['today']['uv']}, air={(data.get('air') or {}).get('label')}, moon={data['moon']['name']}"
-    if name == "alerts" and d["ok"]: detail = f"{data['count']} active" + (f": {data['top']['event']}" if data['top'] else "")
+    if name == "alerts" and d["ok"]: detail = f"{data['count']} active" + (f": {data['top']['event']}" if data['top'] else "") + (" (takeover)" if data.get('takeover') else "")
     if name == "radar" and d["ok"]: detail = f"{data['provider']} {len(data['frames'])} frames"
     if name == "stocks" and d["ok"]: detail = ", ".join(f"{q['symbol']} {q['price']}" for q in data["quotes"])
     if name == "sports" and d["ok"]:

@@ -21,6 +21,7 @@
   <section class="panel photo" data-widget="photos">
     <img id="photo-a" class="layer" alt="">
     <img id="photo-b" class="layer" alt="">
+    <iframe id="chron-frame" class="layer chron hidden" title="ChronAlert" loading="lazy" referrerpolicy="no-referrer"></iframe>
     <div id="photo-empty" class="empty hidden">Add photos to the photo folder on the Pi to start the slideshow.</div>
     <div id="alert-banner" class="alert hidden" role="alert">
       <div class="alert-event" id="alert-event"></div>
@@ -84,10 +85,24 @@
   </section>
 
 </main>
+<div id="takeover" class="takeover hidden" role="alertdialog">
+  <div class="takeover-text">
+    <div class="takeover-event" id="takeover-event"></div>
+    <div class="takeover-until" id="takeover-until"></div>
+    <div class="takeover-headline" id="takeover-headline"></div>
+    <div class="takeover-desc" id="takeover-desc"></div>
+    <div class="takeover-instr" id="takeover-instr"></div>
+    <div class="takeover-area" id="takeover-area"></div>
+    <button type="button" class="takeover-dismiss" id="takeover-dismiss">Dismiss</button>
+  </div>
+  <div class="takeover-map"><div id="takeover-map"></div><div class="radar-time" id="takeover-time"></div></div>
+</div>
+<div id="chron-full" class="chron-full hidden"><iframe id="chron-full-frame" title="ChronAlert full screen" referrerpolicy="no-referrer"></iframe><button type="button" class="corner chron-close" id="chron-close">✕ Close map</button></div>
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
 <div class="corner-buttons">
-  <button id="desktop-btn" class="corner" type="button" title="Use the Pi as a computer (D)">&#128421; Desktop</button>
+  <button id="chron-btn" class="corner hidden" type="button" title="ChronAlert map (C)">&#127758; Map</button>
+  <button id="desktop-btn" class="corner" type="button" title="Use this computer as a computer (D)">&#128421; Desktop</button>
   <a id="gear" class="corner" href="/manage?kiosk=1" title="Settings (S)">&#9881; Settings</a>
 </div>
 <script src="/static/vendor/leaflet/leaflet.js"></script>

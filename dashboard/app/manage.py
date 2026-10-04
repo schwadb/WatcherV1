@@ -331,7 +331,8 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "units": c.get("units", "imperial"),
         "clock_24h": bool(c.get("clock_24h", False)),
         "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
-        "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts")},
+        "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts", "takeover", "takeover_minutes", "takeover_sound")},
+        "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
         "radar": {k: c["radar"].get(k, DEFAULTS["radar"][k]) for k in ("provider", "zoom")},
         "stocks": {"symbols": symbols},
         "calendars": [{"name": x.get("name", ""), "url": x.get("url", ""), "color": x.get("color", "")} for x in (c.get("calendars") or []) if isinstance(x, dict)],
@@ -383,6 +384,22 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             "hourly_hours": int(num("weather", "hourly_hours", 4, 12, int) or 8),
             "air_quality": bool(w.get("air_quality", True)),
             "alerts": bool(w.get("alerts", True)),
+            "takeover": bool(w.get("takeover", True)),
+            "takeover_minutes": int(num("weather", "takeover_minutes", 1, 60, int) or 10),
+            "takeover_sound": bool(w.get("takeover_sound", True)),
+        }
+    if "chronalert" in body:
+        ca = body["chronalert"] or {}
+        mode = str(ca.get("mode", "off")).lower()
+        url = str(ca.get("url", "")).strip()
+        if url and not url.startswith(("http://", "https://")):
+            errors.append("chronalert.url must start with http://")
+        clean["chronalert"] = {
+            "mode": mode if mode in ("off", "rotate", "button") else "off",
+            "url": url,
+            "show_seconds": int(num("chronalert", "show_seconds", 10, 3600, int) or 90),
+            "photo_seconds": int(num("chronalert", "photo_seconds", 10, 3600, int) or 180),
+            "open_mode": "window" if str(ca.get("open_mode", "iframe")).lower() == "window" else "iframe",
         }
     if "radar" in body:
         provider = str((body["radar"] or {}).get("provider", "rainviewer")).lower()
@@ -570,6 +587,28 @@ async def zip_lookup(request: Request, zipcode: str):
         "lon": round(float(place["longitude"]), 4),
         "timezone": STATE_TZ.get(state, "America/Chicago"),
     }
+
+
+_chron_status: dict[str, Any] = {"checked": 0.0, "reachable": False, "url": ""}
+
+
+@router.get("/api/chronalert/status")
+async def chronalert_status(request: Request):
+    """Is the ChronAlert app answering? The dashboard only rotates to its map when it is."""
+    settings = request.app.state.settings
+    url = (settings.cfg.get("chronalert") or {}).get("url") or "http://127.0.0.1:8420/"
+    now = time.monotonic()
+    if _chron_status["url"] == url and now - _chron_status["checked"] < 60:
+        return {"reachable": _chron_status["reachable"], "url": url, "cached": True}
+    reachable = False
+    try:
+        async with httpx.AsyncClient(timeout=4, follow_redirects=True, verify=False) as client:  # LAN app, often plain http
+            resp = await client.get(url)
+            reachable = resp.status_code < 500
+    except Exception:
+        reachable = False
+    _chron_status.update(checked=now, reachable=reachable, url=url)
+    return {"reachable": reachable, "url": url, "cached": False}
 
 
 @router.get("/api/sports/search")

@@ -30,6 +30,10 @@ weather:
   air_quality: true           # US air quality index from Open-Meteo
   alerts: true                # National Weather Service watches and warnings (US only)
   alerts_refresh_minutes: 5
+  takeover: true              # storm mode: a Warning takes over the whole screen with a zoomed radar
+  takeover_minutes: 10        # ...for this long, or until someone presses Esc / Dismiss
+  takeover_sound: true        # three-note chime when it appears
+  takeover_events: ["*Warning", "Tornado Watch"]   # which alert names trigger it (wildcards ok)
 
 radar:
   provider: rainviewer        # rainviewer (default) or mesonet (US NEXRAD fallback)
@@ -117,6 +121,13 @@ display:
   dim_from: ""                # e.g. "21:30" dims the page until screen_on
   dim_level: 0.5              # 0 = no dimming, 0.9 = very dark
   control: auto               # auto = switch the HDMI output on/off; off = only dim the page
+
+chronalert:
+  mode: "off"                 # off | rotate (swap the ChronAlert map into the photo panel) | button (corner "Map" button, key C)
+  url: ""                     # blank = ChronAlert running on this computer (http://<this-computer>:8420/)
+  show_seconds: 90            # how long the map stays in the photo panel each turn
+  photo_seconds: 180          # how long the photos get between turns
+  open_mode: iframe           # iframe = full screen inside the dashboard; window = a separate browser window
 
 server:
   host: "0.0.0.0"

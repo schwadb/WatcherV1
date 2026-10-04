@@ -24,7 +24,12 @@ DEFAULTS: dict[str, Any] = {
         "air_quality": True,
         "alerts": True,
         "alerts_refresh_minutes": 5,
+        "takeover": True,                 # a Warning-level alert fills the screen for a while
+        "takeover_minutes": 10,
+        "takeover_sound": True,
+        "takeover_events": ["*Warning", "Tornado Watch"],
     },
+    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe"},
     "radar": {
         "provider": "rainviewer",
         "refresh_minutes": 5,
@@ -173,6 +178,8 @@ class Settings:
             "todo": c.get("todo") or DEFAULTS["todo"],
             "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "refresh_seconds": (c.get("now_playing") or {}).get("refresh_seconds", 10)},
             "display": c["display"],
+            "takeover": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("takeover", "takeover_minutes", "takeover_sound")},
+            "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
             "reload_at": c["display"]["reload_at"],
             "mock": self.mock,
             "manage": True,

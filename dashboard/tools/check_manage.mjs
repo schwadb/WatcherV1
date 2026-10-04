@@ -45,6 +45,14 @@ const health = (await api("/api/health")).data;
 check("sources still ok after reload (radar removed)", !("radar" in health.sources) && health.sources.weather.ok);
 const zip = await api("/api/zip/68424");
 check("ZIP lookup", zip.status === 200 && zip.data.name.startsWith("Plymouth") && zip.data.timezone === "America/Chicago", JSON.stringify(zip.data));
+const badChron = await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover_minutes: 500 }, chronalert: { mode: "sideways", url: "ftp://nope", show_seconds: 1 } } } });
+check("bad storm-mode / ChronAlert settings rejected", badChron.status === 422 && badChron.data.errors.length >= 3, (badChron.data.errors || []).join(" | "));
+const goodChron = await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover: true, takeover_minutes: 15, takeover_sound: false }, chronalert: { mode: "button", url: "http://127.0.0.1:8420/", show_seconds: 60, photo_seconds: 120, open_mode: "window" } } } });
+const chronCfg = goodChron.status === 200 ? (await api("/api/config")).data : {};
+check("storm-mode / ChronAlert settings saved and visible", goodChron.status === 200 && chronCfg.takeover && chronCfg.takeover.takeover_minutes === 15 && chronCfg.takeover.takeover_sound === false && chronCfg.chronalert && chronCfg.chronalert.mode === "button" && chronCfg.chronalert.open_mode === "window", JSON.stringify([goodChron.data, chronCfg.takeover, chronCfg.chronalert]));
+const chronStatus = await api("/api/chronalert/status");
+check("ChronAlert reachability check answers", chronStatus.status === 200 && typeof chronStatus.data.reachable === "boolean" && chronStatus.data.url.startsWith("http"), JSON.stringify(chronStatus.data));
+await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover_minutes: 10, takeover_sound: true }, chronalert: { mode: "rotate", open_mode: "iframe", show_seconds: 20, photo_seconds: 20 } } } });
 const sysinfo = await api("/api/system");
 check("system info", sysinfo.status === 200 && typeof sysinfo.data.disk_free_gb === "number" && sysinfo.data.version);
 // restore

@@ -36,7 +36,7 @@ async def weather(settings: Settings) -> dict[str, Any]:
 
 async def alerts(settings: Settings) -> dict[str, Any]:
     # The fixture's Tornado Watch expires in 2099 (always active); its Wind Advisory is expired (always filtered).
-    return alerts_src.parse(_load(settings, "alerts.json"))
+    return alerts_src.parse(_load(settings, "alerts.json"), takeover_events=settings.cfg["weather"].get("takeover_events"))
 
 
 async def radar(settings: Settings) -> dict[str, Any]:

@@ -102,6 +102,12 @@ if [ "$PLATFORM" = "pi" ] && command -v raspi-config >/dev/null 2>&1; then
   sudo raspi-config nonint do_blanking 1 || true
 fi
 
+# ---- firewall (Omarchy turns on ufw; phones can't reach the page until the port is open) ---------
+if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -qi "status: active"; then
+  echo "==> Opening port $PORT in the firewall so phones on your Wi-Fi can reach the dashboard"
+  sudo ufw allow "$PORT/tcp" >/dev/null 2>&1 || true
+fi
+
 # ---- full-screen dashboard at login ---------------------------------------------------------
 chmod +x "$DIR/deploy/kiosk.sh" "$DIR/deploy/screen.sh"
 START_AT_LOGIN="$(grep -E '^\s*start_at_login:\s*false' "$DIR/config.yaml" | head -1 || true)"

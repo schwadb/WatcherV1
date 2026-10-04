@@ -34,6 +34,9 @@ a = alerts.parse(load("alerts.json"), now=datetime(2026, 10, 1, tzinfo=timezone.
 check("alerts: expired advisory is dropped", a["count"] == 1 and a["top"]["event"] == "Tornado Watch")
 check("alerts: severity order puts Severe first", a["alerts"][0]["severity"] == "Severe")
 check("alerts: all expired -> empty", alerts.parse(load("alerts.json"), now=datetime(2100, 1, 1, tzinfo=timezone.utc))["count"] == 0)
+check("alerts: Tornado Watch triggers the takeover by default", a["takeover"] and a["takeover"]["event"] == "Tornado Watch")
+check("alerts: takeover patterns are wildcards", alerts.is_takeover("Severe Thunderstorm Warning", ["*warning"]) and not alerts.is_takeover("Flood Watch", ["*Warning"]))
+check("alerts: custom pattern list respected", alerts.parse(load("alerts.json"), now=datetime(2026, 10, 1, tzinfo=timezone.utc), takeover_events=["Flash Flood Warning"])["takeover"] is None)
 
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))

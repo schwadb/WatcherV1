@@ -188,11 +188,128 @@
     const banner = $("alert-banner");
     const top = d.top;
     document.body.classList.toggle("alert-extreme", !!top && top.severity === "Extreme");
-    if (!top) { banner.classList.add("hidden"); return; }
+    if (!top) { banner.classList.add("hidden"); hideTakeover(); return; }
     banner.className = "alert sev-" + (top.severity || "unknown").toLowerCase();
     $("alert-event").textContent = top.event + (d.count > 1 ? ` +${d.count - 1}` : "");
     $("alert-text").textContent = (top.headline || top.description || "").replace(/\s+by NWS.*$/i, "");
     $("alert-until").textContent = top.ends ? "until " + fmtTime(new Date(top.ends)) : "";
+    if (d.takeover) maybeTakeover(d.takeover); else hideTakeover();
+  }
+
+  // ---------- alert takeover -----------------------------------------------------------------
+  const takeover = { key: null, timer: null, shown: false, dismissed: new Set(), map: null, layers: new Map(), template: "" };
+  function takeoverKey(a) { return `${a.event}|${a.area}|${(a.ends || "").slice(0, 13)}`; }
+  function maybeTakeover(a) {
+    if (!cfg("takeover.takeover", true)) return;
+    const key = takeoverKey(a);
+    if (takeover.dismissed.has(key)) return;
+    if (takeover.shown && takeover.key === key) return;
+    showTakeover(a, key);
+  }
+  function showTakeover(a, key) {
+    takeover.key = key; takeover.shown = true;
+    const box = $("takeover");
+    box.className = "takeover sev-" + (a.severity || "severe").toLowerCase();
+    $("takeover-event").textContent = a.event;
+    $("takeover-until").textContent = a.ends ? "until " + fmtTime(new Date(a.ends)) + (a.sender ? " · " + a.sender : "") : a.sender || "";
+    $("takeover-headline").textContent = (a.headline || "").replace(/\s+by NWS.*$/i, "");
+    $("takeover-desc").textContent = (a.description || "").replace(/\s+/g, " ");
+    $("takeover-instr").textContent = a.instruction || "";
+    $("takeover-instr").classList.toggle("hidden", !a.instruction);
+    $("takeover-area").textContent = a.area || "";
+    box.classList.remove("hidden");
+    chronPause(true);
+    setupTakeoverMap();
+    clearTimeout(takeover.timer);
+    const minutes = Number(cfg("takeover.takeover_minutes", 10)) || 10;
+    takeover.timer = setTimeout(() => dismissTakeover(false), minutes * 60000);
+    if (cfg("takeover.takeover_sound", true)) chime();
+  }
+  function hideTakeover() {
+    if (!takeover.shown) return;
+    takeover.shown = false;
+    $("takeover").classList.add("hidden");
+    clearTimeout(takeover.timer);
+    chronPause(false);
+  }
+  function dismissTakeover(byUser) {
+    if (takeover.key) takeover.dismissed.add(takeover.key);  // don't re-show the same alert
+    hideTakeover();
+  }
+  function setupTakeoverMap() {
+    if (!window.L || !radar.map) return;
+    const center = radar.map.getCenter();
+    if (!takeover.map) {
+      takeover.map = L.map("takeover-map", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, fadeAnimation: false }).setView(center, Math.min(8, radar.map.getZoom() + 1));
+      L.tileLayer(radar.baseTemplate, { subdomains: "abcd", maxZoom: 12 }).addTo(takeover.map);
+      takeover.map.createPane("labels").style.zIndex = 450;
+      if (radar.labelsTemplate) L.tileLayer(radar.labelsTemplate, { pane: "labels", maxZoom: 12 }).addTo(takeover.map);
+      L.marker(center, { icon: L.divIcon({ className: "radar-here", iconSize: [14, 14] }), interactive: false }).addTo(takeover.map);
+    }
+    syncTakeoverLayers();
+    setTimeout(() => takeover.map.invalidateSize(), 300);
+  }
+  function syncTakeoverLayers() {
+    if (!takeover.map) return;
+    const wanted = new Set(radar.order.map((f) => f.path));
+    for (const [path, layer] of takeover.layers) if (!wanted.has(path) || takeover.template !== radar.template) { takeover.map.removeLayer(layer); takeover.layers.delete(path); }
+    takeover.template = radar.template;
+    for (const f of radar.order) if (!takeover.layers.has(f.path)) {
+      const layer = L.tileLayer(radar.template.replace("{path}", f.path), { opacity: 0, maxNativeZoom: radar.maxNative || 7, maxZoom: 12, updateWhenIdle: false });
+      layer.addTo(takeover.map); takeover.layers.set(f.path, layer);
+    }
+  }
+  function chime() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35, 0.7].forEach((t) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.3);
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.32);
+      });
+    } catch (e) { /* no audio device */ }
+  }
+
+  // ---------- ChronAlert embed ---------------------------------------------------------------
+  const chron = { url: "", mode: "off", timer: null, showing: false, paused: false, full: false };
+  function chronUrl() { return cfg("chronalert.url", "") || `http://${location.hostname}:8420/`; }
+  function chronPause(on) { chron.paused = on; if (on && chron.showing) chronShowPhotos(); }
+  async function chronReachable() {
+    // Ask the server whether ChronAlert answers, so the slideshow never swaps to a black frame.
+    try { const r = await fetch("/api/chronalert/status", { cache: "no-store" }); return (await r.json()).reachable === true; }
+    catch (e) { return true; }  // can't tell: try anyway
+  }
+  async function chronShowMap() {
+    if (chron.paused || document.body.classList.contains("screen-off")) { chron.timer = setTimeout(chronShowMap, 30000); return; }
+    if (!(await chronReachable())) { chron.timer = setTimeout(chronShowMap, 60000); return; }
+    const f = $("chron-frame");
+    if (!f.src) f.src = chronUrl();
+    f.classList.remove("hidden"); requestAnimationFrame(() => f.classList.add("visible"));
+    chron.showing = true;
+    chron.timer = setTimeout(chronShowPhotos, (Number(cfg("chronalert.show_seconds", 90)) || 90) * 1000);
+  }
+  function chronShowPhotos() {
+    const f = $("chron-frame");
+    f.classList.remove("visible"); setTimeout(() => { if (!chron.showing) f.classList.add("hidden"); }, 1100);
+    chron.showing = false;
+    clearTimeout(chron.timer);
+    chron.timer = setTimeout(chronShowMap, (Number(cfg("chronalert.photo_seconds", 180)) || 180) * 1000);
+  }
+  function chronToggleFull() {
+    if (cfg("chronalert.open_mode", "iframe") === "window") { window.open(chronUrl(), "chronalert"); return; }
+    chron.full = !chron.full;
+    const box = $("chron-full");
+    if (chron.full) { $("chron-full-frame").src = chronUrl(); box.classList.remove("hidden"); }
+    else { box.classList.add("hidden"); $("chron-full-frame").src = "about:blank"; }
+  }
+  function startChron() {
+    chron.mode = cfg("chronalert.mode", "off");
+    if (chron.mode === "off") return;
+    $("chron-btn").classList.remove("hidden");
+    $("chron-btn").addEventListener("click", chronToggleFull);
+    $("chron-close").addEventListener("click", chronToggleFull);
+    if (chron.mode === "rotate") chron.timer = setTimeout(chronShowMap, (Number(cfg("chronalert.photo_seconds", 180)) || 180) * 1000);
   }
 
   // ---------- weather ------------------------------------------------------------------------
@@ -245,12 +362,14 @@
         zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false,
         doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, fadeAnimation: false,
       }).setView(d.center, d.zoom);
+      radar.baseTemplate = d.basemap_template; radar.labelsTemplate = d.labels_template || ""; radar.maxNative = d.max_native_zoom || 7;
       radar.base = L.tileLayer(d.basemap_template, { subdomains: "abcd", maxZoom: 12 }).addTo(radar.map);
       radar.map.createPane("labels").style.zIndex = 450;  // city names and borders sit above the radar
       if (d.labels_template) L.tileLayer(d.labels_template, { pane: "labels", maxZoom: 12 }).addTo(radar.map);
       L.marker(d.center, { icon: L.divIcon({ className: "radar-here", iconSize: [14, 14] }), interactive: false }).addTo(radar.map);
       $("radar-attrib").textContent = [d.attribution, d.basemap_attribution].filter(Boolean).join(" · ");
       setTimeout(() => radar.map.invalidateSize(), 300);
+      if (takeover.shown && !takeover.map) setupTakeoverMap();  // an alert arrived before the radar did
     }
     if (radar.template !== d.tile_template) {  // provider changed: drop everything
       radar.layers.forEach((l) => radar.map.removeLayer(l));
@@ -271,6 +390,7 @@
     }
     radar.order = d.frames.map((f) => ({ path: f.path, time: f.time }));
     radar.index = Math.max(0, radar.order.length - 1);
+    if (takeover.map) syncTakeoverLayers();
     if (!radar.timer) startRadarLoop();
   }
   function startRadarLoop() {
@@ -282,9 +402,12 @@
       radar.order.forEach((f, i) => {
         const layer = radar.layers.get(f.path);
         if (layer) layer.setOpacity(i === radar.index ? 0.85 : 0);
+        const t = takeover.layers.get(f.path);
+        if (t) t.setOpacity(i === radar.index ? 0.85 : 0);
       });
       const f = radar.order[radar.index];
       $("radar-time").textContent = fmtTime(new Date(f.time * 1000));
+      if (takeover.shown) $("takeover-time").textContent = $("radar-time").textContent;
       radar.timer = setTimeout(step, radar.index === n - 1 ? frameMs * 4 : frameMs);
     }
     step();
@@ -477,8 +600,11 @@
     window.addEventListener("keydown", (e) => {
       if (e.key === "s" || e.key === "S") location.href = "/manage?kiosk=1";
       if (e.key === "d" || e.key === "D") switchToDesktop();
+      if ((e.key === "c" || e.key === "C") && chron.mode !== "off") chronToggleFull();
+      if (e.key === "Escape") { if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
     });
     $("desktop-btn").addEventListener("click", switchToDesktop);
+    $("takeover-dismiss").addEventListener("click", () => dismissTakeover(true));
   }
   async function switchToDesktop() {
     if (!window.confirm("Close the dashboard and use the Pi as a computer? Open it again from the desktop icon, the app menu, or the settings page on your phone.")) return;
@@ -537,6 +663,7 @@
       startWidget("nowplaying", Number(cfg("now_playing.refresh_seconds", 10)) || 10, renderNowPlaying, () => $("now-playing").classList.add("hidden"));
     }
     startInputWatch();
+    startChron();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
   }
