@@ -209,6 +209,7 @@
     $("feed-list").replaceChildren(...c.news.feeds.map((x) => row("feed", x)));
     renderStockPicks();
     if (feedCatalog.length) renderFeedCatalog(); else loadFeedCatalog();
+    loadTeamStatus();
     const p = forms.photos;
     setField(p, "photos.seconds_per_photo", c.photos.seconds_per_photo); setField(p, "photos.order", c.photos.order);
     setField(p, "photos.max_upload_mb", c.photos.max_upload_mb); setField(p, "todo.max_items", c.todo.max_items);
@@ -262,6 +263,21 @@
       toast(`Found ${d.name}. Press Save.`);
     } catch (err) { toast(err.message, true); }
   });
+  async function loadTeamStatus() {
+    // Say so when a saved team could not be loaded, instead of it silently missing from the TV.
+    const line = $("team-status");
+    try {
+      const r = await fetch("/api/sports", { cache: "no-store" });
+      if (r.status === 404) { line.textContent = ""; return; }
+      const d = await r.json();
+      const data = d.data || {};
+      const names = (data.teams || []).map((t) => t.short || t.name).join(", ");
+      const errs = (data.errors || []).map((e) => `could not load team ${e}`);
+      if (!d.ok) errs.push(d.error || "sports feed not loaded yet");
+      line.textContent = [names ? `Loaded: ${names}.` : "", ...errs].filter(Boolean).join(" ");
+      line.classList.toggle("bad", errs.length > 0);
+    } catch (e) { line.textContent = ""; }
+  }
   async function searchTeam() {
     const q = $("team-search").value.trim();
     if (q.length < 2) return;

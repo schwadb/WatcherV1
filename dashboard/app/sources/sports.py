@@ -72,6 +72,7 @@ def _game(event: dict[str, Any], team_id: str) -> dict[str, Any] | None:
         media = broadcasts[0].get("media") or {}
         tv = media.get("shortName") or (broadcasts[0].get("names") or [""])[0]
     return {
+        "id": str(event.get("id") or ""),
         "date": comps.get("date") or event.get("date"),
         "time_tbd": comps.get("timeValid") is False,
         "home": us.get("homeAway") == "home",
@@ -128,6 +129,39 @@ def parse_team(team_raw: dict[str, Any], schedule_raw: dict[str, Any], now: date
     }
 
 
+SCOREBOARD = "https://site.web.api.espn.com/apis/site/v2/sports/{sport}/{league}/scoreboard"
+SCOREBOARD_PARAMS = {"football/college-football": {"groups": "80", "limit": "200"}}  # all of FBS, not just the top 25
+
+
+def apply_scoreboard(team: dict[str, Any], scoreboard: dict[str, Any]) -> bool:
+    """Fill a live game's score and clock from the league scoreboard (the schedule feed leaves them empty)."""
+    live = team.get("live")
+    if not live:
+        return False
+    for event in scoreboard.get("events") or []:
+        if str(event.get("id")) != live.get("id"):
+            continue
+        comps = (event.get("competitions") or [{}])[0]
+        us_abbr = (team.get("abbr") or "").upper()
+        us = them = None
+        for c in comps.get("competitors") or []:
+            abbr = ((c.get("team") or {}).get("abbreviation") or "").upper()
+            if abbr == us_abbr or str((c.get("team") or {}).get("id")) == str(team.get("id")):
+                us = c
+            else:
+                them = c
+        if us is None or them is None:
+            return False
+        live["score_us"], live["score_them"] = _score(us), _score(them)
+        status = (comps.get("status") or {}).get("type") or {}
+        live["detail"] = status.get("shortDetail") or status.get("detail") or live.get("detail", "")
+        live["clock"] = live["detail"]
+        if status.get("state") == "post":  # the game ended since the schedule was read
+            live["state"] = "post"
+        return True
+    return False
+
+
 async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]:
     wanted = teams(settings)
     if not wanted:
@@ -153,4 +187,18 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
             out.append(result)
     if not out:
         raise RuntimeError("; ".join(errors))
+    # Live scores: one scoreboard call per league that has a game on right now.
+    boards: dict[str, Any] = {}
+    for team in out:
+        if not team.get("live"):
+            continue
+        league = team["league"]
+        if league not in boards:
+            try:
+                sport, lg = league.split("/", 1)
+                resp = await client.get(SCOREBOARD.format(sport=sport, league=lg), params=SCOREBOARD_PARAMS.get(league), headers=HEADERS, timeout=20)
+                boards[league] = resp.json() if resp.status_code == 200 else {}
+            except Exception:
+                boards[league] = {}
+        apply_scoreboard(team, boards[league])
     return {"teams": out, "errors": errors}

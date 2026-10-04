@@ -302,8 +302,8 @@ Settings → Sports teams: search by name (college and pro football, basketball,
 baseball, hockey, MLS) and pick a team; search again to add more. The tile
 shows the record and standing, the next game with TV channel, the last result,
 and the live score while a game is on. With several teams the tile rotates
-through them every 12 seconds (small dots show which one is up), and a team
-that is playing right now stays on screen. The data comes from ESPN's public
+through them every 12 seconds (small dots show which one is up); a team that
+is playing right now gets a double-length turn with the live score and clock. The data comes from ESPN's public
 site.
 
 ### Turning the TV off at night

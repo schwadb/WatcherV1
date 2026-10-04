@@ -456,15 +456,23 @@
     tile.classList.remove("hidden");
     $("markets-title").textContent = "Markets & Sports";
     const live = teams.findIndex((t) => t.live);
+    const wasLive = sportsState.teams[sportsState.index] && sportsState.teams[sportsState.index].live;
     sportsState.teams = teams;
-    sportsState.index = live >= 0 ? live : Math.min(sportsState.index, teams.length - 1);
+    // Start on the team that is playing right now (unless we were already mid-rotation), but keep rotating:
+    // the live team simply gets a longer turn so the score is on screen most of the time.
+    sportsState.index = live >= 0 && (sportsState.index === 0 || wasLive) ? live : Math.min(sportsState.index, teams.length - 1);
     drawTeam();
-    if (teams.length > 1 && live < 0) sportsState.timer = setTimeout(stepTeam, cfg("sports.rotate_seconds", 12) * 1000);
+    if (teams.length > 1) sportsState.timer = setTimeout(stepTeam, teamTurnMs());
+  }
+  function teamTurnMs() {
+    const t = sportsState.teams[sportsState.index];
+    const base = Number(cfg("sports.rotate_seconds", 12)) || 12;
+    return (t && t.live ? base * 2 : base) * 1000;
   }
   function stepTeam() {
     sportsState.index = (sportsState.index + 1) % sportsState.teams.length;
     drawTeam();
-    sportsState.timer = setTimeout(stepTeam, cfg("sports.rotate_seconds", 12) * 1000);
+    sportsState.timer = setTimeout(stepTeam, teamTurnMs());
   }
   function drawTeam() {
     const teams = sportsState.teams;
@@ -473,7 +481,8 @@
     tile.style.setProperty("--team", t.color || "var(--accent)");
     const lines = [];
     if (t.live) {
-      lines.push(`<div class="line"><span class="k">Live</span><span class="live">${t.live.home ? "vs" : "at"} ${escapeHTML(t.live.opponent)} · ${t.live.score_us ?? 0}–${t.live.score_them ?? 0} · ${escapeHTML(t.live.clock || "")}</span></div>`);
+      const score = t.live.score_us == null || t.live.score_them == null ? "in progress" : `${t.live.score_us}–${t.live.score_them}`;
+      lines.push(`<div class="line"><span class="k">Live</span><span class="live">${t.live.home ? "vs" : "at"} ${escapeHTML(t.live.opponent)} · ${score} · ${escapeHTML(t.live.clock || "")}</span></div>`);
     } else if (t.next) {
       lines.push(`<div class="line"><span class="k">Next</span><span>${t.next.home ? "vs" : "at"} ${escapeHTML(t.next.opponent)} · ${escapeHTML(gameWhen(t.next))}${t.next.tv ? " · " + escapeHTML(t.next.tv) : ""}</span></div>`);
     }

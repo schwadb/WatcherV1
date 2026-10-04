@@ -214,4 +214,13 @@ async def index():
     return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+class FreshStaticFiles(StaticFiles):
+    """Static files are always re-checked by the browser (ETag keeps it cheap), so an update shows up on the next load."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/static", FreshStaticFiles(directory=STATIC_DIR), name="static")

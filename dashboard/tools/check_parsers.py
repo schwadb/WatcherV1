@@ -59,6 +59,10 @@ check("sports: team + record", s["abbr"] == "NEB" and s["record"] == "4-0")
 check("sports: next game is the first unplayed one", s["next"] and s["next"]["opp_abbr"] == "MD" and s["next"]["home"] is True)
 check("sports: last game result string", s["last"] and s["last"]["result"] == "W 31-13" and s["last"]["won"] is True)
 check("sports: no live game", s["live"] is None)
+_live_team = {"abbr": "KC", "id": "12", "live": {"id": "401872976", "score_us": None, "score_them": None, "detail": "", "state": "in"}}
+_board = {"events": [{"id": "401872976", "competitions": [{"status": {"type": {"state": "in", "shortDetail": "1:46 - 4th"}}, "competitors": [{"team": {"abbreviation": "LV", "id": "13"}, "score": "27"}, {"team": {"abbreviation": "KC", "id": "12"}, "score": "30"}]}]}]}
+check("sports: live score filled from the league scoreboard", sports.apply_scoreboard(_live_team, _board) and _live_team["live"]["score_us"] == 30 and _live_team["live"]["score_them"] == 27 and _live_team["live"]["clock"] == "1:46 - 4th")
+check("sports: scoreboard without our game leaves things alone", not sports.apply_scoreboard({"abbr": "NEB", "live": {"id": "1"}}, _board))
 check("sports: config normalizes 'football/college-football'", sports.teams(type("S", (), {"cfg": {"sports": [{"league": "football/college-football", "team": "NEB"}]}})()) == [{"sport": "football", "league": "college-football", "team": "NEB"}])
 
 # ---- calendars -------------------------------------------------------------------------------

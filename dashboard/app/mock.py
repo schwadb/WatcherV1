@@ -100,5 +100,6 @@ async def sports(settings: Settings) -> dict[str, Any]:
     other = dict(team, name="Kansas City Chiefs", short="Chiefs", abbr="KC", color="#e31837", logo="", league="football/nfl",
                  record="3-1", standing="1st in AFC West",
                  next=dict(team["next"], opponent="Las Vegas Raiders", opp_abbr="LV", home=False, tv="CBS"),
+                 live={"id": "401872976", "home": False, "opponent": "Raiders", "opp_abbr": "LV", "state": "in", "detail": "1:46 - 4th", "clock": "1:46 - 4th", "score_us": 30, "score_them": 27},
                  last=dict(team["last"], opponent="Baltimore Ravens", result="L 17-20", won=False))
     return {"teams": [team, other], "errors": []}
