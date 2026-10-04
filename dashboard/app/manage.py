@@ -407,9 +407,11 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
     if "radar" in body:
         provider = str((body["radar"] or {}).get("provider", "rainviewer")).lower()
-        if provider not in ("rainviewer", "mesonet"):
-            errors.append("radar.provider must be rainviewer or mesonet")
-        clean["radar"] = {"provider": provider, "zoom": int(num("radar", "zoom", 4, 9, int) or 6)}
+        from .sources.radar import PROVIDERS
+
+        if provider not in PROVIDERS:
+            errors.append("radar.provider must be one of " + ", ".join(PROVIDERS))
+        clean["radar"] = {"provider": provider, "zoom": int(num("radar", "zoom", 4, 12, int) or 6)}
     if "stocks" in body:
         symbols = {}
         for sym, name in ((body["stocks"] or {}).get("symbols") or {}).items():

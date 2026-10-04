@@ -230,6 +230,26 @@ appears across the top of the photo panel with the alert name and when it ends.
 Nothing shows when there are no alerts. Outside the US it does nothing; turn it
 off under Settings → Weather.
 
+### Radar sources
+
+Settings → Weather & radar → **Radar source**. All are free and need no key:
+
+- **NWS hi-def (recommended):** the National Weather Service's quality-controlled
+  base-reflectivity composite, 1 km detail, a new frame about every two minutes,
+  one hour of animation. The same data radar.weather.gov draws. US only.
+- **NWS nearest radar site, super-resolution:** raw data straight from the
+  NEXRAD site closest to your location (picked automatically; Grand Island's
+  KUEX for Plymouth, with Omaha's KOAX a close second), about 250 m detail, the closest match to apps like MyRadar. On a
+  quiet day it shows a haze of faint echoes near the site (dust, bugs, birds),
+  which the composite filters out. If the site is down, the composite shows.
+- **NWS composite reflectivity:** the strongest echo in the whole column, good
+  for spotting storm cores and hail.
+- **RainViewer:** worldwide, smooth, about 2 km detail. Use this outside the US.
+- **NWS NEXRAD via Iowa Mesonet:** another US composite, kept as a backup.
+
+Radar zoom: 5 shows several states, 7 a region, 9–10 a county or town. The
+NWS sources stay sharp up to 10; RainViewer is best at 6–7.
+
 ### Storm mode (a warning takes over the screen)
 
 When the alert is a **Warning** (Tornado, Severe Thunderstorm, Flash Flood, …)

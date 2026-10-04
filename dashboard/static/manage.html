@@ -122,8 +122,14 @@
       </div>
       <label class="check"><input name="weather.takeover_sound" type="checkbox"> Play a chime when a warning takes over</label>
       <div class="row two">
-        <label>Radar zoom (5 wide – 8 close) <input name="radar.zoom" type="number" min="4" max="9"></label>
-        <label>Radar source <select name="radar.provider"><option value="rainviewer">RainViewer</option><option value="mesonet">NWS NEXRAD (Mesonet)</option></select></label>
+        <label>Radar zoom (5 = region, 8 = county, 10 = town) <input name="radar.zoom" type="number" min="4" max="12"></label>
+        <label>Radar source <select name="radar.provider">
+          <option value="nws">NWS hi-def (US, recommended)</option>
+          <option value="nws_site">NWS nearest radar site, super-resolution (US)</option>
+          <option value="nws_cref">NWS composite reflectivity, storm cores (US)</option>
+          <option value="rainviewer">RainViewer (worldwide, smooth)</option>
+          <option value="mesonet">NWS NEXRAD via Iowa Mesonet (US)</option>
+        </select><span class="hint">Hi-def sources stay sharp at zoom 9–10; RainViewer is best at 6–7.</span></label>
       </div>
       <div class="row end"><button type="submit">Save</button></div>
     </form>

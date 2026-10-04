@@ -241,10 +241,10 @@
     if (!window.L || !radar.map) return;
     const center = radar.map.getCenter();
     if (!takeover.map) {
-      takeover.map = L.map("takeover-map", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, fadeAnimation: false }).setView(center, Math.min(8, radar.map.getZoom() + 1));
-      L.tileLayer(radar.baseTemplate, { subdomains: "abcd", maxZoom: 12 }).addTo(takeover.map);
+      takeover.map = L.map("takeover-map", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, fadeAnimation: false }).setView(center, Math.min(11, radar.map.getZoom() + 1));
+      L.tileLayer(radar.baseTemplate, { subdomains: "abcd", maxZoom: 14 }).addTo(takeover.map);
       takeover.map.createPane("labels").style.zIndex = 450;
-      if (radar.labelsTemplate) L.tileLayer(radar.labelsTemplate, { pane: "labels", maxZoom: 12 }).addTo(takeover.map);
+      if (radar.labelsTemplate) L.tileLayer(radar.labelsTemplate, { pane: "labels", maxZoom: 14 }).addTo(takeover.map);
       L.marker(center, { icon: L.divIcon({ className: "radar-here", iconSize: [14, 14] }), interactive: false }).addTo(takeover.map);
     }
     syncTakeoverLayers();
@@ -256,7 +256,7 @@
     for (const [path, layer] of takeover.layers) if (!wanted.has(path) || takeover.template !== radar.template) { takeover.map.removeLayer(layer); takeover.layers.delete(path); }
     takeover.template = radar.template;
     for (const f of radar.order) if (!takeover.layers.has(f.path)) {
-      const layer = L.tileLayer(radar.template.replace("{path}", f.path), { opacity: 0, maxNativeZoom: radar.maxNative || 7, maxZoom: 12, updateWhenIdle: false });
+      const layer = radarLayer(f);
       layer.addTo(takeover.map); takeover.layers.set(f.path, layer);
     }
   }
@@ -365,7 +365,13 @@
   }
 
   // ---------- radar --------------------------------------------------------------------------
-  const radar = { map: null, base: null, layers: new Map(), order: [], index: 0, timer: null, template: "" };
+  const radar = { map: null, base: null, layers: new Map(), order: [], index: 0, timer: null, template: "", tileTemplate: "", wms: null };
+  function radarLayer(f, extra = {}) {
+    // One animation frame: a plain tile layer (RainViewer, Mesonet) or a WMS layer with a time stamp (NWS).
+    const common = { opacity: 0, maxZoom: 14, updateWhenIdle: false, ...extra };
+    if (radar.wms) return L.tileLayer.wms(radar.wms.url, { layers: radar.wms.layers, format: "image/png", transparent: true, version: "1.3.0", time: f.path, tileSize: 512, ...common });
+    return L.tileLayer(radar.tileTemplate.replace("{path}", f.path), { maxNativeZoom: radar.maxNative || 7, ...common });
+  }
   function renderRadar(d) {
     if (!window.L) return;
     if (!radar.map) {
@@ -374,18 +380,23 @@
         doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, fadeAnimation: false,
       }).setView(d.center, d.zoom);
       radar.baseTemplate = d.basemap_template; radar.labelsTemplate = d.labels_template || ""; radar.maxNative = d.max_native_zoom || 7;
-      radar.base = L.tileLayer(d.basemap_template, { subdomains: "abcd", maxZoom: 12 }).addTo(radar.map);
+      radar.base = L.tileLayer(d.basemap_template, { subdomains: "abcd", maxZoom: 14 }).addTo(radar.map);
       radar.map.createPane("labels").style.zIndex = 450;  // city names and borders sit above the radar
-      if (d.labels_template) L.tileLayer(d.labels_template, { pane: "labels", maxZoom: 12 }).addTo(radar.map);
+      if (d.labels_template) L.tileLayer(d.labels_template, { pane: "labels", maxZoom: 14 }).addTo(radar.map);
       L.marker(d.center, { icon: L.divIcon({ className: "radar-here", iconSize: [14, 14] }), interactive: false }).addTo(radar.map);
       $("radar-attrib").textContent = [d.attribution, d.basemap_attribution].filter(Boolean).join(" · ");
       setTimeout(() => radar.map.invalidateSize(), 300);
       if (takeover.shown && !takeover.map) setupTakeoverMap();  // an alert arrived before the radar did
     }
-    if (radar.template !== d.tile_template) {  // provider changed: drop everything
+    const signature = d.wms ? `wms:${d.wms.url}|${d.wms.layers}` : d.tile_template;
+    if (radar.template !== signature) {  // provider changed: drop everything
       radar.layers.forEach((l) => radar.map.removeLayer(l));
       radar.layers.clear();
-      radar.template = d.tile_template;
+      radar.template = signature;
+      radar.wms = d.wms || null;
+      radar.maxNative = d.max_native_zoom || 7;
+      radar.tileTemplate = d.tile_template || "";
+      $("radar-attrib").textContent = [d.attribution, d.basemap_attribution].filter(Boolean).join(" · ");
     }
     const wanted = new Set(d.frames.map((f) => f.path));
     for (const [path, layer] of radar.layers) {
@@ -393,8 +404,7 @@
     }
     for (const f of d.frames) {
       if (!radar.layers.has(f.path)) {
-        const url = d.tile_template.replace("{path}", f.path);
-        const layer = L.tileLayer(url, { opacity: 0, maxNativeZoom: d.max_native_zoom || 7, maxZoom: 12, updateWhenIdle: false, keepBuffer: 2 });
+        const layer = radarLayer(f, { keepBuffer: 2 });
         layer.addTo(radar.map);
         radar.layers.set(f.path, layer);
       }

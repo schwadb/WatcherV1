@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import load_settings  # noqa: E402
 from app import screen  # noqa: E402
-from app.sources import alerts, astro, calendar, news, spotify, sports, weather  # noqa: E402
+from app.sources import alerts, astro, calendar, news, radar, spotify, sports, weather  # noqa: E402
 
 settings = load_settings()
 FX = settings.fixtures_dir
@@ -37,6 +37,17 @@ check("alerts: all expired -> empty", alerts.parse(load("alerts.json"), now=date
 check("alerts: Tornado Watch triggers the takeover by default", a["takeover"] and a["takeover"]["event"] == "Tornado Watch")
 check("alerts: takeover patterns are wildcards", alerts.is_takeover("Severe Thunderstorm Warning", ["*warning"]) and not alerts.is_takeover("Flood Watch", ["*Warning"]))
 check("alerts: custom pattern list respected", alerts.parse(load("alerts.json"), now=datetime(2026, 10, 1, tzinfo=timezone.utc), takeover_events=["Flash Flood Warning"])["takeover"] is None)
+
+# ---- radar (NWS WMS) ----------------------------------------------------------------------------
+_caps = '<Layer><Name>conus_bref_qcd</Name><Dimension name="time" default="2026-10-04T23:42:04Z" units="ISO8601" nearestValue="1">' + ",".join(f"2026-10-04T{22 + m // 60:02d}:{m % 60:02d}:00.000Z" for m in range(0, 120, 2)) + "</Dimension></Layer>"
+_times = radar.parse_wms_times(_caps)
+_fr = radar.pick_frames(_times, now=datetime(2026, 10, 4, 23, 58, tzinfo=timezone.utc))
+check("radar: WMS time dimension parsed", len(_times) == 60 and _times[0].hour == 22 and _times[-1].minute == 58)
+check("radar: last hour thinned to at most 15 frames, newest last", 10 <= len(_fr) <= 15 and _fr[-1]["path"] == "2026-10-04T23:58:00.000Z" and _fr[0]["time"] < _fr[-1]["time"])
+_st = {"features": [{"properties": {"id": "KOAX", "name": "Omaha", "stationType": "WSR-88D"}, "geometry": {"coordinates": [-96.3668, 41.32027]}}, {"properties": {"id": "KLNK", "name": "Lincoln TDWR", "stationType": "TDWR"}, "geometry": {"coordinates": [-96.7, 40.8]}}, {"properties": {"id": "KUEX", "name": "Hastings", "stationType": "WSR-88D"}, "geometry": {"coordinates": [-98.4419, 40.3208]}}]}
+_near = radar.nearest_site(_st, 40.3039, -97.0012)
+check("radar: nearest NEXRAD site picked (TDWR ignored)", _near and _near["id"] == "KUEX" and 100 < _near["km"] < 140)  # Grand Island beats Omaha by a few km
+check("radar: a different spot picks the other site", radar.nearest_site(_st, 41.25, -96.0)["id"] == "KOAX")
 
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))
