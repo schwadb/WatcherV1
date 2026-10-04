@@ -682,6 +682,67 @@ async def chronalert_autostart(request: Request):
     return {"ok": True, "message": message, "autostart": True, "app_path": app_path}
 
 
+STOCK_TYPES_FIRST = ("Common Stock", "ETP", "ETF")
+MOCK_STOCKS = [("AAPL", "Apple Inc", "Common Stock"), ("MSFT", "Microsoft Corp", "Common Stock"), ("NVDA", "NVIDIA Corp", "Common Stock"),
+               ("AMZN", "Amazon.com Inc", "Common Stock"), ("SPY", "SPDR S&P 500 ETF Trust", "ETP"), ("VTI", "Vanguard Total Stock Market ETF", "ETP")]
+
+
+def short_company_name(name: str) -> str:
+    """'Apple Inc' -> 'Apple', 'SPDR S&P 500 ETF Trust' -> 'SPDR S&P 500'. For the small tile label."""
+    name = re.sub(r"\s*[,.]?\s*\b(Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc|PLC|Holdings?|Group|ETF Trust|ETF|Trust|Fund|Class [A-C]|Common Stock|NV|SA|AG|SE)\b\.?", "", name, flags=re.I)
+    return re.sub(r"\s+", " ", name).strip(" ,.-") or name
+
+
+@router.get("/api/stocks/search")
+async def stocks_search(request: Request, q: str = ""):
+    """Finnhub symbol lookup, so the settings page can add a stock by company name."""
+    require_pin(request)
+    settings = _settings(request)
+    q = q.strip()
+    if len(q) < 1:
+        return {"results": []}
+    if settings.mock:
+        rows = [(s, n, t) for s, n, t in MOCK_STOCKS if q.lower() in s.lower() or q.lower() in n.lower()]
+        return {"results": [{"symbol": s, "name": short_company_name(n), "full_name": n, "type": t} for s, n, t in rows]}
+    if not settings.finnhub_key:
+        raise HTTPException(422, "Add your Finnhub key under Keys & links first (free at finnhub.io), then search.")
+    client: httpx.AsyncClient = request.app.state.client
+    resp = await client.get("https://finnhub.io/api/v1/search", params={"q": q, "token": settings.finnhub_key}, timeout=15)
+    if resp.status_code in (401, 403):
+        raise HTTPException(422, "Finnhub rejected the API key (check it under Keys & links)")
+    resp.raise_for_status()
+    rows = []
+    for r in (resp.json().get("result") or []):
+        sym = str(r.get("displaySymbol") or r.get("symbol") or "")
+        if not sym or "." in sym and not re.fullmatch(r"[A-Z]+\.[A-B]", sym) or ":" in sym:
+            continue  # skip foreign listings like 'AAPL.MX' and 'BINANCE:BTCUSDT'
+        rows.append({"symbol": sym, "name": short_company_name(str(r.get("description") or sym).title()), "full_name": str(r.get("description") or "").title(), "type": str(r.get("type") or "")})
+    rows.sort(key=lambda r: (r["type"] not in STOCK_TYPES_FIRST, len(r["symbol"])))
+    return {"results": rows[:12]}
+
+
+@router.get("/api/news/catalog")
+async def news_catalog(request: Request):
+    from .sources.news import FEED_CATALOG
+
+    return {"groups": FEED_CATALOG}
+
+
+@router.get("/api/news/find")
+async def news_find(request: Request, url: str = ""):
+    """Any website address -> its news feed (title, address, first headline)."""
+    require_pin(request)
+    from .sources.news import find_feed
+
+    url = url.strip()
+    if len(url) < 4:
+        raise HTTPException(422, "paste a website or feed address")
+    try:
+        return await find_feed(request.app.state.client, url)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc))
+
+
 @router.get("/api/sports/search")
 async def sports_search(request: Request, q: str = ""):
     from .sources.sports import HEADERS

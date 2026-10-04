@@ -50,6 +50,21 @@ check("bad storm-mode / ChronAlert settings rejected", badChron.status === 422 &
 const goodChron = await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover: true, takeover_minutes: 15, takeover_sound: false }, chronalert: { mode: "button", url: "http://127.0.0.1:8420/", show_seconds: 60, photo_seconds: 120, open_mode: "window" } } } });
 const chronCfg = goodChron.status === 200 ? (await api("/api/config")).data : {};
 check("storm-mode / ChronAlert settings saved and visible", goodChron.status === 200 && chronCfg.takeover && chronCfg.takeover.takeover_minutes === 15 && chronCfg.takeover.takeover_sound === false && chronCfg.chronalert && chronCfg.chronalert.mode === "button" && chronCfg.chronalert.open_mode === "window", JSON.stringify([goodChron.data, chronCfg.takeover, chronCfg.chronalert]));
+const stockSearch = await api("/api/stocks/search?q=apple");
+check("stock search (mock) finds AAPL", stockSearch.status === 200 && stockSearch.data.results.some((r) => r.symbol === "AAPL" && r.name === "Apple"), JSON.stringify(stockSearch.data));
+const catalog = await api("/api/news/catalog");
+check("feed catalogue has groups", catalog.status === 200 && catalog.data.groups.length >= 4 && catalog.data.groups.every((g) => g.feeds.length), String(catalog.status));
+// A tiny web server over fixtures/ stands in for a news site (site.html advertises news.xml).
+const { spawn } = await import("node:child_process");
+const fixtures = new URL("../fixtures/", import.meta.url).pathname;
+const site = spawn("python3", ["-m", "http.server", "8766", "--bind", "127.0.0.1"], { cwd: fixtures, stdio: "ignore" });
+await new Promise((r) => setTimeout(r, 1200));
+try {
+  const found = await api("/api/news/find?url=" + encodeURIComponent("http://127.0.0.1:8766/site.html"));
+  check("feed finder follows the page's feed link", found.status === 200 && found.data.url === "http://127.0.0.1:8766/news.xml" && found.data.name === "Sample News" && found.data.sample, JSON.stringify(found.data));
+  const none = await api("/api/news/find?url=" + encodeURIComponent("http://127.0.0.1:8766/nothing-here"));
+  check("feed finder explains when nothing is found", none.status === 404 && /No news feed/.test(none.data.detail || ""), JSON.stringify(none.data));
+} finally { site.kill(); }
 const chronApp = await api("/api/chronalert/app");
 check("ChronAlert app info answers", chronApp.status === 200 && "found_path" in chronApp.data && typeof chronApp.data.autostart === "boolean" && typeof chronApp.data.reachable === "boolean", JSON.stringify(chronApp.data));
 const badAuto = await api("/api/chronalert/autostart", { method: "POST", json: { on: true, app_path: "/definitely/not/here.AppImage" } });
@@ -99,6 +114,22 @@ if (PIN) {
 await page.waitForTimeout(1500);
 const nameValue = await page.inputValue('input[name="location.name"]');
 check("settings form filled from server", nameValue === "Plymouth, NE", nameValue);
+const stocksBefore = await page.$$eval("#stock-list .item", (els) => els.length);
+await page.click('#stock-picks button[title="Nvidia"]');
+await page.waitForTimeout(300);
+await page.click('#stock-picks button[title="Nvidia"]');  // second tap must not duplicate
+await page.waitForTimeout(300);
+const stocksAfter = await page.$$eval("#stock-list .item", (els) => els.length);
+const lastSym = await page.$eval("#stock-list .item:last-child .sym", (el) => el.value);
+check("quick pick adds a stock row once", stocksAfter === stocksBefore + 1 && lastSym === "NVDA", `${stocksBefore} -> ${stocksAfter} ${lastSym}`);
+await page.click("#feed-groups button");  // first catalogue group
+await page.waitForTimeout(200);
+const feedsBefore = await page.$$eval("#feed-list .item", (els) => els.length);
+await page.click("#feed-catalog button:not(.have)");  // one that is not on the list yet
+await page.waitForTimeout(300);
+const feedsAfter = await page.$$eval("#feed-list .item", (els) => els.length);
+const lastFeedUrl = await page.$eval("#feed-list .item:last-child .url", (el) => el.value);
+check("catalogue tap adds a feed row", feedsAfter === feedsBefore + 1 && lastFeedUrl.startsWith("http"), `${feedsBefore} -> ${feedsAfter} ${lastFeedUrl}`);
 await page.click('a[data-tab="todo"]');
 await page.waitForTimeout(800);
 await page.fill("#todo-input", "Walk the dog");

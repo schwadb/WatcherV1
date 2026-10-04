@@ -64,6 +64,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 .item.team img { width: 2.2rem; height: 2.2rem; }
 .item .del { background: transparent; color: var(--down); border: 1px solid rgba(255,107,107,0.4); padding: 0.3rem 0.6rem; min-height: auto; }
 .item input, .item select { min-height: 2.3rem; padding: 0.4rem 0.6rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+.chips button { background: #0d1117; color: var(--text); border: 1px solid var(--edge); border-radius: 999px; padding: 0.35rem 0.8rem; min-height: auto; font-weight: 600; font-size: 0.9rem; }
+.chips button.active { background: var(--accent); color: #06111f; border-color: var(--accent); }
+.chips button.have { color: var(--muted); border-style: dashed; }
+.results button.have { color: var(--muted); border-style: dashed; }
+.results button .add { margin-left: auto; color: var(--accent); font-weight: 700; white-space: nowrap; }
+.results button.have .add { color: var(--muted); }
 .results { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0; }
 .results button { display: flex; align-items: center; gap: 0.6rem; background: #0d1117; color: var(--text); border: 1px solid var(--edge); text-align: left; font-weight: 500; }
 .results img { width: 1.8rem; height: 1.8rem; }

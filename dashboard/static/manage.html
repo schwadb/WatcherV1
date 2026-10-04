@@ -168,9 +168,15 @@
 
     <form class="card" data-section="stocks">
       <h2>Stocks</h2>
-      <p class="muted">Symbol and the name to show. Index symbols (^GSPC) aren't on Finnhub's free plan; SPY, DIA and QQQ track them.</p>
+      <p class="muted">Search a company or ticker and tap it, or tap a quick pick. Index symbols (^GSPC) aren't on Finnhub's free plan; SPY, DIA and QQQ track them.</p>
+      <div class="row">
+        <input id="stock-search" type="text" placeholder="Search a company or ticker (Apple, NVDA…)">
+        <button type="button" id="stock-search-btn">Search</button>
+      </div>
+      <div class="results" id="stock-results"></div>
+      <div class="chips" id="stock-picks"></div>
       <div class="list" id="stock-list"></div>
-      <div class="row"><button type="button" class="ghost" data-add="stock">+ Add symbol</button></div>
+      <div class="row"><button type="button" class="ghost" data-add="stock">+ Type a symbol by hand</button></div>
       <div class="row end"><button type="submit">Save</button></div>
     </form>
 
@@ -195,9 +201,17 @@
 
     <form class="card" data-section="news">
       <h2>News feeds</h2>
-      <p class="muted">Any RSS feed address. Most news sites have one; search "<em>site name</em> RSS".</p>
+      <p class="muted">Tap a feed below to add it, or paste any website address and the dashboard finds its feed.</p>
+      <div class="chips" id="feed-groups"></div>
+      <div class="results" id="feed-catalog"></div>
+      <div class="row">
+        <input id="feed-find" type="text" placeholder="Website or feed address (e.g. ketv.com)">
+        <button type="button" id="feed-find-btn">Find feed</button>
+      </div>
+      <div class="results" id="feed-found"></div>
+      <h3>Your feeds</h3>
       <div class="list" id="feed-list"></div>
-      <div class="row"><button type="button" class="ghost" data-add="feed">+ Add feed</button></div>
+      <div class="row"><button type="button" class="ghost" data-add="feed">+ Type an address by hand</button></div>
       <div class="row end"><button type="submit">Save</button></div>
     </form>
 

@@ -150,7 +150,7 @@ computer's name or IP address) from any device on your Wi-Fi.
 | **Photos** | Add photos from your phone, see what's on the dashboard, delete |
 | **To-do** | A shared household list. Add, check off, delete. Checked items disappear the next day. |
 | **Notes** | A short message shown on the dashboard; saves as you type |
-| **Settings** | Every setting: location by ZIP code, units, 24-hour clock, which panels to show, weather options, radar zoom, calendars with colors, stock symbols, your sports team (search by name), countdowns, news feeds, photo speed, screen schedule, and your keys and links |
+| **Settings** | Every setting: location by ZIP code, units, 24-hour clock, which panels to show, weather options, radar zoom, calendars with colors, stocks (search a company name or tap a quick pick), your sports teams (search by name), countdowns, news feeds (tap one from the built-in list, or paste any website address and the dashboard finds its feed), photo speed, screen schedule, and your keys and links |
 | **Music** | Connect Spotify so the dashboard shows what's playing |
 | **System** | Dashboard address, version, free disk, Pi temperature, which keys are set, and buttons to restart, update to the latest version, turn the screen off or on, and reboot |
 

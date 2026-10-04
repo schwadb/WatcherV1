@@ -167,10 +167,19 @@
     return div;
   }
   const ADD_TARGET = { calendar: ["calendar-list", "cal"], stock: ["stock-list", "stock"], countdown: ["countdown-list", "cd"], feed: ["feed-list", "feed"] };
+  function addRow(listId, kind, data = {}, focus = true) {
+    // Append a row, bring it into view and put the cursor in it, so "Add" visibly does something on a phone.
+    const r = row(kind, data);
+    $(listId).appendChild(r);
+    setTimeout(() => { r.scrollIntoView({ block: "center", behavior: "smooth" }); if (focus) { const first = r.querySelector("input"); if (first && !first.value) first.focus(); } }, 50);
+    return r;
+  }
   document.querySelectorAll("[data-add]").forEach((btn) => btn.addEventListener("click", () => {
     const [listId, kind] = ADD_TARGET[btn.dataset.add];
-    $(listId).appendChild(row(kind, {}));
+    addRow(listId, kind, {});
   }));
+  const stockSymbols = () => [...$("stock-list").children].map((r) => r.querySelector(".sym").value.trim().toUpperCase()).filter(Boolean);
+  const feedUrls = () => [...$("feed-list").children].map((r) => r.querySelector(".url").value.trim()).filter(Boolean);
 
   async function loadSettings() {
     settings = await api("/api/settings");
@@ -198,6 +207,8 @@
     $("team-list").replaceChildren(...c.sports.teams.map((t) => row("team", t)));
     $("countdown-list").replaceChildren(...c.countdowns.map((x) => row("cd", x)));
     $("feed-list").replaceChildren(...c.news.feeds.map((x) => row("feed", x)));
+    renderStockPicks();
+    if (feedCatalog.length) renderFeedCatalog(); else loadFeedCatalog();
     const p = forms.photos;
     setField(p, "photos.seconds_per_photo", c.photos.seconds_per_photo); setField(p, "photos.order", c.photos.order);
     setField(p, "photos.max_upload_mb", c.photos.max_upload_mb); setField(p, "todo.max_items", c.todo.max_items);
@@ -274,6 +285,92 @@
   }
   $("team-search-btn").addEventListener("click", searchTeam);
   $("team-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchTeam(); } });
+
+  // ---------- stocks: search Finnhub, quick picks ----------------------------------------------
+  const STOCK_PICKS = [["SPY", "S&P 500"], ["DIA", "Dow Jones"], ["QQQ", "Nasdaq 100"], ["VTI", "Total Market"], ["AAPL", "Apple"], ["MSFT", "Microsoft"], ["NVDA", "Nvidia"], ["AMZN", "Amazon"], ["GOOGL", "Alphabet"], ["META", "Meta"], ["TSLA", "Tesla"], ["BRK.B", "Berkshire"]];
+  function addStock(sym, name) {
+    sym = sym.trim().toUpperCase();
+    if (stockSymbols().includes(sym)) { toast(`${sym} is already on the list.`); return false; }
+    addRow("stock-list", "stock", { sym, name }, false);
+    toast(`${sym} added. Press Save.`);
+    renderStockPicks();
+    return true;
+  }
+  function renderStockPicks() {
+    const have = stockSymbols();
+    $("stock-picks").replaceChildren(...STOCK_PICKS.map(([sym, name]) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = sym; b.title = name;
+      b.classList.toggle("have", have.includes(sym));
+      b.addEventListener("click", () => addStock(sym, name));
+      return b;
+    }));
+  }
+  async function searchStock() {
+    const q = $("stock-search").value.trim();
+    if (!q) return;
+    $("stock-results").textContent = "Searching…";
+    try {
+      const d = await api(`/api/stocks/search?q=${encodeURIComponent(q)}`);
+      $("stock-results").innerHTML = d.results.length ? "" : "Nothing found. Try the company's name or its ticker.";
+      const have = stockSymbols();
+      for (const r of d.results) {
+        const b = document.createElement("button"); b.type = "button";
+        b.classList.toggle("have", have.includes(r.symbol));
+        b.innerHTML = `<span><b>${esc(r.symbol)}</b> ${esc(r.full_name || r.name)} <small class="hint">${esc(r.type || "")}</small></span><span class="add">${have.includes(r.symbol) ? "added" : "+ Add"}</span>`;
+        b.addEventListener("click", () => { if (addStock(r.symbol, r.name)) { $("stock-results").innerHTML = ""; $("stock-search").value = ""; } });
+        $("stock-results").appendChild(b);
+      }
+    } catch (err) { $("stock-results").textContent = err.message; }
+  }
+  $("stock-search-btn").addEventListener("click", searchStock);
+  $("stock-search").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchStock(); } });
+  $("stock-list").addEventListener("input", renderStockPicks);
+
+  // ---------- news: catalogue + feed finder ----------------------------------------------------
+  let feedCatalog = [], feedGroup = "";
+  function addFeed(name, url) {
+    if (feedUrls().includes(url)) { toast(`${name} is already on the list.`); return false; }
+    addRow("feed-list", "feed", { name, url }, false);
+    toast(`${name} added. Press Save.`);
+    renderFeedCatalog();
+    return true;
+  }
+  function renderFeedCatalog() {
+    const have = feedUrls();
+    $("feed-groups").replaceChildren(...feedCatalog.map((g) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = g.group;
+      b.classList.toggle("active", g.group === feedGroup);
+      b.addEventListener("click", () => { feedGroup = g.group === feedGroup ? "" : g.group; renderFeedCatalog(); });
+      return b;
+    }));
+    const g = feedCatalog.find((x) => x.group === feedGroup);
+    $("feed-catalog").replaceChildren(...(g ? g.feeds : []).map((f) => {
+      const b = document.createElement("button"); b.type = "button";
+      const got = have.includes(f.url);
+      b.classList.toggle("have", got);
+      b.innerHTML = `<span>${esc(f.name)}</span><span class="add">${got ? "added" : "+ Add"}</span>`;
+      b.addEventListener("click", () => addFeed(f.name, f.url));
+      return b;
+    }));
+  }
+  async function loadFeedCatalog() {
+    try { feedCatalog = (await api("/api/news/catalog")).groups; renderFeedCatalog(); } catch (e) { /* page still works without it */ }
+  }
+  async function findFeed() {
+    const q = $("feed-find").value.trim();
+    if (!q) return;
+    $("feed-found").textContent = "Looking for a feed…";
+    try {
+      const d = await api(`/api/news/find?url=${encodeURIComponent(q)}`);
+      const b = document.createElement("button"); b.type = "button";
+      b.innerHTML = `<span><b>${esc(d.name || q)}</b><small class="hint">${esc(d.sample || "")}</small><small class="hint">${esc(d.url)}</small></span><span class="add">+ Add</span>`;
+      b.addEventListener("click", () => { if (addFeed(d.name || q, d.url)) { $("feed-found").innerHTML = ""; $("feed-find").value = ""; } });
+      $("feed-found").replaceChildren(b);
+    } catch (err) { $("feed-found").textContent = err.message; }
+  }
+  $("feed-find-btn").addEventListener("click", findFeed);
+  $("feed-find").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findFeed(); } });
+  $("feed-list").addEventListener("input", renderFeedCatalog);
 
   // ---------- ChronAlert: find the app, start it with the computer -----------------------------
   let chronApp = null;

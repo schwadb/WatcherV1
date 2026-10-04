@@ -141,5 +141,14 @@ except ValueError:
     check("chronalert: missing AppImage refused", True)
 del _os.environ["DASHBOARD_SYSTEMCTL_FAKE"]
 
+from app.manage import short_company_name as _short
+check("stocks: company names shortened for the tile", _short("Apple Inc") == "Apple" and _short("SPDR S&P 500 ETF Trust") == "SPDR S&P 500" and _short("Alphabet Inc Class A") == "Alphabet")
+_links = news.feed_links_in_html((FX / "site.html").read_text(), "https://example.org/site.html")
+check("news: feed link discovered in a web page", _links == ["https://example.org/news.xml"])
+check("news: page without feed links -> none", news.feed_links_in_html("<html><head><link rel=stylesheet href=a.css></head></html>", "https://x.org/") == [])
+check("news: feed summary has title and first headline", (news.feed_summary((FX / "news.xml").read_bytes()) or {}).get("title") == "Sample News")
+check("news: HTML is not mistaken for a feed", news.feed_summary(b"<html><body>hi</body></html>") is None)
+check("news: catalogue groups all have feeds with http addresses", all(g["feeds"] and all(f["url"].startswith("http") for f in g["feeds"]) for g in news.FEED_CATALOG))
+
 print(f"\n{sum(checks)}/{len(checks)} checks passed")
 sys.exit(0 if all(checks) else 1)
