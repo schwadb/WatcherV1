@@ -11,6 +11,7 @@ from typing import Any
 import feedparser
 import httpx
 
+from ..cache import describe
 from ..config import Settings
 
 _TAGS = re.compile(r"<[^>]+>")
@@ -75,7 +76,7 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
     good, errors = [], []
     for feed, result in zip(feeds, results):
         if isinstance(result, BaseException):
-            errors.append(f"{feed.get('name') or feed.get('url')}: {result}")
+            errors.append(f"{feed.get('name') or feed.get('url')}: {describe(result)}")
         else:
             good.append(result)
     if not good:

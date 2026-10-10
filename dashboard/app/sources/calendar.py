@@ -11,6 +11,7 @@ import httpx
 import icalendar
 import recurring_ical_events
 
+from ..cache import describe
 from ..config import Settings
 
 PALETTE = ["#5aa9ff", "#f5b942", "#3ecf8e", "#ff6b6b", "#b06cff", "#4dd0e1"]
@@ -145,7 +146,7 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
     meta, errors = [], []
     for cal, result in zip(wanted, results):
         if isinstance(result, BaseException):
-            errors.append(f"{cal['name']}: {result}")
+            errors.append(f"{cal['name']}: {describe(result)}")
             meta.append({"name": cal["name"], "color": cal["color"], "ok": False, "error": str(result)})
         else:
             events.extend(result)

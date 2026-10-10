@@ -49,6 +49,24 @@ _near = radar.nearest_site(_st, 40.3039, -97.0012)
 check("radar: nearest NEXRAD site picked (TDWR ignored)", _near and _near["id"] == "KUEX" and 100 < _near["km"] < 140)  # Grand Island beats Omaha by a few km
 check("radar: a different spot picks the other site", radar.nearest_site(_st, 41.25, -96.0)["id"] == "KOAX")
 
+# ---- cache: offline handling and saved data ---------------------------------------------------
+from app import cache as _cache
+import socket as _socket, time as _time, json as _json
+_c = _cache.SourceCache("weather", lambda: 600)
+_c.fail(_socket.gaierror(-3, "Temporary failure in name resolution"))
+check("cache: DNS failure counts as offline with a friendly message", _c.offline and _c.error == _cache.OFFLINE_MESSAGE)
+check("cache: offline retries stay short", _cache.next_interval(_c) == 10 and (_c.fail(_socket.gaierror(-3, "x")) or _c.fail(_socket.gaierror(-3, "x")) or _c.fail(_socket.gaierror(-3, "x")) or _cache.next_interval(_c) == 30))
+_c2 = _cache.SourceCache("stocks", lambda: 600)
+for _ in range(4): _c2.fail(RuntimeError("Finnhub rate limit hit"))
+check("cache: API errors back off exponentially", not _c2.offline and _cache.next_interval(_c2) == 80 and "rate limit" in _c2.error)
+check("cache: empty exception text falls back to the type name", _cache.describe(Exception("")) == "Exception" and _cache.is_offline_error(Exception("All connection attempts failed")))
+_dir = Path(_tmp.mkdtemp()) if "_tmp" in dir() else Path(__import__("tempfile").mkdtemp())
+_c3 = _cache.SourceCache("news", lambda: 600, persist_path=_dir / "news.json"); _c3.set({"headlines": [1, 2]})
+_c4 = _cache.SourceCache("news", lambda: 600, persist_path=_dir / "news.json")
+check("cache: last good data survives a restart", _c4.load_persisted() and _c4.data == {"headlines": [1, 2]} and _c4.ok and _c4.age_seconds is not None and _c4.age_seconds < 5)
+(_dir / "news.json").write_text(_json.dumps({"fetched_at": _time.time() - 4 * 86400, "data": {"old": True}}))
+check("cache: data older than three days is not used", not _cache.SourceCache("news", lambda: 600, persist_path=_dir / "news.json").load_persisted())
+
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))
 m_full = astro.moon_phase(datetime(2000, 1, 21, 4, 40, tzinfo=timezone.utc))

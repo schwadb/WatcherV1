@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from ..cache import describe
 from ..config import Settings
 
 API = "https://finnhub.io/api/v1/quote"
@@ -71,7 +72,7 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
     quotes, errors = [], []
     for (symbol, _), result in zip(wanted.items(), results):
         if isinstance(result, BaseException):
-            errors.append(f"{symbol}: {result}")
+            errors.append(f"{symbol}: {describe(result)}")
         else:
             quotes.append(result)
     if not quotes:

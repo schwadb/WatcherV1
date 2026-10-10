@@ -5,6 +5,7 @@ Run:  uvicorn app.main:app --host 0.0.0.0 --port 8080
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import logging
 import re
 import time
@@ -38,6 +39,9 @@ log = logging.getLogger("dashboard")
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 STARTED = time.time()
 _PHOTO_ID = re.compile(r"^[0-9a-f]{20}\.jpg$")
+
+
+PERSISTED_SOURCES = ("weather", "alerts", "stocks", "sports", "calendar", "news")  # not radar (frame links expire), photos, nowplaying
 
 
 def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tuple[SourceCache, object]]:
@@ -90,6 +94,9 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
         "nowplaying": lambda: 60.0,
     }
     sources = {name: (SourceCache(name, intervals[name]), fetchers[name]) for name in fetchers}
+    for name in PERSISTED_SOURCES:  # remembered across restarts so a reboot shows last night's data, not "no data"
+        if name in sources and not settings.mock:
+            sources[name][0].persist_path = settings.cache_dir / "sources" / f"{name}.json"
     if "sports" in sources:  # poll faster while a game is live
         cache = sources["sports"][0]
         cache.interval = lambda: sports_src.interval_seconds(settings, cache)
@@ -106,9 +113,14 @@ async def start_sources(app: FastAPI, settings: Settings, previous: dict | None 
         old = (previous or {}).get(name)
         if old is not None and old[0].data is not None:
             cache.data, cache.fetched_at, cache.error = old[0].data, old[0].fetched_at, old[0].error
+        elif previous is None and cache.load_persisted():
+            log.info("%s: showing saved data from %s until the first fetch", name, datetime.fromtimestamp(cache.fetched_at).strftime("%b %d %H:%M"))
     app.state.settings = settings
     app.state.sources = sources
-    app.state.tasks = [asyncio.create_task(run_poller(cache, fetch), name=f"poll-{name}") for name, (cache, fetch) in sources.items()]
+    app.state.tasks = [
+        asyncio.create_task(run_poller(cache, fetch, wait_network=not settings.mock and name != "photos"), name=f"poll-{name}")
+        for name, (cache, fetch) in sources.items()
+    ]
 
 
 async def stop_sources(app: FastAPI) -> None:

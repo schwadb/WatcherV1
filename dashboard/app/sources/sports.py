@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 
+from ..cache import describe
 from ..config import Settings
 
 # The site.api.espn.com host blocks some networks; site.web.api.espn.com serves the same data.
@@ -184,7 +185,7 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
     out, errors, seen = [], [], set()
     for t, result in zip(wanted, results):
         if isinstance(result, BaseException):
-            errors.append(f"{t['team']}: {result}")
+            errors.append(f"{t['team']}: {describe(result)}")
         elif (result["league"], result.get("id") or result.get("abbr")) not in seen:  # "158" and "NEB" are the same team
             seen.add((result["league"], result.get("id") or result.get("abbr")))
             out.append(result)

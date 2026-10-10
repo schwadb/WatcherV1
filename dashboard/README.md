@@ -390,6 +390,12 @@ playing, and **Disconnect** on the Music tab removes the connection.
 - **Omarchy shows the lock screen over the dashboard:** check "Stop the
   desktop's idle screen lock" under Settings → Screen & desktop, or press
   `Super + Ctrl + I`.
+- **Red "no data" on every panel right after a reboot:** the computer's Wi-Fi
+  came up after the dashboard did. The dashboard waits for the network before
+  its first fetch, retries every 10–30 seconds while offline, and in the
+  meantime shows the last data it saved (weather, calendar, stocks, sports,
+  news) with an amber "updated … ago" note. If the red notes stay for more than
+  a minute after Wi-Fi connects, check `journalctl -u dashboard -f`.
 - **Phone says the page took too long to respond, but it works on the
   computer itself:** the computer's firewall is blocking it. Omarchy turns on
   `ufw`; run `sudo ufw allow 8080/tcp` (the installer now does this for you)

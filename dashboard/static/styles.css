@@ -41,7 +41,7 @@ body.show-cursor { cursor: auto; }
 .hint { font-size: 1.15rem; line-height: 1.5; max-width: 34rem; padding: 0.5rem 0; }
 .hidden { display: none !important; }
 
-.badge { position: absolute; top: 0.75rem; right: 1rem; z-index: 5; font-size: 0.8rem; color: var(--warn); background: rgba(0,0,0,0.45); padding: 0.15rem 0.5rem; border-radius: 0.4rem; display: none; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge { position: absolute; top: 0.75rem; right: 1rem; z-index: 5; font-size: 0.8rem; color: var(--warn); background: rgba(0,0,0,0.45); padding: 0.15rem 0.5rem; border-radius: 0.4rem; display: none; max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badge.show { display: inline-block; }
 .badge.error { color: var(--down); }
 .badge.alerts-badge { top: auto; bottom: 0.75rem; right: 1rem; }
