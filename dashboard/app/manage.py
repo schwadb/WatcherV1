@@ -405,6 +405,9 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         }
         if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
+    if "audio" in body:
+        a = body["audio"] or {}
+        clean["audio"] = {k: str(a.get(k) or "")[:120] for k in ("card", "profile", "port")}
     if "radar" in body:
         provider = str((body["radar"] or {}).get("provider", "rainviewer")).lower()
         from .sources.radar import PROVIDERS
@@ -1134,8 +1137,10 @@ async def player_autostart(request: Request):
         raise HTTPException(422, str(exc))
 
 
-MOCK_OUTPUTS = [{"card": "mock", "profile": "output:hdmi-stereo", "available": True, "label": "TV / monitor over HDMI", "active": False},
-                {"card": "mock", "profile": "output:analog-stereo", "available": True, "label": "Headphone / line-out jack", "active": True}]
+MOCK_OUTPUTS = [{"card": "mock", "profile": "output:hdmi-stereo", "port": "", "available": True, "label": "TV / monitor over HDMI", "active": False},
+                {"card": "mock", "profile": "output:analog-stereo", "port": "analog-output-headphones", "available": True, "label": "Headphone jack", "active": False},
+                {"card": "mock", "profile": "output:analog-stereo", "port": "analog-output-lineout", "available": True, "label": "Line out", "active": False},
+                {"card": "mock", "profile": "output:analog-stereo", "port": "analog-output-speaker", "available": True, "label": "Internal speaker", "active": True}]
 
 
 @router.get("/api/audio/outputs")
@@ -1153,19 +1158,25 @@ async def audio_select(request: Request):
     require_pin(request)
     from . import audio
 
+    settings = _settings(request)
     body = await request.json()
-    card, profile = str(body.get("card", "")), str(body.get("profile", ""))
-    if _settings(request).mock:
+    card, profile, port = str(body.get("card", "")), str(body.get("profile", "")), str(body.get("port") or "")
+    label = str(body.get("label") or port or profile)
+    if settings.mock:
         for o in MOCK_OUTPUTS:
-            o["active"] = o["profile"] == profile
-        return {"ok": True, "message": f"mock: sound now goes to {profile}"}
+            o["active"] = o["profile"] == profile and o["port"] == port
+        return {"ok": True, "message": f"mock: sound now goes to {label}"}
     if not card or not profile.startswith("output:"):
         raise HTTPException(422, "pick an output from the list")
     try:
-        sink = await asyncio.to_thread(audio.select_output, card, profile)
+        await asyncio.to_thread(audio.select_output, card, profile, port)
     except RuntimeError as exc:
         raise HTTPException(422, str(exc))
-    return {"ok": True, "message": f"Sound now goes to {sink.split('.')[-1].replace('-', ' ')}. Press Test sound to check."}
+    await asyncio.to_thread(write_config, settings.config_path, {"audio": {"card": card, "profile": profile, "port": port}})  # re-applied at start-up
+    from .main import reload_sources
+
+    await reload_sources(request.app)
+    return {"ok": True, "message": f"Sound now goes to: {label}. Press Test sound to check."}
 
 
 @router.post("/api/audio/test")

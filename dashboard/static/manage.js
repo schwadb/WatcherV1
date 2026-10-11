@@ -471,7 +471,7 @@
     const sel = $("audio-output"), line = $("audio-status");
     try {
       const d = await api("/api/audio/outputs");
-      sel.replaceChildren(...d.outputs.map((o) => { const op = document.createElement("option"); op.value = JSON.stringify({ card: o.card, profile: o.profile }); op.textContent = o.label + (o.available ? "" : " (nothing plugged in)") + (o.active ? " ✓ current" : ""); op.selected = o.active; op.disabled = !o.available; return op; }));
+      sel.replaceChildren(...d.outputs.map((o) => { const op = document.createElement("option"); op.value = JSON.stringify({ card: o.card, profile: o.profile, port: o.port || "", label: o.label }); op.textContent = o.label + (o.available ? "" : " (nothing plugged in)") + (o.active ? " ✓ current" : ""); op.selected = o.active; op.disabled = !o.available; return op; }));
       const cur = d.outputs.find((o) => o.active);
       line.textContent = d.error ? d.error : cur ? `Sound currently goes to: ${cur.label}.` : "No output is switched on yet: pick one and press Use this.";
       line.classList.toggle("bad", !!d.error);

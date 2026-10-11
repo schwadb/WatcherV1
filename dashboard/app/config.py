@@ -56,6 +56,7 @@ DEFAULTS: dict[str, Any] = {
         "todo": True, "news": True, "photos": True, "nowplaying": True,
     },
     "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "control": "auto", "start_at_login": True, "locked_kiosk": False, "stop_idle_lock": True},
+    "audio": {"card": "", "profile": "", "port": ""},  # the sound output picked on the Music tab, re-applied at start-up
     "server": {"host": "0.0.0.0", "port": 8080},
 }
 

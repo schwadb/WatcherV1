@@ -106,8 +106,24 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
     return sources
 
 
+async def reapply_audio_output(settings: Settings) -> None:
+    """Put the sound back where the user chose it (jack sensing on some machines flips it to the internal speaker)."""
+    choice = settings.cfg.get("audio") or {}
+    if settings.mock or not choice.get("card"):
+        return
+    from . import audio
+
+    try:
+        await asyncio.to_thread(audio.select_output, str(choice["card"]), str(choice["profile"]), str(choice.get("port") or ""))
+        log.info("audio: output set to %s", choice.get("port") or choice.get("profile"))
+    except Exception as exc:  # noqa: BLE001 - never block start-up over sound
+        log.warning("audio: could not re-apply the saved output: %s", exc)
+
+
 async def start_sources(app: FastAPI, settings: Settings, previous: dict | None = None) -> None:
     """(Re)build sources and pollers; carry last good data over so the screen never blanks."""
+    if previous is None:
+        asyncio.create_task(reapply_audio_output(settings), name="audio-reapply")
     sources = build_sources(settings, app.state.client)
     for name, (cache, _) in sources.items():
         old = (previous or {}).get(name)

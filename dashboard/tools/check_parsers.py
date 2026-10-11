@@ -107,6 +107,27 @@ _cards = _audio.parse_cards(_pactl)
 _outs = _audio.outputs_from(_cards)
 check("audio: cards and profiles parsed with availability", len(_cards) == 2 and _cards[0]["profiles"][0]["available"] is False and _cards[0]["profiles"][1]["available"] is True)
 check("audio: outputs are friendly, de-duplicated, HDMI first, current one flagged", [o["label"] for o in _outs] == ["TV / monitor over HDMI (port 2)", "Headphone / line-out jack", "TV / monitor over HDMI"] and _outs[1]["active"] and not _outs[0]["active"] and not _outs[2]["available"])
+_sinks_txt = """Sink #57
+\tState: RUNNING
+\tName: alsa_output.pci-0000_00_1b.0.analog-stereo
+\tDescription: Built-in Audio Analog Stereo
+\tProperties:
+\t\talsa.card = "0"
+\tPorts:
+\t\tanalog-output-speaker: Speaker (type: Speaker, priority: 10000, availability unknown)
+\t\tanalog-output-headphones: Headphones (type: Headphones, priority: 9900, availability unknown)
+\t\tanalog-output-lineout: Line Out (type: Line, priority: 9900, not available)
+\tActive Port: analog-output-speaker
+\tFormats:
+\t\tpcm
+"""
+_sinks = _audio.parse_sinks(_sinks_txt)
+check("audio: sink ports parsed with card link and availability", len(_sinks) == 1 and _sinks[0]["card"] == "alsa_card.pci-0000_00_1b.0" and [p["id"] for p in _sinks[0]["ports"]] == ["analog-output-speaker", "analog-output-headphones", "analog-output-lineout"] and _sinks[0]["ports"][2]["available"] is False and _sinks[0]["active_port"] == "analog-output-speaker")
+_outs2 = _audio.outputs_from(_cards, _sinks)
+check("audio: one entry per jack, speaker marked current, unplugged jack greyed", [o["label"] for o in _outs2] == ["TV / monitor over HDMI (port 2)", "Headphone jack", "Internal speaker", "TV / monitor over HDMI", "Line out"] and next(o for o in _outs2 if o["label"] == "Internal speaker")["active"] and not next(o for o in _outs2 if o["label"] == "Line out")["available"] and next(o for o in _outs2 if o["label"] == "Headphone jack")["port"] == "analog-output-headphones")
+_calls = []
+_audio._run = lambda cmd, timeout=15: (_calls.append(cmd) or (0, "57\talsa_output.pci-0000_00_1b.0.analog-stereo\tPipeWire\ts16le 2ch 48000Hz\tRUNNING\n"))
+check("audio: selecting a jack sets profile, default sink and port", _audio.select_output("alsa_card.pci-0000_00_1b.0", "output:analog-stereo", "analog-output-headphones") == "alsa_output.pci-0000_00_1b.0.analog-stereo" and [c[1] for c in _calls] == ["set-card-profile", "list", "set-default-sink", "set-sink-port"] and _calls[-1][-1] == "analog-output-headphones")
 _tone = _audio.tone_file(_ph / "cache")
 check("audio: test tone file written", _tone.exists() and _tone.stat().st_size > 100000)
 

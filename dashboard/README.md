@@ -382,8 +382,12 @@ tab walks you through it:
    on its own.
 3. **Sound output:** pick *TV / monitor over HDMI* and press **Use this**, then
    **Test sound**. You should hear a short tone from the TV. If HDMI is greyed
-   out as "nothing plugged in", the cable or adapter is not carrying audio; use
-   the headphone jack with a cable to the TV's audio-in instead.
+   out as "nothing plugged in", the cable or adapter is not carrying audio; plug
+   speakers or a cable to the TV's audio-in into the back and pick **Headphone
+   jack** or **Line out** instead. (The Mac Pro does not notice a plug being
+   inserted on its own, so picking the jack here is what actually switches the
+   sound away from its internal speaker. The dashboard re-applies your choice
+   every time it starts.)
 4. On the TV, press **M** (or the Music corner button) and tap a playlist. The
    same playlists and the play / pause / skip / volume buttons are on the phone's
    Music tab too.
@@ -427,8 +431,11 @@ the Music tab removes the connection.
   listed there, the player isn't running (Music tab → Check again) or the
   firewall is blocking discovery (the installer opens it; by hand:
   `sudo ufw allow 5353/udp && sudo ufw allow 1234/tcp`).
-- **Music plays but no sound from the TV:** Music tab → Sound output → pick
-  the HDMI entry → Use this → Test sound. The player follows the default output.
+- **Music plays but no sound from the TV / sound comes from the computer's own
+  little speaker:** Music tab → Sound output → pick the HDMI entry, Headphone
+  jack or Line out (whichever is wired to your speakers) → Use this → Test
+  sound. The player follows the default output. By hand:
+  `pactl set-sink-port alsa_output.pci-0000_00_1b.0.analog-stereo analog-output-headphones`.
 - **Forgot the PIN:** on the computer, edit `~/WatcherV1/dashboard/.env`, clear the
   `DASHBOARD_PIN=` line, and restart the service.
 - **Test the page without internet or keys:** set `DASHBOARD_MOCK=1` in
