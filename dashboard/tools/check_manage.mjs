@@ -65,6 +65,16 @@ try {
   const none = await api("/api/news/find?url=" + encodeURIComponent("http://127.0.0.1:8766/nothing-here"));
   check("feed finder explains when nothing is found", none.status === 404 && /No news feed/.test(none.data.detail || ""), JSON.stringify(none.data));
 } finally { site.kill(); }
+const outputs = await api("/api/audio/outputs");
+check("sound outputs listed", outputs.status === 200 && outputs.data.outputs.length >= 2 && outputs.data.outputs.every((o) => o.label && o.profile.startsWith("output:")), JSON.stringify(outputs.data));
+const lib = await api("/api/music/library");
+check("music library answers with playlists and device", lib.status === 200 && lib.data.playlists.length >= 2 && lib.data.device_name && typeof lib.data.paired === "boolean", JSON.stringify(lib.data).slice(0, 120));
+const playRes = await api("/api/music/play", { method: "POST", json: { uri: lib.data.playlists[0].uri } });
+check("play a playlist accepted", playRes.status === 200 && playRes.data.ok, JSON.stringify(playRes.data));
+const badAction = await api("/api/music/explode", { method: "POST", json: {} });
+check("unknown music action refused", badAction.status === 404, String(badAction.status));
+const playerInfo = await api("/api/player");
+check("player status answers", playerInfo.status === 200 && typeof playerInfo.data.installed === "boolean" && playerInfo.data.device_name, JSON.stringify(playerInfo.data));
 const chronApp = await api("/api/chronalert/app");
 check("ChronAlert app info answers", chronApp.status === 200 && "found_path" in chronApp.data && typeof chronApp.data.autostart === "boolean" && typeof chronApp.data.reachable === "boolean", JSON.stringify(chronApp.data));
 const badAuto = await api("/api/chronalert/autostart", { method: "POST", json: { on: true, app_path: "/definitely/not/here.AppImage" } });

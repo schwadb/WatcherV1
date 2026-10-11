@@ -53,7 +53,7 @@ case "$PLATFORM" in
     sudo apt-get install -y -qq $PKGS chromium >/dev/null || sudo apt-get install -y -qq $PKGS chromium-browser >/dev/null
     ;;
   arch)
-    sudo pacman -S --needed --noconfirm python git curl noto-fonts-emoji wlr-randr v4l-utils fuse2 >/dev/null   # fuse2: lets AppImages such as ChronAlert run
+    sudo pacman -S --needed --noconfirm python git curl noto-fonts-emoji wlr-randr v4l-utils fuse2 spotifyd pipewire-pulse >/dev/null   # fuse2: AppImages (ChronAlert); spotifyd: Spotify player
     have_browser || sudo pacman -S --needed --noconfirm chromium >/dev/null
     ;;
   debian)
@@ -106,6 +106,9 @@ fi
 if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -qi "status: active"; then
   echo "==> Opening port $PORT in the firewall so phones on your Wi-Fi can reach the dashboard"
   sudo ufw allow "$PORT/tcp" >/dev/null 2>&1 || true
+  # Spotify Connect discovery, so phones can see the "Dashboard" speaker (mDNS + spotifyd's port)
+  sudo ufw allow 5353/udp >/dev/null 2>&1 || true
+  sudo ufw allow 1234/tcp >/dev/null 2>&1 || true
 fi
 
 # ---- full-screen dashboard at login ---------------------------------------------------------

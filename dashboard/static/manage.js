@@ -425,6 +425,7 @@
   });
 
   // ---------- music --------------------------------------------------------------------------
+  let musicState = { playing: false, volume: 50, tab: "playlists", lib: null };
   async function loadMusic() {
     const d = await api("/api/spotify/status");
     $("music-redirect").textContent = d.redirect_uri;
@@ -432,8 +433,89 @@
     if (d.connected && d.now && d.now.data) status += d.now.data.playing ? ` Playing now: ${d.now.data.title} – ${d.now.data.artist}.` : " Nothing is playing right now.";
     if (d.connected && d.now && d.now.error) status += ` (${d.now.error})`;
     $("music-status").textContent = status;
+    musicState.playing = !!(d.now && d.now.data && d.now.data.playing);
+    $("mc-toggle").innerHTML = musicState.playing ? "&#10074;&#10074; Pause" : "&#9654; Play";
     $("spotify-disconnect").classList.toggle("hidden", !d.connected);
+    $("spotify-reconnect").classList.toggle("hidden", !(d.connected && !d.can_control));
+    if (!$("player-name").value) $("player-name").value = d.device_name || "Dashboard";
+    loadPlayer(); loadAudio(); if (d.connected && d.can_control) loadMusicList();
   }
+  async function loadPlayer() {
+    const line = $("player-status");
+    try {
+      const p = await api("/api/player");
+      const parts = [];
+      if (!p.installed) parts.push("The spotifyd program is not installed yet (Omarchy: sudo pacman -S spotifyd).");
+      parts.push(p.enabled ? (p.running ? `The "${p.device_name}" player is running.` : "The player is set to run but is not running right now.") : "The player is not started by the dashboard yet.");
+      if (!p.can_control) parts.push("Press Reconnect above so the TV may start playback.");
+      line.textContent = parts.join(" ");
+      line.classList.toggle("bad", !p.installed || !p.running);
+      $("player-autostart").textContent = p.enabled ? "Stop the Spotify player" : "Keep the Spotify player running";
+      $("player-autostart").dataset.enabled = p.enabled ? "1" : "";
+    } catch (err) { line.textContent = err.message; }
+  }
+  $("player-recheck").addEventListener("click", () => { loadPlayer(); loadAudio(); });
+  $("player-autostart").addEventListener("click", async () => {
+    const btn = $("player-autostart"); btn.disabled = true;
+    try {
+      const name = $("player-name").value.trim() || "Dashboard";
+      await api("/api/settings", { method: "PUT", json: { config: { now_playing: { provider: "spotify", device_name: name } } } });
+      const d = await api("/api/player/autostart", { method: "POST", json: { on: !btn.dataset.enabled } });
+      toast(d.message);
+      setTimeout(loadPlayer, 2000);
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false;
+  });
+  $("spotify-reconnect").addEventListener("click", () => $("spotify-connect").click());
+  async function loadAudio() {
+    const sel = $("audio-output"), line = $("audio-status");
+    try {
+      const d = await api("/api/audio/outputs");
+      sel.replaceChildren(...d.outputs.map((o) => { const op = document.createElement("option"); op.value = JSON.stringify({ card: o.card, profile: o.profile }); op.textContent = o.label + (o.available ? "" : " (nothing plugged in)") + (o.active ? " ✓ current" : ""); op.selected = o.active; op.disabled = !o.available; return op; }));
+      const cur = d.outputs.find((o) => o.active);
+      line.textContent = d.error ? d.error : cur ? `Sound currently goes to: ${cur.label}.` : "No output is switched on yet: pick one and press Use this.";
+      line.classList.toggle("bad", !!d.error);
+    } catch (err) { line.textContent = err.message; }
+  }
+  $("audio-apply").addEventListener("click", async () => {
+    try { const d = await api("/api/audio/select", { method: "POST", json: JSON.parse($("audio-output").value) }); toast(d.message); loadAudio(); } catch (err) { toast(err.message, true); }
+  });
+  $("audio-test").addEventListener("click", async () => {
+    try { const d = await api("/api/audio/test", { method: "POST" }); toast(d.message); } catch (err) { toast(err.message, true); }
+  });
+  async function loadMusicList() {
+    const box = $("music-list");
+    try {
+      musicState.lib = await api("/api/music/library");
+      if (musicState.lib.device && musicState.lib.device.volume != null) musicState.volume = musicState.lib.device.volume;
+      if (!musicState.lib.paired) toast(`Pair the "${musicState.lib.device_name}" player once from the Spotify app (speaker icon).`);
+      drawMusicList();
+    } catch (err) { box.textContent = err.message; }
+  }
+  function drawMusicList() {
+    const lib = musicState.lib || {};
+    document.querySelectorAll("#music-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.mtab === musicState.tab));
+    const items = musicState.tab === "playlists" ? lib.playlists || [] : musicState.tab === "albums" ? lib.albums || [] : [{ uri: "liked", name: "Liked Songs", by: "your saved songs" }];
+    $("music-list").replaceChildren(...items.map((it) => {
+      const b = document.createElement("button"); b.type = "button";
+      b.innerHTML = `${it.art ? `<img class="cover" src="${esc(it.art)}" alt="">` : ""}<span>${esc(it.name)}<small class="hint">${esc(it.by || "")}</small></span><span class="add">▶ Play</span>`;
+      b.addEventListener("click", async () => {
+        try { await api("/api/music/play", { method: "POST", json: it.uri === "liked" ? { liked: true } : { uri: it.uri } }); toast(`Playing ${it.name} on the TV.`); setTimeout(loadMusic, 1500); } catch (err) { toast(err.message, true); }
+      });
+      return b;
+    }));
+    if (!items.length) $("music-list").textContent = "Nothing here yet.";
+  }
+  document.querySelectorAll("#music-tabs button").forEach((b) => b.addEventListener("click", () => { musicState.tab = b.dataset.mtab; drawMusicList(); }));
+  document.querySelectorAll("[data-mctl]").forEach((b) => b.addEventListener("click", async () => {
+    const a = b.dataset.mctl;
+    try {
+      if (a === "toggle") await api(musicState.playing ? "/api/music/pause" : "/api/music/play", { method: "POST", json: {} });
+      else if (a === "vol-up" || a === "vol-down") { musicState.volume = Math.max(0, Math.min(100, musicState.volume + (a === "vol-up" ? 10 : -10))); await api("/api/music/volume", { method: "POST", json: { pct: musicState.volume } }); toast(`Volume ${musicState.volume}%`); return; }
+      else await api(`/api/music/${a}`, { method: "POST", json: {} });
+      setTimeout(loadMusic, 1200);
+    } catch (err) { toast(err.message, true); }
+  }));
   $("spotify-connect").addEventListener("click", async () => {
     try {
       const d = await api("/api/spotify/login");

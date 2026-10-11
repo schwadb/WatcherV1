@@ -16,7 +16,9 @@ from ..store import JsonStore
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing"
-SCOPES = "user-read-currently-playing user-read-playback-state"
+SCOPES = "user-read-currently-playing user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative user-library-read"
+CONTROL_SCOPE = "user-modify-playback-state"
+API = "https://api.spotify.com/v1"
 # Spotify only allows http:// redirect URIs on the loopback address; LAN addresses must be https.
 REDIRECT_PATH = "/api/spotify/callback"
 
@@ -147,3 +149,109 @@ def interval_seconds(settings: Settings, cache: Any) -> float:
     data = getattr(cache, "data", None) or {}
     base = float((settings.cfg.get("now_playing") or {}).get("refresh_seconds", 10))
     return base if data.get("playing") else max(base, 60.0)
+
+
+# ---- playback control and the user's library (needs the newer scopes; reconnect once) --------
+def can_control(settings: Settings) -> bool:
+    """True when the stored token was granted with the playback-control permission."""
+    tok = token_store(settings).read()
+    return bool(tok.get("refresh_token")) and CONTROL_SCOPE in str(tok.get("scope", "")).split()
+
+
+class SpotifyError(RuntimeError):
+    pass
+
+
+async def _call(client: httpx.AsyncClient, settings: Settings, method: str, path: str, **kw: Any) -> Any:
+    token = await _access_token(client, settings)
+    resp = await client.request(method, f"{API}{path}", headers={"Authorization": f"Bearer {token}"}, timeout=15, **kw)
+    if resp.status_code in (200, 201):
+        return resp.json() if resp.content else {}
+    if resp.status_code in (202, 204):
+        return {}
+    if resp.status_code == 401:
+        raise SpotifyError("Spotify rejected the token; reconnect on the Music tab")
+    if resp.status_code == 403:
+        detail = ""
+        try:
+            detail = (resp.json().get("error") or {}).get("message", "")
+        except ValueError:
+            pass
+        if "scope" in detail.lower() or "permission" in detail.lower():
+            raise SpotifyError("Spotify needs a new permission: press Reconnect on the Music tab")
+        raise SpotifyError(detail or "Spotify refused (Premium is required to control playback)")
+    if resp.status_code == 404:
+        raise SpotifyError("no active player: the Dashboard device is not paired yet, or is not running")
+    if resp.status_code == 429:
+        raise SpotifyError("Spotify rate limit; try again in a moment")
+    raise SpotifyError(f"Spotify error {resp.status_code}: {resp.text[:120]}")
+
+
+async def devices(client: httpx.AsyncClient, settings: Settings) -> list[dict[str, Any]]:
+    data = await _call(client, settings, "GET", "/me/player/devices")
+    return [{"id": d.get("id"), "name": d.get("name", ""), "type": d.get("type", ""), "active": bool(d.get("is_active")), "volume": d.get("volume_percent")} for d in data.get("devices") or []]
+
+
+def find_device(devs: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    want = name.strip().lower()
+    return next((d for d in devs if d["name"].strip().lower() == want), None)
+
+
+async def play(client: httpx.AsyncClient, settings: Settings, device_id: str | None, context_uri: str | None = None, uris: list[str] | None = None) -> None:
+    body: dict[str, Any] = {}
+    if context_uri:
+        body["context_uri"] = context_uri
+    if uris:
+        body["uris"] = uris
+    params = {"device_id": device_id} if device_id else None
+    await _call(client, settings, "PUT", "/me/player/play", params=params, json=body or None)
+
+
+async def pause(client: httpx.AsyncClient, settings: Settings) -> None:
+    await _call(client, settings, "PUT", "/me/player/pause")
+
+
+async def skip(client: httpx.AsyncClient, settings: Settings, direction: str) -> None:
+    await _call(client, settings, "POST", "/me/player/next" if direction == "next" else "/me/player/previous")
+
+
+async def set_volume(client: httpx.AsyncClient, settings: Settings, pct: int, device_id: str | None = None) -> None:
+    params: dict[str, Any] = {"volume_percent": max(0, min(100, int(pct)))}
+    if device_id:
+        params["device_id"] = device_id
+    await _call(client, settings, "PUT", "/me/player/volume", params=params)
+
+
+async def shuffle(client: httpx.AsyncClient, settings: Settings, on: bool) -> None:
+    await _call(client, settings, "PUT", "/me/player/shuffle", params={"state": "true" if on else "false"})
+
+
+async def transfer(client: httpx.AsyncClient, settings: Settings, device_id: str, play_now: bool = True) -> None:
+    await _call(client, settings, "PUT", "/me/player", json={"device_ids": [device_id], "play": play_now})
+
+
+def _art(images: list[dict[str, Any]] | None) -> str | None:
+    images = images or []
+    if not images:
+        return None
+    mid = sorted(images, key=lambda i: abs((i.get("width") or 300) - 300))
+    return mid[0].get("url")
+
+
+async def playlists(client: httpx.AsyncClient, settings: Settings) -> list[dict[str, Any]]:
+    data = await _call(client, settings, "GET", "/me/playlists", params={"limit": 50})
+    return [{"uri": p.get("uri"), "name": p.get("name", ""), "art": _art(p.get("images")), "by": (p.get("owner") or {}).get("display_name", ""), "tracks": (p.get("tracks") or {}).get("total")} for p in data.get("items") or [] if p]
+
+
+async def albums(client: httpx.AsyncClient, settings: Settings) -> list[dict[str, Any]]:
+    data = await _call(client, settings, "GET", "/me/albums", params={"limit": 50})
+    out = []
+    for item in data.get("items") or []:
+        a = item.get("album") or {}
+        out.append({"uri": a.get("uri"), "name": a.get("name", ""), "art": _art(a.get("images")), "by": ", ".join(x.get("name", "") for x in a.get("artists") or [])})
+    return out
+
+
+async def liked_songs_uris(client: httpx.AsyncClient, settings: Settings) -> list[str]:
+    data = await _call(client, settings, "GET", "/me/tracks", params={"limit": 50})
+    return [t["track"]["uri"] for t in data.get("items") or [] if t.get("track") and t["track"].get("uri")]

@@ -272,6 +272,103 @@
     } catch (e) { /* no audio device */ }
   }
 
+  // ---------- music panel: play Spotify on this computer's speaker -------------------------
+  const music = { open: false, tab: "playlists", lib: null, shuffle: false, volume: null, timer: null };
+  async function musicApi(path, body) {
+    const resp = await fetch(path, body === undefined ? { cache: "no-store" } : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (resp.status === 401) throw new Error("PIN_REQUIRED");
+    let data = null; try { data = await resp.json(); } catch (e) { data = null; }
+    if (!resp.ok) throw new Error((data && (data.detail || data.message)) || `HTTP ${resp.status}`);
+    return data;
+  }
+  function musicMsg(text, bad) { const el = $("music-msg"); el.textContent = text || ""; el.classList.toggle("bad", !!bad); }
+  function musicError(err) {
+    if (err.message === "PIN_REQUIRED") musicMsg("A PIN is set: open Settings on this screen once (S key) and enter it, then try again.", true);
+    else musicMsg(err.message, true);
+  }
+  async function musicToggle() {
+    music.open = !music.open;
+    $("music-full").classList.toggle("hidden", !music.open);
+    if (music.open) { chronPause(true); musicRefreshNow(); if (!music.lib) musicLoad(); else musicDraw(); const first = $("music-grid").querySelector("button"); if (first) first.focus(); }
+    else chronPause(false);
+  }
+  async function musicLoad() {
+    musicMsg("");
+    $("music-grid").innerHTML = '<div class="muted">Loading your playlists…</div>';
+    try {
+      music.lib = await musicApi("/api/music/library");
+      if (music.lib.device && music.lib.device.volume != null) { music.volume = music.lib.device.volume; $("mf-vol").textContent = music.volume + "%"; }
+      if (!music.lib.paired) musicMsg(`The "${music.lib.device_name}" player isn't paired yet: open Spotify on a phone, tap the speaker icon and choose it once.`);
+      musicDraw();
+    } catch (err) { $("music-grid").innerHTML = ""; musicError(err); }
+  }
+  function musicDraw() {
+    const lib = music.lib || {};
+    document.querySelectorAll(".music-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.mtab === music.tab));
+    const grid = $("music-grid");
+    let items = [];
+    if (music.tab === "playlists") items = lib.playlists || [];
+    else if (music.tab === "albums") items = lib.albums || [];
+    else items = [{ uri: "liked", name: "Liked Songs", by: "your saved songs", art: null, icon: "♥" }];
+    grid.replaceChildren(...items.map((it) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "music-tile"; b.dataset.uri = it.uri;
+      b.innerHTML = `${it.art ? `<img src="${escapeHTML(it.art)}" alt="" loading="lazy">` : `<div class="cover">${escapeHTML(it.icon || "♪")}</div>`}<div class="name">${escapeHTML(it.name)}</div><div class="by">${escapeHTML(it.by || "")}</div>`;
+      b.addEventListener("click", () => musicPlay(it));
+      return b;
+    }));
+    if (!items.length) grid.innerHTML = '<div class="muted">Nothing here yet.</div>';
+  }
+  async function musicPlay(it) {
+    musicMsg(`Starting ${it.name}…`);
+    try {
+      await musicApi("/api/music/play", it.uri === "liked" ? { liked: true } : { uri: it.uri });
+      musicMsg(`Playing ${it.name} on the TV.`);
+      setTimeout(musicRefreshNow, 1500);
+    } catch (err) { musicError(err); }
+  }
+  async function musicAction(action) {
+    try {
+      if (action === "toggle") { await musicApi(np.playing ? "/api/music/pause" : "/api/music/play", {}); }
+      else if (action === "vol-up" || action === "vol-down") {
+        const cur = music.volume == null ? 50 : music.volume;
+        music.volume = Math.max(0, Math.min(100, cur + (action === "vol-up" ? 10 : -10)));
+        $("mf-vol").textContent = music.volume + "%";
+        await musicApi("/api/music/volume", { pct: music.volume });
+        return;
+      } else if (action === "shuffle") { music.shuffle = !music.shuffle; $("mf-shuffle").classList.toggle("on", music.shuffle); await musicApi("/api/music/shuffle", { on: music.shuffle }); return; }
+      else await musicApi(`/api/music/${action}`, {});
+      musicMsg("");
+      setTimeout(musicRefreshNow, 1200);
+    } catch (err) { musicError(err); }
+  }
+  async function musicRefreshNow() {
+    // Mirror the now-playing source into the panel's top bar.
+    try {
+      const env = await getJSON("/api/nowplaying");
+      const d = (env && env.data) || {};
+      $("mf-title").textContent = d.playing ? d.title : "Nothing playing";
+      $("mf-artist").textContent = d.playing ? [d.artist, d.device ? "on " + d.device : ""].filter(Boolean).join(" · ") : "Pick a playlist below";
+      $("mf-toggle").innerHTML = d.playing ? "&#10074;&#10074;" : "&#9654;";
+      const art = $("mf-art"); art.classList.toggle("hidden", !d.art_url); if (d.art_url && art.src !== d.art_url) art.src = d.art_url;
+      if (music.lib && music.lib.device && music.lib.device.volume != null && music.volume == null) { music.volume = music.lib.device.volume; $("mf-vol").textContent = music.volume + "%"; }
+    } catch (e) { /* panel still usable */ }
+  }
+  function startMusic() {
+    if (cfg("now_playing.provider", "off") !== "spotify") return;
+    $("music-btn").classList.remove("hidden");
+    $("music-btn").addEventListener("click", musicToggle);
+    $("music-close").addEventListener("click", musicToggle);
+    document.querySelectorAll(".music-tabs button").forEach((b) => b.addEventListener("click", () => { music.tab = b.dataset.mtab; musicDraw(); }));
+    document.querySelectorAll("[data-music]").forEach((b) => b.addEventListener("click", () => musicAction(b.dataset.music)));
+    $("music-grid").addEventListener("keydown", (e) => {  // arrow keys walk the tiles; Enter plays
+      const tiles = [...$("music-grid").querySelectorAll("button")]; const i = tiles.indexOf(document.activeElement); if (i < 0) return;
+      const cols = Math.max(1, Math.floor($("music-grid").clientWidth / tiles[0].offsetWidth));
+      const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+      if (step) { e.preventDefault(); const t = tiles[Math.max(0, Math.min(tiles.length - 1, i + step))]; t.focus(); t.scrollIntoView({ block: "nearest" }); }
+    });
+    music.timer = setInterval(() => { if (music.open) musicRefreshNow(); }, 10000);
+  }
+
   // ---------- ChronAlert embed ---------------------------------------------------------------
   const chron = { url: "", mode: "off", timer: null, showing: false, paused: false, full: false };
   function chronUrl() { return cfg("chronalert.url", "") || `http://${location.hostname}:8420/`; }
@@ -692,8 +789,11 @@
     window.addEventListener("keydown", (e) => {
       if (e.key === "s" || e.key === "S") location.href = "/manage?kiosk=1";
       if (e.key === "d" || e.key === "D") switchToDesktop();
+      if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
       if ((e.key === "c" || e.key === "C") && chron.mode !== "off") chronToggleFull();
-      if (e.key === "Escape") { if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
+      if ((e.key === "m" || e.key === "M") && cfg("now_playing.provider", "off") === "spotify") musicToggle();
+      if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
+      if (e.key === "Escape") { if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
     });
     $("desktop-btn").addEventListener("click", switchToDesktop);
     $("takeover-dismiss").addEventListener("click", () => dismissTakeover(true));
@@ -756,6 +856,7 @@
     }
     startInputWatch();
     startChron();
+    startMusic();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
   }

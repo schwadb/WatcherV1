@@ -68,6 +68,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .item.team img { width: 2.2rem; height: 2.2rem; }
 .item .del { background: transparent; color: var(--down); border: 1px solid rgba(255,107,107,0.4); padding: 0.3rem 0.6rem; min-height: auto; }
 .item input, .item select { min-height: 2.3rem; padding: 0.4rem 0.6rem; }
+.music-row button { flex: 0 0 auto; min-width: 3.2rem; }
+.music-row #mc-toggle { flex: 1; }
+.results img.cover { width: 2.6rem; height: 2.6rem; border-radius: 0.3rem; object-fit: cover; }
 .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
 .chips button { background: #0d1117; color: var(--text); border: 1px solid var(--edge); border-radius: 999px; padding: 0.35rem 0.8rem; min-height: auto; font-weight: 600; font-size: 0.9rem; }
 .chips button.active { background: var(--accent); color: #06111f; border-color: var(--accent); }

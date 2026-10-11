@@ -239,6 +239,33 @@ body.show-cursor .corner-buttons { opacity: 1; pointer-events: auto; }
 .chron-full iframe { width: 100%; height: 100%; border: 0; }
 .chron-full .chron-close { position: absolute; right: 1.2rem; top: 1.2rem; opacity: 1; pointer-events: auto; }
 
+/* ---- music panel (Spotify playlists + controls, key M) ---- */
+.music-full { position: fixed; inset: 0; z-index: 950; background: #0b0f14; display: flex; flex-direction: column; padding: 1.5rem 2rem; gap: 1rem; }
+.music-top { display: flex; align-items: center; gap: 1.2rem; min-height: 6rem; padding-right: 9.5rem; }
+.music-top img { width: 6rem; height: 6rem; border-radius: 0.6rem; object-fit: cover; }
+.music-now { min-width: 0; flex: 1; }
+.mf-title { font-size: 1.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mf-artist { font-size: 1.2rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-controls { display: flex; align-items: center; gap: 0.5rem; }
+.music-controls button { width: 3.4rem; height: 3.4rem; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.06); color: var(--text); font-size: 1.4rem; cursor: pointer; }
+.music-controls button:hover, .music-controls button:focus-visible { background: rgba(90,169,255,0.3); outline: none; }
+.music-controls #mf-toggle { width: 4.2rem; height: 4.2rem; background: var(--accent); color: #06111f; font-size: 1.8rem; }
+.music-controls #mf-shuffle.on { background: rgba(90,169,255,0.4); }
+.mf-vol { min-width: 2.6rem; text-align: center; color: var(--text-2); font-size: 1rem; }
+.music-full .music-close { position: absolute; right: 1.2rem; top: 1.2rem; opacity: 1; pointer-events: auto; }
+.music-tabs { display: flex; gap: 0.5rem; }
+.music-tabs button { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--text-2); border-radius: 999px; padding: 0.4rem 1.1rem; font: inherit; font-size: 1.05rem; cursor: pointer; }
+.music-tabs button.active { background: var(--accent); color: #06111f; border-color: var(--accent); }
+.music-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: 1rem; overflow-y: auto; align-content: start; padding-bottom: 1rem; scrollbar-width: none; }
+.music-grid::-webkit-scrollbar { display: none; }
+.music-tile { background: rgba(255,255,255,0.04); border: 1px solid var(--panel-edge); border-radius: 0.8rem; padding: 0.6rem; text-align: left; color: var(--text); font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 0.5rem; }
+.music-tile img, .music-tile .cover { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem; background: linear-gradient(135deg, #1b2a3a, #0d1117); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+.music-tile .name { font-size: 1.05rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-tile .by { font-size: 0.9rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-tile:hover, .music-tile:focus-visible { border-color: var(--accent); background: rgba(90,169,255,0.12); outline: none; }
+.music-msg { min-height: 1.4rem; color: var(--warn); font-size: 1.05rem; }
+.music-msg.bad { color: var(--down); }
+
 /* ---- alert takeover (a Warning fills the screen for a few minutes) ---- */
 .takeover { position: fixed; inset: 0; z-index: 955; display: grid; grid-template-columns: 1fr 1.1fr; gap: 1.5rem; padding: 2rem; background: #140608; color: #fff; animation: takeover-in 0.6s ease; }
 .takeover.sev-moderate { background: #1a1004; }

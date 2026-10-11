@@ -343,7 +343,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "news": {"feeds": [{"name": f.get("name", ""), "url": f.get("url", "")} for f in (c["news"].get("feeds") or []) if isinstance(f, dict)]},
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
-        "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off")},
+        "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
         "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
     }
 
@@ -481,7 +481,8 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         clean["todo"] = {"max_items": int(num("todo", "max_items", 1, 20, int) or 8)}
     if "now_playing" in body:
         provider = str((body["now_playing"] or {}).get("provider", "off")).lower()
-        clean["now_playing"] = {"provider": provider if provider in ("off", "spotify") else "off"}
+        device_name = str((body["now_playing"] or {}).get("device_name") or "Dashboard").strip()[:30] or "Dashboard"
+        clean["now_playing"] = {"provider": provider if provider in ("off", "spotify") else "off", "device_name": device_name}
     if "display" in body:
         d = body["display"] or {}
         out = {}
@@ -965,7 +966,9 @@ async def spotify_status(request: Request):
     source = request.app.state.sources.get("nowplaying")
     return {
         "configured": bool(settings.spotify_client_id),
-        "connected": bool(tok.get("refresh_token")),
+        "connected": settings.mock or bool(tok.get("refresh_token")),
+        "can_control": settings.mock or spotify_src.can_control(settings),
+        "device_name": _device_name(settings),
         "provider": (settings.cfg.get("now_playing") or {}).get("provider", "off"),
         "redirect_uri": spotify_src.redirect_uri(settings),
         "now": source[0].envelope() if source else None,
@@ -1013,6 +1016,170 @@ async def spotify_paste(request: Request):
         raise
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(500, str(exc)) from exc
+
+
+def _device_name(settings: Settings) -> str:
+    return str((settings.cfg.get("now_playing") or {}).get("device_name") or "Dashboard")
+
+
+PAIR_HINT = 'Pair the player once: open Spotify on your phone (same Wi-Fi), tap the speaker/devices icon and choose "{name}". After that the TV can play on its own.'
+
+
+async def _target_device(request: Request, settings: Settings) -> dict[str, Any]:
+    """The player on this computer as Spotify sees it, or a clear error about pairing."""
+    if settings.mock:
+        return {"id": "mock-device", "name": _device_name(settings), "active": True, "volume": 60}
+    devs = await spotify_src.devices(request.app.state.client, settings)
+    dev = spotify_src.find_device(devs, _device_name(settings))
+    if not dev:
+        from . import player
+
+        st = player.status()
+        if not st["enabled"]:
+            raise HTTPException(409, 'The Spotify player is not running on this computer. Press "Keep the Spotify player running" on the Music tab first.')
+        raise HTTPException(409, PAIR_HINT.format(name=_device_name(settings)))
+    return dev
+
+
+MOCK_LIBRARY = {
+    "playlists": [{"uri": "spotify:playlist:1", "name": "Morning Coffee", "art": "/static/mock/art.png", "by": "you", "tracks": 42},
+                  {"uri": "spotify:playlist:2", "name": "Husker Game Day", "art": "/static/mock/art.png", "by": "you", "tracks": 18},
+                  {"uri": "spotify:playlist:3", "name": "Dinner Jazz", "art": "/static/mock/art.png", "by": "Spotify", "tracks": 60}],
+    "albums": [{"uri": "spotify:album:1", "name": "Harvest Moon", "art": "/static/mock/art.png", "by": "Neil Young"},
+               {"uri": "spotify:album:2", "name": "Rumours", "art": "/static/mock/art.png", "by": "Fleetwood Mac"}],
+}
+
+
+@router.get("/api/music/library")
+async def music_library(request: Request):
+    """Playlists and albums for the TV's Music panel, plus whether the player is paired."""
+    settings = _settings(request)
+    base: dict[str, Any] = {"device_name": _device_name(settings), "can_control": settings.mock or spotify_src.can_control(settings), "connected": settings.mock or bool(spotify_src.token_store(settings).read().get("refresh_token"))}
+    if settings.mock:
+        return {**base, **MOCK_LIBRARY, "device": {"id": "mock-device", "name": _device_name(settings), "active": True, "volume": 60}, "paired": True}
+    if not base["connected"]:
+        raise HTTPException(409, "Spotify is not connected yet (Music tab on the settings page)")
+    if not base["can_control"]:
+        raise HTTPException(409, "Spotify needs one more permission to play from the TV: press Reconnect on the Music tab")
+    client = request.app.state.client
+    try:
+        pls, albs, devs = await asyncio.gather(spotify_src.playlists(client, settings), spotify_src.albums(client, settings), spotify_src.devices(client, settings))
+    except spotify_src.SpotifyError as exc:
+        raise HTTPException(502, str(exc))
+    dev = spotify_src.find_device(devs, _device_name(settings))
+    return {**base, "playlists": pls, "albums": albs, "device": dev, "paired": dev is not None, "other_devices": [d["name"] for d in devs if d is not dev]}
+
+
+@router.post("/api/music/{action}")
+async def music_action(request: Request, action: str):
+    """play {uri} | play {liked: true} | pause | next | previous | volume {pct} | shuffle {on}."""
+    require_pin(request)
+    settings = _settings(request)
+    body = await request.json() if int(request.headers.get("content-length") or 0) > 0 else {}
+    if action not in ("play", "pause", "next", "previous", "volume", "shuffle"):
+        raise HTTPException(404, "unknown music action")
+    if settings.mock:
+        return {"ok": True, "message": f"mock: {action} {body}"}
+    client = request.app.state.client
+    try:
+        if action == "play":
+            dev = await _target_device(request, settings)
+            if body.get("liked"):
+                uris = await spotify_src.liked_songs_uris(client, settings)
+                if not uris:
+                    raise HTTPException(404, "no liked songs yet")
+                await spotify_src.play(client, settings, dev["id"], uris=uris)
+            elif body.get("uri"):
+                await spotify_src.play(client, settings, dev["id"], context_uri=str(body["uri"]))
+            else:  # resume
+                await spotify_src.play(client, settings, dev["id"])
+        elif action == "pause":
+            await spotify_src.pause(client, settings)
+        elif action in ("next", "previous"):
+            await spotify_src.skip(client, settings, action)
+        elif action == "volume":
+            await spotify_src.set_volume(client, settings, int(body.get("pct", 50)))
+        elif action == "shuffle":
+            await spotify_src.shuffle(client, settings, bool(body.get("on")))
+    except spotify_src.SpotifyError as exc:
+        raise HTTPException(502, str(exc))
+    source = request.app.state.sources.get("nowplaying")
+    if source:
+        asyncio.create_task(refresh_once(source[0], source[1]))  # update the card right away
+    return {"ok": True}
+
+
+# ---- the player program on this computer (spotifyd) and where its sound goes --------------------
+@router.get("/api/player")
+async def player_get(request: Request):
+    require_pin(request)
+    from . import player
+
+    settings = _settings(request)
+    return {**player.status(), "device_name": _device_name(settings), "can_control": settings.mock or spotify_src.can_control(settings)}
+
+
+@router.post("/api/player/autostart")
+async def player_autostart(request: Request):
+    require_pin(request)
+    from . import player
+
+    settings = _settings(request)
+    body = await request.json()
+    if not body.get("on"):
+        return {"ok": True, "message": player.remove(), "enabled": False}
+    try:
+        return {"ok": True, "message": player.install(_device_name(settings)), "enabled": True}
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, str(exc))
+
+
+MOCK_OUTPUTS = [{"card": "mock", "profile": "output:hdmi-stereo", "available": True, "label": "TV / monitor over HDMI", "active": False},
+                {"card": "mock", "profile": "output:analog-stereo", "available": True, "label": "Headphone / line-out jack", "active": True}]
+
+
+@router.get("/api/audio/outputs")
+async def audio_outputs(request: Request):
+    require_pin(request)
+    from . import audio
+
+    if _settings(request).mock:
+        return {"outputs": MOCK_OUTPUTS, "error": ""}
+    return await asyncio.to_thread(audio.list_outputs)
+
+
+@router.post("/api/audio/select")
+async def audio_select(request: Request):
+    require_pin(request)
+    from . import audio
+
+    body = await request.json()
+    card, profile = str(body.get("card", "")), str(body.get("profile", ""))
+    if _settings(request).mock:
+        for o in MOCK_OUTPUTS:
+            o["active"] = o["profile"] == profile
+        return {"ok": True, "message": f"mock: sound now goes to {profile}"}
+    if not card or not profile.startswith("output:"):
+        raise HTTPException(422, "pick an output from the list")
+    try:
+        sink = await asyncio.to_thread(audio.select_output, card, profile)
+    except RuntimeError as exc:
+        raise HTTPException(422, str(exc))
+    return {"ok": True, "message": f"Sound now goes to {sink.split('.')[-1].replace('-', ' ')}. Press Test sound to check."}
+
+
+@router.post("/api/audio/test")
+async def audio_test(request: Request):
+    require_pin(request)
+    from . import audio
+
+    settings = _settings(request)
+    if settings.mock:
+        return {"ok": True, "message": "mock: tone played"}
+    try:
+        return {"ok": True, "message": await asyncio.to_thread(audio.test_tone, settings.cache_dir)}
+    except RuntimeError as exc:
+        raise HTTPException(422, str(exc))
 
 
 @router.post("/api/spotify/disconnect")

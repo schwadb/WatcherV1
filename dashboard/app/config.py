@@ -50,7 +50,7 @@ DEFAULTS: dict[str, Any] = {
     "news": {"refresh_minutes": 10, "max_headlines": 40, "feeds": []},
     "photos": {"folder": "photos", "seconds_per_photo": 20, "order": "shuffle", "rescan_minutes": 5, "max_size": 1920, "max_upload_mb": 25},
     "todo": {"max_items": 8},
-    "now_playing": {"provider": "off", "refresh_seconds": 10},
+    "now_playing": {"provider": "off", "refresh_seconds": 10, "device_name": "Dashboard"},
     "panels": {
         "alerts": True, "radar": True, "stocks": True, "sports": True, "calendar": True,
         "todo": True, "news": True, "photos": True, "nowplaying": True,
@@ -176,7 +176,7 @@ class Settings:
             "sports_enabled": bool(teams(self)) and self.panel("sports"),
             "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
             "todo": c.get("todo") or DEFAULTS["todo"],
-            "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "refresh_seconds": (c.get("now_playing") or {}).get("refresh_seconds", 10)},
+            "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "refresh_seconds": (c.get("now_playing") or {}).get("refresh_seconds", 10), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
             "display": c["display"],
             "takeover": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("takeover", "takeover_minutes", "takeover_sound")},
             "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},

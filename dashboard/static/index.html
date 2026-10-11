@@ -97,11 +97,31 @@
   </div>
   <div class="takeover-map"><div id="takeover-map"></div><div class="radar-time" id="takeover-time"></div></div>
 </div>
+<div id="music-full" class="music-full hidden" role="dialog" aria-label="Music">
+  <div class="music-top">
+    <img id="mf-art" alt="" class="hidden">
+    <div class="music-now"><div class="mf-title" id="mf-title">Nothing playing</div><div class="mf-artist" id="mf-artist"></div></div>
+    <div class="music-controls">
+      <button type="button" data-music="previous" title="Previous">&#9198;</button>
+      <button type="button" data-music="toggle" id="mf-toggle" title="Play / pause">&#9654;</button>
+      <button type="button" data-music="next" title="Next">&#9197;</button>
+      <button type="button" data-music="vol-down" title="Quieter">&minus;</button>
+      <span id="mf-vol" class="mf-vol" title="Volume">vol</span>
+      <button type="button" data-music="vol-up" title="Louder">+</button>
+      <button type="button" data-music="shuffle" id="mf-shuffle" title="Shuffle">&#8646;</button>
+    </div>
+    <button type="button" class="corner music-close" id="music-close">&#10005; Close</button>
+  </div>
+  <div class="music-tabs"><button type="button" class="active" data-mtab="playlists">Playlists</button><button type="button" data-mtab="albums">Albums</button><button type="button" data-mtab="liked">Liked songs</button></div>
+  <div class="music-grid" id="music-grid"><div class="muted">Loading…</div></div>
+  <div class="music-msg" id="music-msg"></div>
+</div>
 <div id="chron-full" class="chron-full hidden"><iframe id="chron-full-frame" title="ChronAlert full screen" referrerpolicy="no-referrer"></iframe><button type="button" class="corner chron-close" id="chron-close">✕ Close map</button></div>
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
 <div id="notice" class="notice hidden"></div>
 <div class="corner-buttons">
+  <button id="music-btn" class="corner hidden" type="button" title="Music (M)">&#9835; Music</button>
   <button id="chron-btn" class="corner hidden" type="button" title="ChronAlert map (C)">&#127758; Map</button>
   <button id="desktop-btn" class="corner" type="button" title="Use this computer as a computer (D)">&#128421; Desktop</button>
   <a id="gear" class="corner" href="/manage?kiosk=1" title="Settings (S)">&#9881; Settings</a>

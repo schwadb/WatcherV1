@@ -287,6 +287,37 @@
       <div class="row end"><button type="button" id="spotify-paste-btn">Finish connecting</button></div>
       <p class="muted">Doing this on the Pi's own browser (or over <code>ssh -L 8080:127.0.0.1:8080 pi@dashboard.local</code> from a laptop) finishes by itself, no pasting needed.</p>
     </div>
+
+    <div class="card" id="player-card">
+      <h2>Play on the TV</h2>
+      <p class="muted">The dashboard computer becomes a Spotify speaker (it shows up as a device in every Spotify app), and the TV gets a Music button (key M) with your playlists.</p>
+      <p id="player-status" class="status">Checking…</p>
+      <div class="row">
+        <button type="button" id="spotify-reconnect" class="hidden">Reconnect for playback permission</button>
+      </div>
+      <label>Speaker name shown in Spotify <input id="player-name" type="text" placeholder="Dashboard" maxlength="30"></label>
+      <div class="row">
+        <button type="button" id="player-autostart">Keep the Spotify player running</button>
+        <button type="button" class="ghost" id="player-recheck">Check again</button>
+      </div>
+      <h3>Sound output</h3>
+      <p id="audio-status" class="status"></p>
+      <label>Where the sound comes out <select id="audio-output"></select></label>
+      <div class="row">
+        <button type="button" id="audio-apply">Use this</button>
+        <button type="button" class="ghost" id="audio-test">Test sound</button>
+      </div>
+      <h3>Play something</h3>
+      <div class="row music-row">
+        <button type="button" data-mctl="previous" class="ghost">&#9198;</button>
+        <button type="button" data-mctl="toggle" id="mc-toggle">&#9654; Play</button>
+        <button type="button" data-mctl="next" class="ghost">&#9197;</button>
+        <button type="button" data-mctl="vol-down" class="ghost" title="Quieter">&minus;</button>
+        <button type="button" data-mctl="vol-up" class="ghost" title="Louder">+</button>
+      </div>
+      <div class="chips" id="music-tabs"><button type="button" class="active" data-mtab="playlists">Playlists</button><button type="button" data-mtab="albums">Albums</button><button type="button" data-mtab="liked">Liked songs</button></div>
+      <div class="results" id="music-list"></div>
+    </div>
   </section>
 
   <!-- SYSTEM -->

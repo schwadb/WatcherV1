@@ -348,14 +348,17 @@ powered. Most TVs go to sleep by themselves a few minutes after the signal
 stops and wake when it returns; if yours doesn't, use the TV's sleep timer, or
 add a Pulse-Eight USB-CEC adapter later and the scripts will use it.
 
-### Now playing (Spotify)
+### Spotify on the TV
 
-The Music tab shows what's playing on your Spotify account as a small card over
-the photo, with album art and a progress bar. Spotify's rules make the one-time
-connection a bit fiddly, so the tab walks you through it:
+The dashboard can show what's playing on your Spotify account and, with one
+more step, play music itself through the TV's speakers: the computer becomes a
+Spotify speaker named **Dashboard**, and the TV gets a **Music** button (key
+**M**) with your playlists, albums and liked songs. Spotify Premium is required.
 
-1. On a computer, go to <https://developer.spotify.com/dashboard>, log in
-   (the account must be **Spotify Premium**, a Spotify rule since 2026) and
+**One-time connection.** Spotify's rules make this a bit fiddly, so the Music
+tab walks you through it:
+
+1. On a computer, go to <https://developer.spotify.com/dashboard>, log in and
    create an app with any name.
 2. Under **Redirect URIs** paste exactly `http://127.0.0.1:8080/api/spotify/callback`
    (the Music tab shows the exact value for your port).
@@ -363,11 +366,30 @@ connection a bit fiddly, so the tab walks you through it:
 4. On the Music tab press **Connect Spotify** and approve. Your browser then
    lands on a page that cannot load (Spotify only allows that local address).
    Copy that page's address from the address bar and paste it into the box on
-   the Music tab, then press **Finish connecting**.
+   the Music tab, then press **Finish connecting**. (If you connected before the
+   "Play on the TV" feature existed, press **Reconnect for playback permission**
+   once; same steps.)
 
-Done on the Pi's own browser (Alt+F4 out of the kiosk, open the address in
-Chromium) the last step finishes by itself. The card hides when nothing is
-playing, and **Disconnect** on the Music tab removes the connection.
+**Play on the TV.** Still on the Music tab, under *Play on the TV*:
+
+1. Press **Keep the Spotify player running**. On Omarchy the installer already
+   put the `spotifyd` program in place; on a Raspberry Pi download the
+   `spotifyd-linux-armhf-default.tar.gz` (Pi 4/5: `aarch64`) from
+   <https://github.com/Spotifyd/spotifyd/releases>, unpack it, and put the
+   `spotifyd` file in `~/.local/bin` first.
+2. Pair it once: open Spotify on your phone (same Wi-Fi), tap the speaker /
+   devices icon and choose **Dashboard**. From then on the TV can start music
+   on its own.
+3. **Sound output:** pick *TV / monitor over HDMI* and press **Use this**, then
+   **Test sound**. You should hear a short tone from the TV. If HDMI is greyed
+   out as "nothing plugged in", the cable or adapter is not carrying audio; use
+   the headphone jack with a cable to the TV's audio-in instead.
+4. On the TV, press **M** (or the Music corner button) and tap a playlist. The
+   same playlists and the play / pause / skip / volume buttons are on the phone's
+   Music tab too.
+
+The card over the photos hides when nothing is playing, and **Disconnect** on
+the Music tab removes the connection.
 
 ## If something goes wrong
 
@@ -400,6 +422,13 @@ playing, and **Disconnect** on the Music tab removes the connection.
   computer itself:** the computer's firewall is blocking it. Omarchy turns on
   `ufw`; run `sudo ufw allow 8080/tcp` (the installer now does this for you)
   and try again.
+- **Music: "player isn't paired yet":** open Spotify on your phone on the same
+  Wi-Fi, tap the speaker icon and choose Dashboard once. If Dashboard is not
+  listed there, the player isn't running (Music tab → Check again) or the
+  firewall is blocking discovery (the installer opens it; by hand:
+  `sudo ufw allow 5353/udp && sudo ufw allow 1234/tcp`).
+- **Music plays but no sound from the TV:** Music tab → Sound output → pick
+  the HDMI entry → Use this → Test sound. The player follows the default output.
 - **Forgot the PIN:** on the computer, edit `~/WatcherV1/dashboard/.env`, clear the
   `DASHBOARD_PIN=` line, and restart the service.
 - **Test the page without internet or keys:** set `DASHBOARD_MOCK=1` in

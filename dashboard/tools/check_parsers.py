@@ -67,6 +67,49 @@ check("cache: last good data survives a restart", _c4.load_persisted() and _c4.d
 (_dir / "news.json").write_text(_json.dumps({"fetched_at": _time.time() - 4 * 86400, "data": {"old": True}}))
 check("cache: data older than three days is not used", not _cache.SourceCache("news", lambda: 600, persist_path=_dir / "news.json").load_persisted())
 
+# ---- spotify player + sound output -----------------------------------------------------------
+from app import player as _player, audio as _audio
+_ph = Path(__import__("tempfile").mkdtemp())
+_conf = _player.config_text("Living Room TV", _ph)
+check("player: spotifyd config names the device and uses pulseaudio", 'device_name = "Living Room TV"' in _conf and 'backend = "pulseaudio"' in _conf and "zeroconf_port = 1234" in _conf)
+import os as _os0
+_saved_path = _os0.environ["PATH"]
+try:
+    _os0.environ["PATH"] = "/nonexistent"; _player.install("Dashboard", _ph); check("player: missing spotifyd is explained", False)
+except ValueError as exc:
+    check("player: missing spotifyd is explained", "pacman -S spotifyd" in str(exc))
+finally:
+    _os0.environ["PATH"] = _saved_path
+_pactl = """Card #48
+\tName: alsa_card.pci-0000_01_00.1
+\tDriver: module-alsa-card.c
+\tOwner Module: n/a
+\tProperties:
+\t\tdevice.description = "Tahiti HDMI Audio [Radeon HD 7870 XT / 7950/7970]"
+\tProfiles:
+\t\toutput:hdmi-stereo: Digital Stereo (HDMI) Output (sinks: 1, sources: 0, priority: 5900, available: no)
+\t\toutput:hdmi-stereo-extra1: Digital Stereo (HDMI 2) Output (sinks: 1, sources: 0, priority: 5700, available: yes)
+\t\toff: Off (sinks: 0, sources: 0, priority: 0, available: yes)
+\tActive Profile: off
+\tPorts:
+Card #50
+\tName: alsa_card.pci-0000_00_1b.0
+\tProperties:
+\t\tdevice.description = "Built-in Audio"
+\tProfiles:
+\t\toutput:analog-stereo: Analog Stereo Output (sinks: 1, sources: 0, priority: 6500, available: yes)
+\t\toutput:analog-stereo+input:analog-stereo: Analog Stereo Duplex (sinks: 1, sources: 1, priority: 6565, available: yes)
+\t\tinput:analog-stereo: Analog Stereo Input (sinks: 0, sources: 1, priority: 65, available: yes)
+\t\toff: Off (sinks: 0, sources: 0, priority: 0, available: yes)
+\tActive Profile: output:analog-stereo+input:analog-stereo
+"""
+_cards = _audio.parse_cards(_pactl)
+_outs = _audio.outputs_from(_cards)
+check("audio: cards and profiles parsed with availability", len(_cards) == 2 and _cards[0]["profiles"][0]["available"] is False and _cards[0]["profiles"][1]["available"] is True)
+check("audio: outputs are friendly, de-duplicated, HDMI first, current one flagged", [o["label"] for o in _outs] == ["TV / monitor over HDMI (port 2)", "Headphone / line-out jack", "TV / monitor over HDMI"] and _outs[1]["active"] and not _outs[0]["active"] and not _outs[2]["available"])
+_tone = _audio.tone_file(_ph / "cache")
+check("audio: test tone file written", _tone.exists() and _tone.stat().st_size > 100000)
+
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))
 m_full = astro.moon_phase(datetime(2000, 1, 21, 4, 40, tzinfo=timezone.utc))
