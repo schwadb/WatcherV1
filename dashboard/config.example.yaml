@@ -107,6 +107,7 @@ photos:
   rescan_minutes: 5
   max_size: 1920              # longest edge after resizing, in pixels
   max_upload_mb: 25           # per photo, for uploads from the manage page
+  fit: fit                    # fit = show the whole photo with blurred edges; fill = crop to fill the box
 
 todo:
   max_items: 8                # shown on the dashboard

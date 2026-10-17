@@ -711,8 +711,12 @@
       if (!slideshow.timer) nextPhoto();
     }
   }
+  function applyPhotoFit() {
+    document.querySelector(".panel.photo").classList.toggle("fit", cfg("photos.fit", "fit") !== "fill");
+  }
   function nextPhoto() {
     clearTimeout(slideshow.timer);
+    applyPhotoFit();
     const list = slideshow.list;
     if (!list.length || document.body.classList.contains("screen-off")) { slideshow.timer = setTimeout(nextPhoto, 5000); return; }
     slideshow.index = (slideshow.index + 1) % list.length;
@@ -724,6 +728,9 @@
       $(backId).src = url;
       $(backId).classList.add("visible");
       $(frontId).classList.remove("visible");
+      $(backId.replace("photo-", "photo-bg-")).style.backgroundImage = `url("${url}")`;
+      $(backId.replace("photo-", "photo-bg-")).classList.add("visible");
+      $(frontId.replace("photo-", "photo-bg-")).classList.remove("visible");
       slideshow.front = slideshow.front === "a" ? "b" : "a";
     };
     img.onerror = () => console.warn("photo failed", url);

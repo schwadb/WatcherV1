@@ -94,6 +94,11 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 /* ---- photo, alert banner, now playing ---- */
 .photo .layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.4s ease-in-out; }
 .photo .layer.visible { opacity: 1; }
+/* "fit": the whole photo is shown, and a blurred copy of it fills whatever the photo's shape leaves empty */
+.photo.fit .layer { object-fit: contain; }
+.photo .backdrop { position: absolute; inset: -6%; background-size: cover; background-position: center; filter: blur(1.6rem) brightness(0.55) saturate(1.1); opacity: 0; transition: opacity 1.4s ease-in-out; display: none; }
+.photo.fit .backdrop { display: block; }
+.photo .backdrop.visible { opacity: 1; }
 .photo .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 3rem; text-align: center; color: var(--muted); font-size: 1.5rem; }
 
 .alert { position: absolute; left: 0; right: 0; top: 0; z-index: 6; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2rem; padding: 0.8rem 1.4rem; background: rgba(230, 60, 60, 0.92); color: #fff; backdrop-filter: blur(4px); }

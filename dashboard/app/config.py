@@ -48,7 +48,7 @@ DEFAULTS: dict[str, Any] = {
     "countdowns": [],
     "sports": {"refresh_minutes": 10, "teams": []},
     "news": {"refresh_minutes": 10, "max_headlines": 40, "feeds": []},
-    "photos": {"folder": "photos", "seconds_per_photo": 20, "order": "shuffle", "rescan_minutes": 5, "max_size": 1920, "max_upload_mb": 25},
+    "photos": {"folder": "photos", "seconds_per_photo": 20, "order": "shuffle", "rescan_minutes": 5, "max_size": 1920, "max_upload_mb": 25, "fit": "fit"},
     "todo": {"max_items": 8},
     "now_playing": {"provider": "off", "refresh_seconds": 10, "device_name": "Dashboard"},
     "panels": {
@@ -169,7 +169,7 @@ class Settings:
                 "todo": 30,
             },
             "radar": {"zoom": c["radar"]["zoom"], "frame_ms": c["radar"]["frame_ms"], "provider": c["radar"]["provider"]},
-            "photos": {"seconds_per_photo": c["photos"]["seconds_per_photo"]},
+            "photos": {"seconds_per_photo": c["photos"]["seconds_per_photo"], "fit": (c.get("photos") or {}).get("fit", "fit")},
             "calendar": {"days_ahead": c["calendar"]["days_ahead"], "max_events": c["calendar"]["max_events"]},
             "calendars": [{"name": cal["name"], "color": cal["color"]} for cal in calendars(self)],
             "countdowns": self.countdowns(),

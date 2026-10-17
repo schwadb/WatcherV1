@@ -341,7 +341,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "countdowns": [{"title": x.get("title", ""), "date": str(x.get("date", "")), "icon": x.get("icon", "")} for x in (c.get("countdowns") or []) if isinstance(x, dict)],
         "sports": {"teams": [{"sport": t.get("sport", ""), "league": t.get("league", ""), "team": str(t.get("team", t.get("team_id", ""))), "name": t.get("name", "")} for t in (sports_cfg.get("teams") or []) if isinstance(t, dict)]},
         "news": {"feeds": [{"name": f.get("name", ""), "url": f.get("url", "")} for f in (c["news"].get("feeds") or []) if isinstance(f, dict)]},
-        "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb")},
+        "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
         "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
@@ -479,7 +479,8 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         clean["news"] = {"feeds": feeds}
     if "photos" in body:
         order = str((body["photos"] or {}).get("order", "shuffle")).lower()
-        clean["photos"] = {"seconds_per_photo": int(num("photos", "seconds_per_photo", 5, 600, int) or 20), "order": order if order in ("shuffle", "name") else "shuffle", "max_upload_mb": int(num("photos", "max_upload_mb", 1, 100, int) or 25)}
+        fit = str((body["photos"] or {}).get("fit", "fit")).lower()
+        clean["photos"] = {"seconds_per_photo": int(num("photos", "seconds_per_photo", 5, 600, int) or 20), "order": order if order in ("shuffle", "name") else "shuffle", "max_upload_mb": int(num("photos", "max_upload_mb", 1, 100, int) or 25), "fit": fit if fit in ("fit", "fill") else "fit"}
     if "todo" in body:
         clean["todo"] = {"max_items": int(num("todo", "max_items", 1, 20, int) or 8)}
     if "now_playing" in body:

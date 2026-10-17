@@ -132,6 +132,11 @@ Other ways in: plug a USB stick into the Pi and copy files into
 `~/WatcherV1/dashboard/photos/`, or from a computer run
 `scp *.jpg pi@dashboard.local:~/WatcherV1/dashboard/photos/`.
 
+
+Portrait and square photos are shown whole, with a soft blurred copy filling
+the rest of the box. Prefer the old crop-to-fill look? Settings → Photos →
+"How photos fill the box".
+
 ## Part 5: Reboot
 
 In the **System** tab press **Reboot** (or type `sudo reboot`). The computer
