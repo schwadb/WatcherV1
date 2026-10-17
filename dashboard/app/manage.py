@@ -334,6 +334,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
         "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts", "takeover", "takeover_minutes", "takeover_sound")},
         "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
+        "scores": {"leagues": list((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"])},
         "radar": {k: c["radar"].get(k, DEFAULTS["radar"][k]) for k in ("provider", "zoom")},
         "stocks": {"symbols": symbols},
         "calendars": [{"name": x.get("name", ""), "url": x.get("url", ""), "color": x.get("color", "")} for x in (c.get("calendars") or []) if isinstance(x, dict)],
@@ -405,6 +406,13 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         }
         if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
+    if "scores" in body:
+        from .sources.scores import LEAGUES
+
+        wanted = [str(k) for k in ((body["scores"] or {}).get("leagues") or []) if str(k) in LEAGUES]
+        if not wanted:
+            errors.append("scores.leagues: pick at least one league")
+        clean["scores"] = {"leagues": wanted}
     if "audio" in body:
         a = body["audio"] or {}
         clean["audio"] = {k: str(a.get(k) or "")[:120] for k in ("card", "profile", "port")}
@@ -752,6 +760,35 @@ async def news_find(request: Request, url: str = ""):
         return await find_feed(request.app.state.client, url)
     except LookupError as exc:
         raise HTTPException(404, str(exc))
+
+
+@router.get("/api/scores/leagues")
+async def scores_leagues(request: Request):
+    from .sources import scores
+
+    return {"leagues": scores.league_list(_settings(request)), "all": [{"key": k, "label": v[2]} for k, v in scores.LEAGUES.items()]}
+
+
+@router.get("/api/scores")
+async def scores_get(request: Request, league: str = "football/nfl"):
+    """Every game today in one league, your teams first. Cached for 30 s while games are live."""
+    from .sources import scores
+
+    settings = _settings(request)
+    if league not in scores.LEAGUES:
+        raise HTTPException(404, "unknown league")
+    if settings.mock:
+        import json as _json
+
+        fx = _json.loads((settings.fixtures_dir / "scoreboard.json").read_text(encoding="utf-8"))["leagues"]
+        raw = fx.get(league) or {"events": []}
+        data = scores.parse_scoreboard(raw, scores.mine_for(settings, league) | {"158", "NEB"})
+        data.update(league=league, label=scores.LEAGUES[league][2])
+        return data
+    try:
+        return await scores.fetch_league(request.app.state.client, settings, league)
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"ESPN did not answer: {exc}")
 
 
 @router.get("/api/sports/search")

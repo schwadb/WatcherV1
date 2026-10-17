@@ -244,6 +244,35 @@ body.show-cursor .corner-buttons { opacity: 1; pointer-events: auto; }
 .chron-full iframe { width: 100%; height: 100%; border: 0; }
 .chron-full .chron-close { position: absolute; right: 1.2rem; top: 1.2rem; opacity: 1; pointer-events: auto; }
 
+/* ---- scoreboard (every game today, key G) ---- */
+.scores-full { position: fixed; inset: 0; z-index: 950; background: #0b0f14; display: flex; flex-direction: column; padding: 1.4rem 2rem; gap: 1rem; }
+.scores-top { display: flex; align-items: center; gap: 1.2rem; padding-right: 9.5rem; }
+.scores-top h2 { margin: 0; font-size: 1.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
+.scores-leagues { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.scores-leagues button { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--text-2); border-radius: 999px; padding: 0.4rem 1.1rem; font: inherit; font-size: 1.05rem; cursor: pointer; }
+.scores-leagues button.active { background: var(--accent); color: #06111f; border-color: var(--accent); }
+.scores-meta { margin-left: auto; color: var(--muted); font-size: 1rem; }
+.scores-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; overflow-y: auto; align-content: start; padding-bottom: 1rem; scrollbar-width: none; transition: opacity 0.3s; }
+.scores-grid::-webkit-scrollbar { display: none; }
+.scores-grid.rewind { opacity: 0; }
+.game { background: rgba(255,255,255,0.04); border: 1px solid var(--panel-edge); border-radius: 0.8rem; padding: 0.7rem 0.9rem; display: grid; grid-template-columns: 1fr auto; gap: 0.2rem 0.8rem; align-items: center; }
+.game.live { border-color: rgba(255,107,107,0.6); background: rgba(255,107,107,0.06); }
+.game.mine { border-left: 0.35rem solid var(--accent); }
+.game .team { display: flex; align-items: center; gap: 0.6rem; min-width: 0; font-size: 1.15rem; }
+.game .team img { width: 1.8rem; height: 1.8rem; object-fit: contain; }
+.game .team .rank { color: var(--muted); font-size: 0.85rem; }
+.game .team .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game .team .rec { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.game .team.lost { opacity: 0.6; }
+.game .sc { font-size: 1.5rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; min-width: 2.2rem; }
+.game .team.winner .nm, .game .sc.winner { color: var(--text); }
+.game .status { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 0.6rem; color: var(--text-2); font-size: 0.95rem; margin-top: 0.25rem; border-top: 1px solid var(--panel-edge); padding-top: 0.35rem; }
+.game.live .status .when { color: var(--down); font-weight: 600; }
+.game.live .status .when::before { content: ""; display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--down); margin-right: 0.4rem; animation: blink 1s infinite; }
+.game .status .tv { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game .poss { color: var(--warn); font-size: 0.85rem; }
+.scores-empty { grid-column: 1 / -1; color: var(--muted); font-size: 1.2rem; padding: 2rem; text-align: center; }
+
 /* ---- music panel (Spotify playlists + controls, key M) ---- */
 .music-full { position: fixed; inset: 0; z-index: 950; background: #0b0f14; display: flex; flex-direction: column; padding: 1.5rem 2rem; gap: 1rem; }
 .music-top { display: flex; align-items: center; gap: 1.2rem; min-height: 6rem; padding-right: 9.5rem; }

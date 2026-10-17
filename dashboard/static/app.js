@@ -272,6 +272,55 @@
     } catch (e) { /* no audio device */ }
   }
 
+  // ---------- scoreboard: every game today in a league, key G --------------------------------
+  const scores = { open: false, league: "", leagues: [], timer: null };
+  function gameCard(g) {
+    const side = (t, opp) => {
+      const won = g.state === "post" && t.winner; const lost = g.state === "post" && !t.winner && opp.winner;
+      return `<div class="team${won ? " winner" : ""}${lost ? " lost" : ""}">${t.logo ? `<img src="${escapeHTML(t.logo)}" alt="" loading="lazy">` : ""}${t.rank ? `<span class="rank">${t.rank}</span>` : ""}<span class="nm">${escapeHTML(t.name)}</span><span class="rec">${escapeHTML(t.record)}</span>${g.state === "in" && g.situation && g.situation.possession === t.id ? '<span class="poss">●</span>' : ""}</div><div class="sc${won ? " winner" : ""}">${g.state === "pre" ? "" : (t.score ?? "")}</div>`;
+    };
+    const when = g.state === "pre" ? fmtGameTime(g.date) : escapeHTML(g.detail);
+    const extra = g.state === "in" && g.situation && g.situation.down ? ` · ${escapeHTML(g.situation.down)}` : g.state === "pre" && g.odds ? ` · ${escapeHTML(g.odds)}` : "";
+    return `<div class="game ${g.state === "in" ? "live" : ""}${g.mine ? " mine" : ""}">${side(g.away, g.home)}${side(g.home, g.away)}<div class="status"><span class="when">${when}${extra}</span><span class="tv">${escapeHTML(g.tv || "")}</span></div></div>`;
+  }
+  function fmtGameTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso); const today = new Date();
+    const sameDay = d.toLocaleDateString("en-US", { timeZone: tz() }) === today.toLocaleDateString("en-US", { timeZone: tz() });
+    const t = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz() }).format(d);
+    return sameDay ? t : `${new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz() }).format(d)} ${t}`;
+  }
+  async function scoresLoad() {
+    if (!scores.leagues.length) {
+      try { scores.leagues = (await getJSON("/api/scores/leagues")).leagues; } catch (e) { $("scores-grid").innerHTML = '<div class="scores-empty">Could not load the league list.</div>'; return; }
+      if (!scores.league) scores.league = (scores.leagues[0] || {}).key || "football/nfl";
+    }
+    $("scores-leagues").replaceChildren(...scores.leagues.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scores.league); b.addEventListener("click", () => { scores.league = l.key; scoresLoad(); }); return b; }));
+    try {
+      const d = await getJSON(`/api/scores?league=${encodeURIComponent(scores.league)}`);
+      const grid = $("scores-grid");
+      grid.innerHTML = d.games.length ? d.games.map(gameCard).join("") : '<div class="scores-empty">No games today.</div>';
+      $("scores-meta").textContent = [d.week ? `Week ${d.week}` : "", d.live ? `${d.live} live` : "", `${d.games.length} games`].filter(Boolean).join(" · ");
+      autoScroll(grid, { pauseMs: 9000 });
+    } catch (err) { $("scores-grid").innerHTML = `<div class="scores-empty">${escapeHTML(err.message)}</div>`; }
+  }
+  function scoresToggle() {
+    scores.open = !scores.open;
+    $("scores-full").classList.toggle("hidden", !scores.open);
+    if (scores.open) { chronPause(true); scoresLoad(); scores.timer = setInterval(scoresLoad, 30000); }
+    else { chronPause(false); clearInterval(scores.timer); }
+  }
+  function scoresStep(dir) {
+    const i = scores.leagues.findIndex((l) => l.key === scores.league);
+    if (i < 0 || !scores.leagues.length) return;
+    scores.league = scores.leagues[(i + dir + scores.leagues.length) % scores.leagues.length].key;
+    scoresLoad();
+  }
+  function startScores() {
+    $("scores-btn").addEventListener("click", scoresToggle);
+    $("scores-close").addEventListener("click", scoresToggle);
+  }
+
   // ---------- music panel: play Spotify on this computer's speaker -------------------------
   const music = { open: false, tab: "playlists", lib: null, shuffle: false, volume: null, timer: null };
   async function musicApi(path, body) {
@@ -799,8 +848,10 @@
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
       if ((e.key === "c" || e.key === "C") && chron.mode !== "off") chronToggleFull();
       if ((e.key === "m" || e.key === "M") && cfg("now_playing.provider", "off") === "spotify") musicToggle();
+      if (e.key === "g" || e.key === "G") scoresToggle();
+      if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
-      if (e.key === "Escape") { if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
+      if (e.key === "Escape") { if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
     });
     $("desktop-btn").addEventListener("click", switchToDesktop);
     $("takeover-dismiss").addEventListener("click", () => dismissTakeover(true));
@@ -864,6 +915,7 @@
     startInputWatch();
     startChron();
     startMusic();
+    startScores();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
   }

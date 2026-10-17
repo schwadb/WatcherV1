@@ -120,3 +120,17 @@ body.kiosk .kbd button { min-height: 3.4rem; min-width: 3rem; font-size: 1.1rem;
 .steps { padding-left: 1.2rem; color: var(--text-2); font-size: 0.95rem; }
 .steps li { margin: 0.4rem 0; }
 code { background: #0d1117; border: 1px solid var(--edge); border-radius: 6px; padding: 0.1rem 0.4rem; font-size: 0.9em; word-break: break-all; }
+
+/* ---- scores tab ---- */
+.scores-list .game { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.6rem; background: #0d1117; border: 1px solid var(--edge); border-radius: 10px; padding: 0.55rem 0.7rem; }
+.scores-list .game.live { border-color: rgba(255,107,107,0.6); }
+.scores-list .game.mine { border-left: 4px solid var(--accent); }
+.scores-list .team { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.scores-list .team img { width: 1.5rem; height: 1.5rem; object-fit: contain; }
+.scores-list .team .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scores-list .team .rec, .scores-list .team .rank { color: var(--muted); font-size: 0.8rem; }
+.scores-list .team.lost { opacity: 0.6; }
+.scores-list .sc { font-size: 1.2rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.scores-list .status { grid-column: 1 / -1; display: flex; justify-content: space-between; color: var(--text-2); font-size: 0.85rem; border-top: 1px solid var(--edge); padding-top: 0.3rem; margin-top: 0.2rem; }
+.scores-list .game.live .status .when { color: var(--down); font-weight: 600; }
+.scores-list .poss { color: var(--warn); }

@@ -131,6 +131,16 @@ check("audio: selecting a jack sets profile, default sink and port", _audio.sele
 _tone = _audio.tone_file(_ph / "cache")
 check("audio: test tone file written", _tone.exists() and _tone.stat().st_size > 100000)
 
+# ---- scoreboard --------------------------------------------------------------------------------
+from app.sources import scores as _scores
+_sb = json.loads((FX / "scoreboard.json").read_text(encoding="utf-8"))["leagues"]
+_cfb = _scores.parse_scoreboard(_sb["football/college-football"], {"158", "NEB"})
+check("scores: games parsed with both sides, scores and status", _cfb["games"] and all(g["home"]["abbr"] and g["away"]["abbr"] and g["state"] in ("pre", "in", "post") for g in _cfb["games"]))
+check("scores: my team first and flagged, live games counted", _cfb["games"][0]["mine"] and "NEB" in (_cfb["games"][0]["home"]["abbr"], _cfb["games"][0]["away"]["abbr"]) and _cfb["live"] == sum(1 for g in _cfb["games"] if g["state"] == "in"))
+_nfl = _scores.parse_scoreboard(_sb["football/nfl"])
+check("scores: upcoming games carry TV and kickoff, finals carry a winner", any(g["tv"] for g in _nfl["games"] if g["state"] == "pre") and all((g["home"]["winner"] or g["away"]["winner"]) for g in _nfl["games"] if g["state"] == "post"))
+check("scores: default league list and labels", _scores.enabled_leagues(settings) and all(k in _scores.LEAGUES for k in _scores.enabled_leagues(settings)) and _scores.LEAGUES["football/nfl"][2] == "NFL")
+
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))
 m_full = astro.moon_phase(datetime(2000, 1, 21, 4, 40, tzinfo=timezone.utc))

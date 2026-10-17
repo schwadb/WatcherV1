@@ -65,6 +65,15 @@ try {
   const none = await api("/api/news/find?url=" + encodeURIComponent("http://127.0.0.1:8766/nothing-here"));
   check("feed finder explains when nothing is found", none.status === 404 && /No news feed/.test(none.data.detail || ""), JSON.stringify(none.data));
 } finally { site.kill(); }
+const leagues = await api("/api/scores/leagues");
+check("score leagues listed", leagues.status === 200 && leagues.data.leagues.length >= 3 && leagues.data.all.length >= leagues.data.leagues.length, JSON.stringify(leagues.data.leagues.map((l) => l.key)));
+const board = await api("/api/scores?league=football/nfl");
+check("scoreboard answers with games", board.status === 200 && board.data.games.length >= 3 && board.data.games[0].home.abbr, `${board.status} ${(board.data.games || []).length}`);
+const badLeague = await api("/api/scores?league=curling/olympics");
+check("unknown league refused", badLeague.status === 404, String(badLeague.status));
+const badLeagues = await api("/api/settings", { method: "PUT", json: { config: { scores: { leagues: ["nope/nope"] } } } });
+check("empty league list rejected", badLeagues.status === 422, JSON.stringify(badLeagues.data));
+await api("/api/settings", { method: "PUT", json: { config: { scores: { leagues: ["football/nfl", "football/college-football", "basketball/nba", "baseball/mlb", "hockey/nhl", "basketball/mens-college-basketball"] } } } });
 const outputs = await api("/api/audio/outputs");
 check("sound outputs listed", outputs.status === 200 && outputs.data.outputs.length >= 2 && outputs.data.outputs.every((o) => o.label && o.profile.startsWith("output:")), JSON.stringify(outputs.data));
 const lib = await api("/api/music/library");

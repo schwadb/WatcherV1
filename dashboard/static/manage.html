@@ -18,6 +18,7 @@
   <a href="#todo" data-tab="todo">To-do</a>
   <a href="#notes" data-tab="notes">Notes</a>
   <a href="#settings" data-tab="settings">Settings</a>
+  <a href="#scores" data-tab="scores">Scores</a>
   <a href="#music" data-tab="music">Music</a>
   <a href="#system" data-tab="system">System</a>
 </nav>
@@ -185,6 +186,13 @@
       <div class="row end"><button type="submit">Save</button></div>
     </form>
 
+    <form class="card" data-section="scores">
+      <h2>Scoreboard leagues</h2>
+      <p class="muted">Which leagues the Scores tab and the TV scoreboard offer.</p>
+      <div class="checks" id="league-checks"></div>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
     <form class="card" data-section="sports">
       <h2>Sports teams</h2>
       <p class="muted">Search and pick as many teams as you like. With more than one, the TV tile rotates through them; a team playing right now gets a longer turn with the live score.</p>
@@ -267,6 +275,16 @@
       <label>Settings page PIN <small class="hint" data-secret="DASHBOARD_PIN"></small><input name="DASHBOARD_PIN" type="text" inputmode="numeric" autocomplete="off" placeholder="leave blank for no PIN"></label>
       <div class="row end"><button type="button" class="ghost" id="clear-pin">Remove PIN</button><button type="submit">Save</button></div>
     </form>
+  </section>
+
+  <!-- SCORES -->
+  <section id="tab-scores" class="tab">
+    <div class="card">
+      <h2>Scores <span class="count" id="scores-count"></span></h2>
+      <div class="chips" id="scores-chips"></div>
+      <div class="results scores-list" id="scores-list"><div class="muted">Loading…</div></div>
+      <p class="muted">Your teams come first. On the TV, press <strong>G</strong> (or the Scores button) for the same board full screen; ← → switch leagues. Pick which leagues show under Settings → Scoreboard.</p>
+    </div>
   </section>
 
   <!-- MUSIC -->

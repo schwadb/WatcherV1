@@ -331,6 +331,19 @@ through them every 12 seconds (small dots show which one is up); a team that
 is playing right now gets a double-length turn with the live score and clock. The data comes from ESPN's public
 site.
 
+### Scoreboard (every game today)
+
+Press **G** on the TV, or the **Scores** corner button, for a full-screen
+scoreboard like the ESPN app: one league at a time (← → or the chips at the
+top switch leagues), a card per game with logos, records, rankings, the score,
+the clock or kickoff time, the TV channel, down-and-distance while a football
+game is live, and the betting line before it starts. Your own teams come first
+with a blue edge; live games glow red. It refreshes every 30 seconds while
+open and scrolls by itself when there are more games than fit. The phone's
+**Scores** tab shows the same board. Settings → **Scoreboard leagues** picks
+which leagues to offer (NFL, college football, NBA, college basketball, MLB,
+NHL, WNBA, MLS).
+
 ### Turning the TV off at night
 
 Settings → Screen schedule: a time to turn the screen off and a time to turn it

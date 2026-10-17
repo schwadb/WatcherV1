@@ -36,7 +36,7 @@
   async function confirmAction(text) { return window.confirm(text); }
 
   // ---------- tabs ---------------------------------------------------------------------------
-  const loaders = { photos: loadPhotos, todo: loadTodo, notes: loadNotes, settings: loadSettings, music: loadMusic, system: loadSystem };
+  const loaders = { photos: loadPhotos, todo: loadTodo, notes: loadNotes, settings: loadSettings, scores: loadScores, music: loadMusic, system: loadSystem };
   function showTab(name) {
     if (!loaders[name]) name = "photos";
     document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("active", el.id === "tab-" + name));
@@ -204,6 +204,7 @@
     $("calendar-list").replaceChildren(...c.calendars.map((x) => row("cal", x)));
     setField(forms.calendars, "calendar.days_ahead", c.calendar.days_ahead);
     $("stock-list").replaceChildren(...Object.entries(c.stocks.symbols).map(([sym, name]) => row("stock", { sym, name })));
+    api("/api/scores/leagues").then((d) => { $("league-checks").innerHTML = d.all.map((l) => `<label class="check"><input type="checkbox" name="scores.${esc(l.key)}" ${(c.scores.leagues || []).includes(l.key) ? "checked" : ""}> ${esc(l.label)}</label>`).join(""); }).catch(() => {});
     $("team-list").replaceChildren(...c.sports.teams.map((t) => row("team", t)));
     $("countdown-list").replaceChildren(...c.countdowns.map((x) => row("cd", x)));
     $("feed-list").replaceChildren(...c.news.feeds.map((x) => row("feed", x)));
@@ -229,6 +230,7 @@
       case "calendars": return { config: { calendars: [...$("calendar-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value, color: r.querySelector(".color").value })), calendar: { days_ahead: Number(g("calendar.days_ahead")) } } };
       case "stocks": return { config: { stocks: { symbols: Object.fromEntries([...$("stock-list").children].map((r) => [r.querySelector(".sym").value.trim().toUpperCase(), r.querySelector(".name").value.trim()]).filter(([s]) => s)) } } };
       case "sports": return { config: { sports: { teams: [...$("team-list").children].map((r) => JSON.parse(r.dataset.json)) } } };
+      case "scores": return { config: { scores: { leagues: [...form.querySelectorAll('input[type=checkbox]:checked')].map((i) => i.name.replace(/^scores\./, "")) } } };
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")), fit: g("photos.fit") }, todo: { max_items: Number(g("todo.max_items")) } } };
@@ -388,6 +390,25 @@
   $("feed-find-btn").addEventListener("click", findFeed);
   $("feed-find").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findFeed(); } });
   $("feed-list").addEventListener("input", renderFeedCatalog);
+
+  // ---------- scores tab -----------------------------------------------------------------------
+  const scoresState = { league: "", leagues: [], timer: null };
+  function fmtGameTime(iso) { const d = new Date(iso); const today = new Date().toDateString() === d.toDateString(); const t = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); return today ? t : `${d.toLocaleDateString("en-US", { weekday: "short" })} ${t}`; }
+  function gameRow(g) {
+    const side = (t, opp) => { const won = g.state === "post" && t.winner, lost = g.state === "post" && !t.winner && opp.winner; return `<div class="team${won ? " winner" : ""}${lost ? " lost" : ""}">${t.logo ? `<img src="${esc(t.logo)}" alt="">` : ""}${t.rank ? `<span class="rank">${t.rank}</span>` : ""}<span class="nm">${esc(t.name)}</span><span class="rec">${esc(t.record)}</span>${g.state === "in" && g.situation && g.situation.possession === t.id ? '<span class="poss">●</span>' : ""}</div><div class="sc">${g.state === "pre" ? "" : (t.score ?? "")}</div>`; };
+    const when = g.state === "pre" ? fmtGameTime(g.date) : esc(g.detail);
+    const extra = g.state === "in" && g.situation && g.situation.down ? ` · ${esc(g.situation.down)}` : g.state === "pre" && g.odds ? ` · ${esc(g.odds)}` : "";
+    return `<div class="game ${g.state === "in" ? "live" : ""}${g.mine ? " mine" : ""}">${side(g.away, g.home)}${side(g.home, g.away)}<div class="status"><span class="when">${when}${extra}</span><span>${esc(g.tv || "")}</span></div></div>`;
+  }
+  async function loadScores() {
+    clearInterval(scoresState.timer);
+    if (!scoresState.leagues.length) { scoresState.leagues = (await api("/api/scores/leagues")).leagues; scoresState.league = scoresState.league || (scoresState.leagues[0] || {}).key; }
+    $("scores-chips").replaceChildren(...scoresState.leagues.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scoresState.league); b.addEventListener("click", () => { scoresState.league = l.key; loadScores(); }); return b; }));
+    const d = await api(`/api/scores?league=${encodeURIComponent(scoresState.league)}`);
+    $("scores-list").innerHTML = d.games.length ? d.games.map(gameRow).join("") : '<div class="muted">No games today.</div>';
+    $("scores-count").textContent = [d.week ? `week ${d.week}` : "", d.live ? `${d.live} live` : ""].filter(Boolean).join(" · ");
+    scoresState.timer = setInterval(() => { if (location.hash === "#scores") loadScores().catch(() => {}); }, 30000);
+  }
 
   // ---------- ChronAlert: find the app, start it with the computer -----------------------------
   let chronApp = null;

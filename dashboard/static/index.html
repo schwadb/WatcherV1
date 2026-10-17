@@ -99,6 +99,15 @@
   </div>
   <div class="takeover-map"><div id="takeover-map"></div><div class="radar-time" id="takeover-time"></div></div>
 </div>
+<div id="scores-full" class="scores-full hidden" role="dialog" aria-label="Scores">
+  <div class="scores-top">
+    <h2>Scores</h2>
+    <div class="scores-leagues" id="scores-leagues"></div>
+    <div class="scores-meta" id="scores-meta"></div>
+    <button type="button" class="corner music-close" id="scores-close">&#10005; Close</button>
+  </div>
+  <div class="scores-grid" id="scores-grid"><div class="muted">Loading…</div></div>
+</div>
 <div id="music-full" class="music-full hidden" role="dialog" aria-label="Music">
   <div class="music-top">
     <img id="mf-art" alt="" class="hidden">
@@ -123,6 +132,7 @@
 <div id="setup-note" class="setup-note hidden"></div>
 <div id="notice" class="notice hidden"></div>
 <div class="corner-buttons">
+  <button id="scores-btn" class="corner" type="button" title="Scoreboard (G)">&#127944; Scores</button>
   <button id="music-btn" class="corner hidden" type="button" title="Music (M)">&#9835; Music</button>
   <button id="chron-btn" class="corner hidden" type="button" title="ChronAlert map (C)">&#127758; Map</button>
   <button id="desktop-btn" class="corner" type="button" title="Use this computer as a computer (D)">&#128421; Desktop</button>
