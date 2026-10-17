@@ -293,14 +293,30 @@
   async function scoresLoad() {
     if (!scores.leagues.length) {
       try { scores.leagues = (await getJSON("/api/scores/leagues")).leagues; } catch (e) { $("scores-grid").innerHTML = '<div class="scores-empty">Could not load the league list.</div>'; return; }
-      if (!scores.league) scores.league = (scores.leagues[0] || {}).key || "football/nfl";
+      if (!scores.league) scores.league = "all";
     }
-    $("scores-leagues").replaceChildren(...scores.leagues.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scores.league); b.addEventListener("click", () => { scores.league = l.key; scoresLoad(); }); return b; }));
+    const chips = [{ key: "all", label: "All" }, ...scores.leagues];
+    $("scores-leagues").replaceChildren(...chips.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scores.league); b.addEventListener("click", () => { scores.league = l.key; scoresLoad(); }); return b; }));
     try {
       const d = await getJSON(`/api/scores?league=${encodeURIComponent(scores.league)}`);
       const grid = $("scores-grid");
-      grid.innerHTML = d.games.length ? d.games.map(gameCard).join("") : '<div class="scores-empty">No games today.</div>';
-      $("scores-meta").textContent = [d.week ? `Week ${d.week}` : "", d.live ? `${d.live} live` : "", `${d.games.length} games`].filter(Boolean).join(" · ");
+      let html = "";
+      if (scores.league === "all") {
+        // one block per league, your teams' games pulled up to the top
+        const mine = d.games.filter((g) => g.mine);
+        if (mine.length) html += `<h3 class="scores-section">Your teams</h3>` + mine.map(gameCard).join("");
+        for (const sec of d.sections || []) {
+          const gs = d.games.filter((g) => g.league === sec.key && !g.mine);
+          if (!gs.length) continue;
+          html += `<h3 class="scores-section">${escapeHTML(sec.label)}${sec.live ? ` <span class="live-n">${sec.live} live</span>` : ""}</h3>` + gs.map(gameCard).join("");
+        }
+        if (!html) html = '<div class="scores-empty">No games today in any league.</div>';
+        if (d.errors && d.errors.length) html += `<div class="scores-empty small">${escapeHTML(d.errors.join(" · "))}</div>`;
+      } else {
+        html = d.games.length ? d.games.map(gameCard).join("") : `<div class="scores-empty">${escapeHTML(d.note || "No games today.")}</div>`;
+      }
+      grid.innerHTML = html;
+      $("scores-meta").textContent = [d.week ? `Week ${d.week}` : "", d.live ? `${d.live} live` : "", `${d.games.length} games`, d.note && d.games.length ? d.note : ""].filter(Boolean).join(" · ");
       autoScroll(grid, { pauseMs: 9000 });
     } catch (err) { $("scores-grid").innerHTML = `<div class="scores-empty">${escapeHTML(err.message)}</div>`; }
   }
@@ -311,9 +327,10 @@
     else { chronPause(false); clearInterval(scores.timer); }
   }
   function scoresStep(dir) {
-    const i = scores.leagues.findIndex((l) => l.key === scores.league);
-    if (i < 0 || !scores.leagues.length) return;
-    scores.league = scores.leagues[(i + dir + scores.leagues.length) % scores.leagues.length].key;
+    const keys = ["all", ...scores.leagues.map((l) => l.key)];
+    const i = keys.indexOf(scores.league);
+    if (i < 0) return;
+    scores.league = keys[(i + dir + keys.length) % keys.length];
     scoresLoad();
   }
   function startScores() {

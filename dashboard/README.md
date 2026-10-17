@@ -340,9 +340,18 @@ the clock or kickoff time, the TV channel, down-and-distance while a football
 game is live, and the betting line before it starts. Your own teams come first
 with a blue edge; live games glow red. It refreshes every 30 seconds while
 open and scrolls by itself when there are more games than fit. The phone's
-**Scores** tab shows the same board. Settings → **Scoreboard leagues** picks
-which leagues to offer (NFL, college football, NBA, college basketball, MLB,
-NHL, WNBA, MLS).
+**Scores** tab shows the same board. The **All** chip shows every league at
+once, grouped, with your teams' games at the top.
+
+Settings → **Scoreboard leagues** picks which leagues to offer: NFL, college
+football, NBA, college basketball, MLB, NHL, WNBA, MLS, college baseball,
+women's college volleyball, and Nebraska high school football, volleyball,
+boys and girls basketball, wrestling, softball, baseball and soccer. High
+school scores come from the NSAA's weekly score pages: final scores as
+schools report them, no live clock, and a game whose score hasn't been
+reported shows as "No score reported yet". Type your local schools into
+**Your local high schools** so their games sort first. College wrestling has
+no free score feed (ESPN and NCAA.com don't publish one), so it isn't offered.
 
 ### Turning the TV off at night
 

@@ -272,6 +272,9 @@ body.show-cursor .corner-buttons { opacity: 1; pointer-events: auto; }
 .game .status .tv { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .game .poss { color: var(--warn); font-size: 0.85rem; }
 .scores-empty { grid-column: 1 / -1; color: var(--muted); font-size: 1.2rem; padding: 2rem; text-align: center; }
+.scores-empty.small { font-size: 0.9rem; padding: 0.5rem; }
+.scores-section { grid-column: 1 / -1; margin: 0.6rem 0 0; font-size: 0.95rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--panel-edge); padding-bottom: 0.3rem; }
+.scores-section .live-n { color: var(--down); margin-left: 0.6rem; text-transform: none; letter-spacing: 0; }
 
 /* ---- music panel (Spotify playlists + controls, key M) ---- */
 .music-full { position: fixed; inset: 0; z-index: 950; background: #0b0f14; display: flex; flex-direction: column; padding: 1.5rem 2rem; gap: 1rem; }

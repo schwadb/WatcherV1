@@ -139,7 +139,13 @@ check("scores: games parsed with both sides, scores and status", _cfb["games"] a
 check("scores: my team first and flagged, live games counted", _cfb["games"][0]["mine"] and "NEB" in (_cfb["games"][0]["home"]["abbr"], _cfb["games"][0]["away"]["abbr"]) and _cfb["live"] == sum(1 for g in _cfb["games"] if g["state"] == "in"))
 _nfl = _scores.parse_scoreboard(_sb["football/nfl"])
 check("scores: upcoming games carry TV and kickoff, finals carry a winner", any(g["tv"] for g in _nfl["games"] if g["state"] == "pre") and all((g["home"]["winner"] or g["away"]["winner"]) for g in _nfl["games"] if g["state"] == "post"))
-check("scores: default league list and labels", _scores.enabled_leagues(settings) and all(k in _scores.LEAGUES for k in _scores.enabled_leagues(settings)) and _scores.LEAGUES["football/nfl"][2] == "NFL")
+check("scores: default league list and labels", _scores.enabled_leagues(settings) and all(k in _scores.ALL_KEYS for k in _scores.enabled_leagues(settings)) and _scores.label_for("football/nfl") == "NFL" and _scores.label_for("nsaa/vb") == "HS volleyball")
+_fb = _scores.parse_nsaa((FX / "nsaa_fb.html").read_text(encoding="utf-8"), ["Elkhorn South"])
+check("scores: NSAA football results parsed (winner first, final, week)", len(_fb["games"]) > 100 and _fb["week"] == "9" and all(g["state"] in ("pre", "post") for g in _fb["games"]) and any(g["home"]["name"] == "Lincoln Southwest" and g["away"]["name"] == "Elkhorn South" and g["away"]["score"] == 29 and g["away"]["winner"] for g in _fb["games"]))
+check("scores: NSAA missing scores become unplayed games and my school sorts first", _fb["games"][0]["mine"] and any(g["state"] == "pre" and g["detail"] == "No score reported yet" and g["away"]["name"] == "David City" for g in _fb["games"]))
+_vb = _scores.parse_nsaa((FX / "nsaa_vb.html").read_text(encoding="utf-8"), [])
+check("scores: NSAA volleyball sets parsed and cancelled matches flagged", any(g["away"]["name"] == "Auburn" and g["away"]["score"] == 3 and g["home"]["score"] == 0 and "25-14" in g["detail"] for g in _vb["games"]) and any(g["detail"] == "Cancelled" for g in _vb["games"]))
+check("scores: NSAA off-season page -> no games, friendly note", _scores.parse_nsaa("<html><body>NSAA Home<br>Week  scores are not available at this time.</body></html>")["games"] == [] and "No games" in _scores.parse_nsaa("<html></html>")["note"])
 
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))

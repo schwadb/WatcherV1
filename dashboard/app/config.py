@@ -57,7 +57,9 @@ DEFAULTS: dict[str, Any] = {
     },
     "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "control": "auto", "start_at_login": True, "locked_kiosk": False, "stop_idle_lock": True},
     "audio": {"card": "", "profile": "", "port": ""},
-    "scores": {"leagues": ["football/nfl", "football/college-football", "basketball/nba", "baseball/mlb", "hockey/nhl", "basketball/mens-college-basketball"]},  # the sound output picked on the Music tab, re-applied at start-up
+    "scores": {"leagues": ["football/nfl", "football/college-football", "basketball/nba", "baseball/mlb", "hockey/nhl", "basketball/mens-college-basketball",
+                           "volleyball/womens-college-volleyball", "baseball/college-baseball", "nsaa/fb", "nsaa/vb", "nsaa/bb", "nsaa/gb", "nsaa/wr"],
+               "high_schools": []},  # names (or parts of names) of the local high schools to list first  # the sound output picked on the Music tab, re-applied at start-up
     "server": {"host": "0.0.0.0", "port": 8080},
 }
 
@@ -176,7 +178,7 @@ class Settings:
             "countdowns": self.countdowns(),
             "symbols": symbols,
             "sports_enabled": bool(teams(self)) and self.panel("sports"),
-            "scores": {"leagues": [k for k in ((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"])]},
+            "scores": {"leagues": [k for k in ((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"])], "high_schools": list((c.get("scores") or {}).get("high_schools") or [])},
             "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
             "todo": c.get("todo") or DEFAULTS["todo"],
             "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "refresh_seconds": (c.get("now_playing") or {}).get("refresh_seconds", 10), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},

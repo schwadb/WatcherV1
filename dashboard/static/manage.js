@@ -204,6 +204,7 @@
     $("calendar-list").replaceChildren(...c.calendars.map((x) => row("cal", x)));
     setField(forms.calendars, "calendar.days_ahead", c.calendar.days_ahead);
     $("stock-list").replaceChildren(...Object.entries(c.stocks.symbols).map(([sym, name]) => row("stock", { sym, name })));
+    setField(forms.scores, "scores.high_schools", (c.scores.high_schools || []).join(", "));
     api("/api/scores/leagues").then((d) => { $("league-checks").innerHTML = d.all.map((l) => `<label class="check"><input type="checkbox" name="scores.${esc(l.key)}" ${(c.scores.leagues || []).includes(l.key) ? "checked" : ""}> ${esc(l.label)}</label>`).join(""); }).catch(() => {});
     $("team-list").replaceChildren(...c.sports.teams.map((t) => row("team", t)));
     $("countdown-list").replaceChildren(...c.countdowns.map((x) => row("cd", x)));
@@ -230,7 +231,7 @@
       case "calendars": return { config: { calendars: [...$("calendar-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value, color: r.querySelector(".color").value })), calendar: { days_ahead: Number(g("calendar.days_ahead")) } } };
       case "stocks": return { config: { stocks: { symbols: Object.fromEntries([...$("stock-list").children].map((r) => [r.querySelector(".sym").value.trim().toUpperCase(), r.querySelector(".name").value.trim()]).filter(([s]) => s)) } } };
       case "sports": return { config: { sports: { teams: [...$("team-list").children].map((r) => JSON.parse(r.dataset.json)) } } };
-      case "scores": return { config: { scores: { leagues: [...form.querySelectorAll('input[type=checkbox]:checked')].map((i) => i.name.replace(/^scores\./, "")) } } };
+      case "scores": return { config: { scores: { leagues: [...form.querySelectorAll('input[type=checkbox]:checked')].map((i) => i.name.replace(/^scores\./, "")), high_schools: g("scores.high_schools").split(",").map((x) => x.trim()).filter(Boolean) } } };
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")), fit: g("photos.fit") }, todo: { max_items: Number(g("todo.max_items")) } } };
@@ -402,10 +403,18 @@
   }
   async function loadScores() {
     clearInterval(scoresState.timer);
-    if (!scoresState.leagues.length) { scoresState.leagues = (await api("/api/scores/leagues")).leagues; scoresState.league = scoresState.league || (scoresState.leagues[0] || {}).key; }
-    $("scores-chips").replaceChildren(...scoresState.leagues.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scoresState.league); b.addEventListener("click", () => { scoresState.league = l.key; loadScores(); }); return b; }));
+    if (!scoresState.leagues.length) { scoresState.leagues = (await api("/api/scores/leagues")).leagues; scoresState.league = scoresState.league || "all"; }
+    const chips = [{ key: "all", label: "All" }, ...scoresState.leagues];
+    $("scores-chips").replaceChildren(...chips.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scoresState.league); b.addEventListener("click", () => { scoresState.league = l.key; loadScores(); }); return b; }));
     const d = await api(`/api/scores?league=${encodeURIComponent(scoresState.league)}`);
-    $("scores-list").innerHTML = d.games.length ? d.games.map(gameRow).join("") : '<div class="muted">No games today.</div>';
+    let html = "";
+    if (scoresState.league === "all") {
+      const mine = d.games.filter((g) => g.mine);
+      if (mine.length) html += `<h3>Your teams</h3>` + mine.map(gameRow).join("");
+      for (const sec of d.sections || []) { const gs = d.games.filter((g) => g.league === sec.key && !g.mine); if (gs.length) html += `<h3>${esc(sec.label)}</h3>` + gs.map(gameRow).join(""); }
+      if (!html) html = '<div class="muted">No games today in any league.</div>';
+    } else html = d.games.length ? d.games.map(gameRow).join("") : `<div class="muted">${esc(d.note || "No games today.")}</div>`;
+    $("scores-list").innerHTML = html;
     $("scores-count").textContent = [d.week ? `week ${d.week}` : "", d.live ? `${d.live} live` : ""].filter(Boolean).join(" · ");
     scoresState.timer = setInterval(() => { if (location.hash === "#scores") loadScores().catch(() => {}); }, 30000);
   }

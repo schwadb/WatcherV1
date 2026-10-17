@@ -334,7 +334,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
         "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts", "takeover", "takeover_minutes", "takeover_sound")},
         "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
-        "scores": {"leagues": list((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"])},
+        "scores": {"leagues": list((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"]), "high_schools": list((c.get("scores") or {}).get("high_schools") or [])},
         "radar": {k: c["radar"].get(k, DEFAULTS["radar"][k]) for k in ("provider", "zoom")},
         "stocks": {"symbols": symbols},
         "calendars": [{"name": x.get("name", ""), "url": x.get("url", ""), "color": x.get("color", "")} for x in (c.get("calendars") or []) if isinstance(x, dict)],
@@ -407,12 +407,15 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
     if "scores" in body:
-        from .sources.scores import LEAGUES
+        from .sources.scores import ALL_KEYS
 
-        wanted = [str(k) for k in ((body["scores"] or {}).get("leagues") or []) if str(k) in LEAGUES]
+        wanted = [str(k) for k in ((body["scores"] or {}).get("leagues") or []) if str(k) in ALL_KEYS]
         if not wanted:
             errors.append("scores.leagues: pick at least one league")
-        clean["scores"] = {"leagues": wanted}
+        hs = (body["scores"] or {}).get("high_schools") or []
+        if isinstance(hs, str):
+            hs = hs.split(",")
+        clean["scores"] = {"leagues": wanted, "high_schools": [str(x).strip()[:40] for x in hs if str(x).strip()][:10]}
     if "audio" in body:
         a = body["audio"] or {}
         clean["audio"] = {k: str(a.get(k) or "")[:120] for k in ("card", "profile", "port")}
@@ -766,7 +769,7 @@ async def news_find(request: Request, url: str = ""):
 async def scores_leagues(request: Request):
     from .sources import scores
 
-    return {"leagues": scores.league_list(_settings(request)), "all": [{"key": k, "label": v[2]} for k, v in scores.LEAGUES.items()]}
+    return {"leagues": scores.league_list(_settings(request)), "all": [{"key": k, "label": scores.label_for(k)} for k in scores.ALL_KEYS]}
 
 
 @router.get("/api/scores")
@@ -775,20 +778,36 @@ async def scores_get(request: Request, league: str = "football/nfl"):
     from .sources import scores
 
     settings = _settings(request)
-    if league not in scores.LEAGUES:
+    if league != "all" and league not in scores.ALL_KEYS:
         raise HTTPException(404, "unknown league")
     if settings.mock:
         import json as _json
 
-        fx = _json.loads((settings.fixtures_dir / "scoreboard.json").read_text(encoding="utf-8"))["leagues"]
-        raw = fx.get(league) or {"events": []}
-        data = scores.parse_scoreboard(raw, scores.mine_for(settings, league) | {"158", "NEB"})
-        data.update(league=league, label=scores.LEAGUES[league][2])
-        return data
+        def mock_one(key: str) -> dict[str, Any]:
+            if key in scores.NSAA_SPORTS:
+                fx_name = "nsaa_vb.html" if key == "nsaa/vb" else "nsaa_fb.html"
+                d = scores.parse_nsaa((settings.fixtures_dir / fx_name).read_text(encoding="utf-8"), scores.high_schools(settings) or ["Norris"])
+            else:
+                fx = _json.loads((settings.fixtures_dir / "scoreboard.json").read_text(encoding="utf-8"))["leagues"]
+                d = scores.parse_scoreboard(fx.get(key) or {"events": []}, scores.mine_for(settings, key) | {"158", "NEB"})
+            d.update(league=key, label=scores.label_for(key))
+            return d
+        if league != "all":
+            return mock_one(league)
+        keys = scores.enabled_leagues(settings)
+        games, sections = [], []
+        for k in keys:
+            d = mock_one(k)
+            sections.append({"key": k, "label": d["label"], "count": len(d["games"]), "live": d.get("live", 0)})
+            games.extend({**g, "league": k, "league_label": d["label"]} for g in d["games"])
+        games.sort(key=lambda g: (not g["mine"], {"in": 0, "pre": 1, "post": 2}.get(g["state"], 3), g["date"] or ""))
+        return {"league": "all", "label": "All", "games": games, "sections": sections, "errors": [], "live": sum(1 for g in games if g["state"] == "in"), "week": None}
     try:
-        return await scores.fetch_league(request.app.state.client, settings, league)
+        if league == "all":
+            return await scores.fetch_all(request.app.state.client, settings)
+        return await scores.fetch_any(request.app.state.client, settings, league)
     except httpx.HTTPError as exc:
-        raise HTTPException(502, f"ESPN did not answer: {exc}")
+        raise HTTPException(502, f"the scores site did not answer: {exc}")
 
 
 @router.get("/api/sports/search")
