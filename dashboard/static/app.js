@@ -854,13 +854,26 @@
   }
 
   // ---------- settings gear + cursor -------------------------------------------------------------
+  // The corner row is collapsed into one menu button; it opens on hover/tap and closes when the pointer leaves,
+  // on Escape, or when the cursor hides. It disappears entirely while a full-screen panel is open.
+  function updateOverlayClass() {
+    const open = ["chron-full", "music-full", "scores-full", "takeover"].some((id) => { const el = $(id); return el && !el.classList.contains("hidden"); });
+    document.body.classList.toggle("overlay-open", open);
+    if (open) $("corner-buttons").classList.remove("open");
+  }
   function startInputWatch() {
     let timer = null;
     const show = () => {
       document.body.classList.add("show-cursor");
       clearTimeout(timer);
-      timer = setTimeout(() => document.body.classList.remove("show-cursor"), 5000);
+      timer = setTimeout(() => { document.body.classList.remove("show-cursor"); $("corner-buttons").classList.remove("open"); }, 6000);
     };
+    const bar = $("corner-buttons"), menu = $("corner-menu");
+    menu.addEventListener("mouseenter", () => bar.classList.add("open"));
+    menu.addEventListener("click", () => { bar.classList.toggle("open"); show(); });
+    bar.addEventListener("mouseleave", () => bar.classList.remove("open"));
+    const overlayWatch = new MutationObserver(updateOverlayClass);
+    for (const id of ["chron-full", "music-full", "scores-full", "takeover"]) { const el = $(id); if (el) overlayWatch.observe(el, { attributes: true, attributeFilter: ["class"] }); }
     window.addEventListener("mousemove", show, { passive: true });
     window.addEventListener("touchstart", show, { passive: true });
     window.addEventListener("keydown", (e) => {
@@ -872,7 +885,7 @@
       if (e.key === "g" || e.key === "G") scoresToggle();
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
-      if (e.key === "Escape") { if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
+      if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
     });
     $("desktop-btn").addEventListener("click", switchToDesktop);
     $("takeover-dismiss").addEventListener("click", () => dismissTakeover(true));

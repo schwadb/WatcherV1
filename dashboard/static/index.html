@@ -132,12 +132,15 @@
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
 <div id="notice" class="notice hidden"></div>
-<div class="corner-buttons">
-  <button id="scores-btn" class="corner" type="button" title="Scoreboard (G)">&#127944; Scores</button>
-  <button id="music-btn" class="corner hidden" type="button" title="Music (M)">&#9835; Music</button>
-  <button id="chron-btn" class="corner hidden" type="button" title="ChronAlert map (C)">&#127758; Map</button>
-  <button id="desktop-btn" class="corner" type="button" title="Use this computer as a computer (D)">&#128421; Desktop</button>
-  <a id="gear" class="corner" href="/manage?kiosk=1" title="Settings (S)">&#9881; Settings</a>
+<div class="corner-buttons" id="corner-buttons">
+  <div class="corner-row">
+    <button id="scores-btn" class="corner" type="button" title="Scoreboard (G)">&#127944; Scores</button>
+    <button id="music-btn" class="corner hidden" type="button" title="Music (M)">&#9835; Music</button>
+    <button id="chron-btn" class="corner hidden" type="button" title="ChronAlert map (C)">&#127758; Map</button>
+    <button id="desktop-btn" class="corner" type="button" title="Use this computer as a computer (D)">&#128421; Desktop</button>
+    <a id="gear" class="corner" href="/manage?kiosk=1" title="Settings (S)">&#9881; Settings</a>
+  </div>
+  <button id="corner-menu" class="corner corner-menu" type="button" title="Menu: Scores, Music, Map, Desktop, Settings" aria-label="Menu">&#9776;</button>
 </div>
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/icons.js"></script>
