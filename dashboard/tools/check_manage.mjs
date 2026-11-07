@@ -65,6 +65,14 @@ try {
   const none = await api("/api/news/find?url=" + encodeURIComponent("http://127.0.0.1:8766/nothing-here"));
   check("feed finder explains when nothing is found", none.status === 404 && /No news feed/.test(none.data.detail || ""), JSON.stringify(none.data));
 } finally { site.kill(); }
+const newsNow = await api("/api/news");
+check("ticker mixes quotes with headlines", newsNow.status === 200 && newsNow.data.data.headlines.some((h) => h.kind === "quote" && h.source === "Quote") && newsNow.data.data.headlines.every((h) => h.title.length <= 200), String(newsNow.status));
+const photosNow = await api("/api/photos");
+check("slideshow includes captioned paintings", photosNow.status === 200 && photosNow.data.data.photos.some((p) => p.art && p.caption), String((photosNow.data.data || {}).paintings));
+const artOff = await api("/api/settings", { method: "PUT", json: { config: { photos: { seconds_per_photo: 20, order: "shuffle", max_upload_mb: 25, fit: "fit", art: false, art_every: 4, artists: "" }, todo: { max_items: 8 }, news: { feeds: [{ name: "NPR", url: "https://feeds.npr.org/1001/rss.xml" }], quotes: false, quote_every: 3 } } } });
+const afterOff = await api("/api/settings");
+check("paintings and quotes can be turned off", artOff.status === 200 && afterOff.data.config.photos.art === false && afterOff.data.config.news.quotes === false && (await api("/api/photos")).data.data.paintings === 0, JSON.stringify(afterOff.data.config.photos));
+await api("/api/settings", { method: "PUT", json: { config: { photos: { seconds_per_photo: 20, order: "shuffle", max_upload_mb: 25, fit: "fit", art: true, art_every: 4, artists: "" }, todo: { max_items: 8 }, news: { feeds: [{ name: "NPR", url: "https://feeds.npr.org/1001/rss.xml" }], quotes: true, quote_every: 4 } } } });
 const leagues = await api("/api/scores/leagues");
 check("score leagues listed", leagues.status === 200 && leagues.data.leagues.length >= 3 && leagues.data.all.length >= leagues.data.leagues.length, JSON.stringify(leagues.data.leagues.map((l) => l.key)));
 const board = await api("/api/scores?league=football/nfl");

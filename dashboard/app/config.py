@@ -47,8 +47,8 @@ DEFAULTS: dict[str, Any] = {
     "calendars": [],
     "countdowns": [],
     "sports": {"refresh_minutes": 10, "teams": []},
-    "news": {"refresh_minutes": 10, "max_headlines": 40, "feeds": []},
-    "photos": {"folder": "photos", "seconds_per_photo": 20, "order": "shuffle", "rescan_minutes": 5, "max_size": 1920, "max_upload_mb": 25, "fit": "fit"},
+    "news": {"refresh_minutes": 10, "max_headlines": 40, "feeds": [], "quotes": True, "quote_every": 4},
+    "photos": {"folder": "photos", "seconds_per_photo": 20, "order": "shuffle", "rescan_minutes": 5, "max_size": 1920, "max_upload_mb": 25, "fit": "fit", "art": True, "art_every": 4, "art_per_artist": 5, "artists": []},
     "todo": {"max_items": 8},
     "now_playing": {"provider": "off", "refresh_seconds": 10, "device_name": "Dashboard"},
     "panels": {

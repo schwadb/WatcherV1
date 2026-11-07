@@ -79,7 +79,7 @@ async def calendar(settings: Settings) -> dict[str, Any]:
 
 async def news(settings: Settings) -> dict[str, Any]:
     items = news_src.parse_feed("Sample News", _load(settings, "news.xml"))
-    return {"headlines": news_src.merge([items], int(settings.cfg["news"]["max_headlines"])), "errors": []}
+    return {"headlines": news_src.with_quotes(news_src.merge([items], int(settings.cfg["news"]["max_headlines"])), settings), "errors": []}
 
 
 async def nowplaying(settings: Settings) -> dict[str, Any]:

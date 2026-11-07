@@ -740,7 +740,7 @@
   // ---------- news ticker --------------------------------------------------------------------
   const ticker = { pending: null, track: null };
   function buildTicker(headlines) {
-    const items = headlines.map((h) => `<span class="ticker-item"><span class="src">${escapeHTML(h.source)}</span>${escapeHTML(h.title)}</span>`).join("");
+    const items = headlines.map((h) => `<span class="ticker-item${h.kind === "quote" ? " quote" : ""}"><span class="src">${escapeHTML(h.source)}</span>${escapeHTML(h.title)}</span>`).join("");
     const track = ticker.track;
     track.innerHTML = items + items;  // duplicated so the loop is seamless at -50%
     const viewport = track.parentElement.clientWidth;
@@ -787,6 +787,7 @@
     if (!list.length || document.body.classList.contains("screen-off")) { slideshow.timer = setTimeout(nextPhoto, 5000); return; }
     slideshow.index = (slideshow.index + 1) % list.length;
     const url = list[slideshow.index].url;
+    const item = list[slideshow.index];
     const backId = slideshow.front === "a" ? "photo-b" : "photo-a";
     const frontId = slideshow.front === "a" ? "photo-a" : "photo-b";
     const img = new Image();
@@ -798,6 +799,9 @@
       $(backId.replace("photo-", "photo-bg-")).classList.add("visible");
       $(frontId.replace("photo-", "photo-bg-")).classList.remove("visible");
       slideshow.front = slideshow.front === "a" ? "b" : "a";
+      const cap = $("photo-caption");
+      if (item.caption) { cap.innerHTML = `${escapeHTML(item.caption)}<span class="credit">${escapeHTML(item.credit || "Art Institute of Chicago")}</span>`; cap.classList.remove("hidden"); }
+      else cap.classList.add("hidden");
     };
     img.onerror = () => console.warn("photo failed", url);
     img.src = url;

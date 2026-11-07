@@ -224,6 +224,10 @@
         <button type="button" id="feed-find-btn">Find feed</button>
       </div>
       <div class="results" id="feed-found"></div>
+      <div class="row two">
+        <label class="check"><input name="news.quotes" type="checkbox"> Mix famous quotes into the ticker</label>
+        <label>…one quote every <input name="news.quote_every" type="number" min="1" max="20"> headlines</label>
+      </div>
       <h3>Your feeds</h3>
       <div class="list" id="feed-list"></div>
       <div class="row"><button type="button" class="ghost" data-add="feed">+ Type an address by hand</button></div>
@@ -237,6 +241,11 @@
         <label>Order <select name="photos.order"><option value="shuffle">Shuffle</option><option value="name">By name</option></select></label>
       </div>
       <label>How photos fill the box <select name="photos.fit"><option value="fit">Show the whole photo (soft blurred edges)</option><option value="fill">Fill the box, crop the edges</option></select></label>
+      <div class="row two">
+        <label class="check"><input name="photos.art" type="checkbox"> Mix in famous paintings</label>
+        <label>…one painting every <input name="photos.art_every" type="number" min="1" max="20"> photos</label>
+      </div>
+      <label>Artists (comma separated; blank = a built-in list of 18) <input name="photos.artists" type="text" placeholder="Vincent van Gogh, Claude Monet, Edward Hopper"><span class="hint">Public-domain works from the Art Institute of Chicago, fetched once a day.</span></label>
       <div class="row two">
         <label>Max upload size (MB) <input name="photos.max_upload_mb" type="number" min="1" max="100"></label>
         <label>To-do items on screen <input name="todo.max_items" type="number" min="1" max="20"></label>

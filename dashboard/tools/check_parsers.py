@@ -147,6 +147,24 @@ _vb = _scores.parse_nsaa((FX / "nsaa_vb.html").read_text(encoding="utf-8"), [])
 check("scores: NSAA volleyball sets parsed and cancelled matches flagged", any(g["away"]["name"] == "Auburn" and g["away"]["score"] == 3 and g["home"]["score"] == 0 and "25-14" in g["detail"] for g in _vb["games"]) and any(g["detail"] == "Cancelled" for g in _vb["games"]))
 check("scores: NSAA off-season page -> no games, friendly note", _scores.parse_nsaa("<html><body>NSAA Home<br>Week  scores are not available at this time.</body></html>")["games"] == [] and "No games" in _scores.parse_nsaa("<html></html>")["note"])
 
+# ---- headlines, quotes, paintings ---------------------------------------------------------------
+from app import quotes as _q
+from app.sources import art as _art
+check("news: publisher suffix and HTML stripped from headlines", news.headline("Markets rally as tech shares climb - CNN", "CNN") == "Markets rally as tech shares climb" and news.headline("Council approves <b>new park</b> | Omaha World-Herald", "Omaha World-Herald") == "Council approves new park")
+check("news: long titles cut at a sentence end", news.headline("A very long headline that keeps going on and on about something that happened in the city today and then continues. Second sentence that should go.", "NPR").endswith("continues.") and len(news.headline("x" * 300, "")) <= 141)
+_feed_items = news.parse_feed("Sample", (FX / "news.xml").read_bytes())
+check("news: feed items are headlines only and tagged", _feed_items and all(i["kind"] == "news" and len(i["title"]) <= 141 for i in _feed_items))
+check("quotes: daily rotation is stable for a day and shifts with the offset", len(_q.QUOTES) >= 120 and _q.pick(3, "2026-11-07") == _q.pick(3, "2026-11-07") and _q.pick(1, "2026-11-07", offset=1)[0] == _q.pick(2, "2026-11-07")[1] and all(q["author"] for q in _q.pick(5, "2026-11-07")))
+class _NQ:  # settings stand-in for the quote mixer
+    cfg = {"news": {"quotes": True, "quote_every": 2}}
+_mixed = news.with_quotes([{"title": f"h{i}", "source": "S", "kind": "news"} for i in range(6)], _NQ())
+check("news: one quote after every N headlines, attributed", [h["kind"] for h in _mixed] == ["news", "news", "quote", "news", "news", "quote", "news", "news", "quote"] and " — " in _mixed[2]["title"] and _mixed[2]["source"] == "Quote")
+_search = {"data": [{"id": 1, "title": "The Bedroom", "artist_title": "Vincent van Gogh", "date_display": "1889", "image_id": "abc"}, {"id": 2, "title": "No image", "artist_title": "Vincent van Gogh", "image_id": None}, {"id": 3, "title": "Wrong artist", "artist_title": "Someone Else", "image_id": "x"}]}
+_works = _art.parse_search(_search, "Vincent van Gogh", 5)
+check("art: only the artist's works with images are kept, captioned", len(_works) == 1 and _art.caption_for(_works[0]) == "The Bedroom — Vincent van Gogh, 1889")
+_mix = _art.interleave([{"url": f"p{i}"} for i in range(4)], [{"url": "a1", "art": True}, {"url": "a2", "art": True}], 2)
+check("art: one painting after every N photos; paintings alone when no photos", [m["url"].startswith("a") for m in _mix] == [False, False, True, False, False, True] and _art.interleave([], [{"url": "a1"}], 3) == [{"url": "a1"}] and _art.interleave([{"url": "p"}], [], 3) == [{"url": "p"}])
+
 # ---- moon ------------------------------------------------------------------------------------
 m0 = astro.moon_phase(datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc))
 m_full = astro.moon_phase(datetime(2000, 1, 21, 4, 40, tzinfo=timezone.utc))

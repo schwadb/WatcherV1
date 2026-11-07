@@ -22,6 +22,23 @@ def clean(text: str) -> str:
     return _SPACES.sub(" ", html.unescape(_TAGS.sub("", text or ""))).strip()
 
 
+_SUFFIX = re.compile(r"\s+[-|–—]\s+([A-Z][\w.&'\- ]{1,40})$")
+MAX_HEADLINE = 140
+
+
+def headline(title: str, source: str = "") -> str:
+    """A clean, short headline: no HTML, no trailing publisher name, cut at a sentence end past 110 chars."""
+    text = clean(title)
+    m = _SUFFIX.search(text)
+    if m and (not source or m.group(1).lower() in source.lower() or source.lower() in m.group(1).lower() or len(m.group(1).split()) <= 3):
+        text = text[: m.start()].rstrip()
+    if len(text) > MAX_HEADLINE:
+        cut = text[:MAX_HEADLINE]
+        end = max(cut.rfind(". "), cut.rfind("? "), cut.rfind("! "))
+        text = (cut[: end + 1] if end >= 80 else cut.rsplit(" ", 1)[0] + "…")
+    return text
+
+
 def parse_feed(name: str, content: bytes) -> list[dict[str, Any]]:
     parsed = feedparser.parse(content)
     if parsed.bozo and not parsed.entries:
@@ -29,14 +46,14 @@ def parse_feed(name: str, content: bytes) -> list[dict[str, Any]]:
     source = name or clean(parsed.feed.get("title", "")) or "News"
     items = []
     for entry in parsed.entries:
-        title = clean(entry.get("title", ""))
-        if not title:
+        title = headline(entry.get("title", ""), source)
+        if not title or len(title) < 8:
             continue
         stamp = entry.get("published_parsed") or entry.get("updated_parsed")
         published = (
             datetime.fromtimestamp(_cal.timegm(stamp), tz=timezone.utc).isoformat() if stamp else None
         )
-        items.append({"title": title, "source": source, "published": published, "link": entry.get("link")})
+        items.append({"title": title, "source": source, "published": published, "link": entry.get("link"), "kind": "news"})
     return items
 
 
@@ -81,7 +98,7 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
             good.append(result)
     if not good:
         raise RuntimeError("; ".join(errors))
-    return {"headlines": merge(good, limit), "errors": errors}
+    return {"headlines": with_quotes(merge(good, limit), settings), "errors": errors}
 
 
 # ---- finding feeds (used by the settings page) ---------------------------------------------
@@ -212,3 +229,28 @@ async def find_feed(client: httpx.AsyncClient, url: str) -> dict[str, Any]:
         if summary:
             return {"name": summary["title"], "url": str(resp.url), "sample": summary["sample"]}
     raise LookupError("No news feed found on that site. Try searching for \"<site name> RSS\" and paste the feed address instead.")
+
+
+_quote_offset = 0
+
+
+def with_quotes(headlines: list[dict[str, Any]], settings: Settings) -> list[dict[str, Any]]:
+    """Slip a famous quote in after every `news.quote_every` headlines (Settings -> News)."""
+    global _quote_offset
+    cfg = settings.cfg.get("news") or {}
+    if not cfg.get("quotes", True) or not headlines:
+        return headlines
+    from ..quotes import pick
+
+    every = max(1, int(cfg.get("quote_every", 4) or 4))
+    n = max(1, len(headlines) // every)
+    quotes = pick(n, offset=_quote_offset)
+    _quote_offset += n  # each refresh moves on to the next quotes in today's rotation
+    out: list[dict[str, Any]] = []
+    qi = 0
+    for i, h in enumerate(headlines, 1):
+        out.append(h)
+        if i % every == 0 and qi < len(quotes):
+            q = quotes[qi]; qi += 1
+            out.append({"title": f"\u201c{q['text']}\u201d \u2014 {q['author']}", "source": "Quote", "published": None, "link": None, "kind": "quote"})
+    return out

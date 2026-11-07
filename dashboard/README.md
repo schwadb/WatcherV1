@@ -137,6 +137,12 @@ Portrait and square photos are shown whole, with a soft blurred copy filling
 the rest of the box. Prefer the old crop-to-fill look? Settings → Photos →
 "How photos fill the box".
 
+Famous paintings are mixed in too: one every four photos by default, from the
+Art Institute of Chicago's free collection of public-domain works (Van Gogh,
+Monet, Vermeer, Hokusai, Hopper, O'Keeffe and others), fetched once a day and
+kept on the computer (about 30 MB). A caption gives the title, artist and year.
+Settings → Photos: turn it off, change how often, or name your own artists.
+
 ## Part 5: Reboot
 
 In the **System** tab press **Reboot** (or type `sudo reboot`). The computer
@@ -254,6 +260,13 @@ Settings → Weather & radar → **Radar source**. All are free and need no key:
 
 Radar zoom: 5 shows several states, 7 a region, 9–10 a county or town. The
 NWS sources stay sharp up to 10; RainViewer is best at 6–7.
+
+### The news ticker
+
+Each item is the headline only: no summaries, publisher names trimmed off the
+end, long titles cut at the end of a sentence. Famous quotes with who said them
+scroll by every few headlines (a built-in list of about 150, rotated daily).
+Settings → News feeds: turn quotes off or change how often they appear.
 
 ### Storm mode (a warning takes over the screen)
 

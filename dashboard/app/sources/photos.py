@@ -67,7 +67,13 @@ def scan(settings: Settings) -> dict[str, Any]:
                 cached.unlink(missing_ok=True)
     if str(settings.cfg["photos"].get("order", "shuffle")).lower() == "shuffle":
         random.shuffle(photos)
-    return {"folder": str(folder), "photos": photos, "seconds_per_photo": settings.cfg["photos"]["seconds_per_photo"]}
+    paintings = []
+    if settings.cfg["photos"].get("art", True):
+        from . import art
+
+        paintings = art.catalog(settings)
+        photos = art.interleave(photos, paintings, int(settings.cfg["photos"].get("art_every", 4) or 4))
+    return {"folder": str(folder), "photos": photos, "paintings": len(paintings), "seconds_per_photo": settings.cfg["photos"]["seconds_per_photo"]}
 
 
 async def fetch(settings: Settings) -> dict[str, Any]:

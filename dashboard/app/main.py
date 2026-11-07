@@ -70,6 +70,10 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
             "nowplaying": partial(spotify_src.fetch, client, settings),
         }
     fetchers["photos"] = partial(photos_src.fetch, settings)
+    if not settings.mock and settings.panel("photos") and settings.cfg["photos"].get("art", True):
+        from .sources import art as art_src
+
+        fetchers["art"] = partial(art_src.refresh, client, settings)
 
     # Optional sources: skip entirely when the panel is off or nothing is configured.
     if not (settings.panel("alerts") and settings.cfg["weather"].get("alerts", True)):
@@ -92,6 +96,7 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
         "photos": lambda: minutes("photos", "rescan_minutes") * 60,
         "sports": lambda: sports_src.refresh_minutes(settings) * 60,
         "nowplaying": lambda: 60.0,
+        "art": lambda: 24 * 3600.0,
     }
     sources = {name: (SourceCache(name, intervals[name]), fetchers[name]) for name in fetchers}
     for name in PERSISTED_SOURCES:  # remembered across restarts so a reboot shows last night's data, not "no data"
@@ -226,6 +231,19 @@ async def api_refresh(name: str):
     cache, fetch = app.state.sources[name]
     await refresh_once(cache, fetch)
     return JSONResponse(cache.envelope())
+
+
+_ART_ID = re.compile(r"^[0-9]{1,9}\.jpg$")
+
+
+@app.get("/art/{filename}")
+async def art_image(filename: str):
+    if not _ART_ID.match(filename):
+        raise HTTPException(404)
+    path = app.state.settings.cache_dir / "art" / filename
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @app.get("/photos/{filename}")
