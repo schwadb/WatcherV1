@@ -9,3 +9,4 @@ photos/*
 __pycache__/
 *.pyc
 node_modules/
+manage.png
