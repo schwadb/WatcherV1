@@ -168,8 +168,10 @@ computer's name or IP address) from any device on your Wi-Fi.
 Changes apply right away; the dashboard page reloads itself when settings change.
 
 **On the TV itself:** plug a mouse, keyboard or touchscreen into the Pi, move the
-mouse or touch the screen, and tap the gear in the top-right corner (or press
-`S`). The same settings page opens on the TV with larger buttons, a
+mouse or touch the screen, and click the **☰** button in the top-right corner. It
+opens a row of buttons (Scores, Music, Map, Desktop, Settings) and stays open until
+you click **☰** again or press Escape. Tap **Settings** (or press `S`) and the same
+settings page opens on the TV with larger buttons, a
 **Back to dashboard** link, and an on-screen keyboard for touchscreens.
 
 **Hiding panels:** turn off anything you don't use under Settings → Panels. The

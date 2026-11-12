@@ -237,14 +237,16 @@ body.no-photos .quotes { grid-template-columns: repeat(3, 1fr); }
 .todo .empty-hint { color: var(--muted); font-size: 1.1rem; }
 
 /* ---- corner buttons (appear when a mouse moves or the screen is touched) ---- */
-/* A single small menu button in the corner; hover/tap it to reveal the row. Never shown over a full-screen panel. */
+/* A single small menu button in the corner; click/tap it to reveal the row, click again to hide it.
+   An open menu stays visible until it is closed. Never shown over a full-screen panel. */
 .corner-buttons { position: fixed; right: 1.2rem; top: 1.2rem; z-index: 960; display: flex; align-items: center; gap: 0.6rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-body.show-cursor .corner-buttons { opacity: 1; }
+body.show-cursor .corner-buttons, .corner-buttons.open { opacity: 1; }
 body.overlay-open .corner-buttons { display: none; }
 .corner-buttons .corner-row { display: none; gap: 0.6rem; }
 .corner-buttons.open .corner-row { display: flex; }
 .corner-buttons .corner-row .corner, .corner-buttons .corner-menu { pointer-events: none; }
-body.show-cursor .corner-buttons .corner-row .corner, body.show-cursor .corner-buttons .corner-menu { pointer-events: auto; }
+body.show-cursor .corner-buttons .corner-row .corner, body.show-cursor .corner-buttons .corner-menu,
+.corner-buttons.open .corner-row .corner, .corner-buttons.open .corner-menu { pointer-events: auto; }
 .corner-menu { width: 3rem; padding: 0; justify-content: center; font-size: 1.4rem; opacity: 0.55; }
 .corner-buttons.open .corner-menu, .corner-menu:hover { opacity: 1; }
 .corner { display: inline-flex; align-items: center; gap: 0.5rem; height: 3rem; padding: 0 1.1rem; border-radius: 1.5rem; background: rgba(20,26,34,0.92); border: 1px solid rgba(255,255,255,0.25); color: var(--text); font: inherit; font-size: 1.1rem; font-weight: 600; text-decoration: none; cursor: pointer; }

@@ -854,8 +854,8 @@
   }
 
   // ---------- settings gear + cursor -------------------------------------------------------------
-  // The corner row is collapsed into one menu button; it opens on hover/tap and closes when the pointer leaves,
-  // on Escape, or when the cursor hides. It disappears entirely while a full-screen panel is open.
+  // The corner row is collapsed into one menu button. Click/tap it to open the row and click again to close it;
+  // it also closes on Escape or when a full-screen panel opens, and the whole bar is hidden while one is open.
   function updateOverlayClass() {
     const open = ["chron-full", "music-full", "scores-full", "takeover"].some((id) => { const el = $(id); return el && !el.classList.contains("hidden"); });
     document.body.classList.toggle("overlay-open", open);
@@ -866,12 +866,10 @@
     const show = () => {
       document.body.classList.add("show-cursor");
       clearTimeout(timer);
-      timer = setTimeout(() => { document.body.classList.remove("show-cursor"); $("corner-buttons").classList.remove("open"); }, 6000);
+      timer = setTimeout(() => document.body.classList.remove("show-cursor"), 6000);
     };
     const bar = $("corner-buttons"), menu = $("corner-menu");
-    menu.addEventListener("mouseenter", () => bar.classList.add("open"));
     menu.addEventListener("click", () => { bar.classList.toggle("open"); show(); });
-    bar.addEventListener("mouseleave", () => bar.classList.remove("open"));
     const overlayWatch = new MutationObserver(updateOverlayClass);
     for (const id of ["chron-full", "music-full", "scores-full", "takeover"]) { const el = $(id); if (el) overlayWatch.observe(el, { attributes: true, attributeFilter: ["class"] }); }
     window.addEventListener("mousemove", show, { passive: true });
