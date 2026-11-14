@@ -13,6 +13,7 @@
   --down: #ff6b6b;
   --warn: #f5b942;
   --gap: 1rem;
+  --edge: rgba(255, 255, 255, 0.12);
 }
 
 /* Fonts for the clock styles, bundled in static/fonts (see LICENSES.md there) */
@@ -93,6 +94,23 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 .clock .time { font-size: 7rem; font-weight: 300; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 0.6rem; }
 .clock .ampm { font-size: 2rem; font-weight: 500; color: var(--text-2); }
 .clock .date { margin-top: 0.75rem; font-size: 1.6rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* "What's next": one line under the date — next event, nearest countdown, next game */
+.clock .clock-next { margin-top: 0.45rem; font-size: 1.02rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clock .clock-next .sep { color: var(--muted); margin: 0 0.4rem; }
+.clock .clock-next .live { color: var(--down); font-weight: 600; }
+.clock .clock-next b { color: var(--text); font-weight: 600; }
+body.clock-led .clock .clock-next { color: #e0a070; }
+body.clock-led .clock .clock-next b { color: #ffd0a8; }
+body.clock-neon .clock .clock-next { color: #8fd8ea; }
+body.clock-neon .clock .clock-next b { color: #dffbff; }
+body.clock-hud .clock .clock-next { font-family: "Rajdhani", sans-serif; font-weight: 500; font-size: 1.1rem; letter-spacing: 0.06em; margin-top: 0.2rem; }
+body.clock-rings .clock .clock-next { font-family: "Exo 2", sans-serif; font-weight: 600; font-size: 0.95rem; margin-top: 0.35rem; }
+/* System health: a small dot in the clock panel's corner (green = all feeds fresh) */
+.health-dot { position: absolute; right: 0.9rem; bottom: 0.8rem; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--muted); opacity: 0.7; z-index: 5; }
+.health-dot.good { background: var(--up); opacity: 0.6; }
+.health-dot.warn { background: var(--warn); opacity: 1; animation: health-pulse 2.5s ease-in-out infinite; }
+.health-dot.bad { background: var(--down); opacity: 1; animation: health-pulse 1.5s ease-in-out infinite; }
+@keyframes health-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.6); opacity: 0.5; } }
 /* Clock styles (Settings → Panels → Clock style). "classic" is the plain look above; the others add a body class. */
 .clock .main { position: relative; min-width: 0; }
 .clock .time { position: relative; }
@@ -117,12 +135,12 @@ body.clock-hud .clock .hud-frame i:nth-child(2) { right: 0; top: 0; border-left:
 body.clock-hud .clock .hud-frame i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
 body.clock-hud .clock .hud-frame i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
 body.clock-hud .clock .clock-label { display: block; font-family: "Rajdhani", sans-serif; font-weight: 600; font-size: 0.8rem; letter-spacing: 0.32em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.clock-hud .clock .time { font-family: "Rajdhani", sans-serif; font-weight: 300; font-size: 6.2rem; line-height: 0.95; letter-spacing: -0.01em; color: #eef6ff; }
+body.clock-hud .clock .time { font-family: "Rajdhani", sans-serif; font-weight: 300; font-size: 5.6rem; line-height: 0.95; letter-spacing: -0.01em; color: #eef6ff; }
 body.clock-hud .clock .ampm { font-family: "Rajdhani", sans-serif; font-weight: 500; font-size: 1.9rem; }
 body.clock-hud .clock .date { font-family: "Rajdhani", sans-serif; font-weight: 500; font-size: 1.35rem; letter-spacing: 0.22em; text-transform: uppercase; margin-top: 0.2rem; }
-body.clock-hud .clock .seconds-bar { display: block; position: relative; margin-top: 0.7rem; height: 3px; width: 92%; background: rgba(90,169,255,0.18); }
+body.clock-hud .clock .seconds-bar { display: block; position: relative; margin-top: 0.5rem; height: 3px; width: 85%; background: rgba(90,169,255,0.18); }
 body.clock-hud .clock .seconds-bar b { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); box-shadow: 0 0 8px var(--accent); transition: width 0.9s linear; }
-body.clock-hud .clock .seconds-bar small { position: absolute; right: 0; top: -1.15rem; font-family: "Share Tech Mono", monospace; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.1em; }
+body.clock-hud .clock .seconds-bar small { position: absolute; right: -2.9rem; top: -0.55rem; font-family: "Share Tech Mono", monospace; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.1em; }
 /* rings: light digits plus hour / minute / second progress rings */
 body.clock-rings .clock { grid-template-columns: 1fr auto auto; }
 body.clock-rings .clock .time { font-family: "Exo 2", sans-serif; font-weight: 200; font-size: 4.2rem; color: #f4f8ff; }

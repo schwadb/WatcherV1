@@ -120,6 +120,108 @@
     return () => clearTimeout(timer);
   }
 
+  // ---------- "what's next" strip + system health ---------------------------------------------
+  /** "in 35 m", "in 3 h 12 m", "in 2 d 4 h" for a time in the future. */
+  function untilText(ms) {
+    const m = Math.max(0, Math.round(ms / 60000));
+    if (m < 60) return `in ${m} m`;
+    const h = Math.floor(m / 60), rest = m % 60;
+    if (h < 24) return rest ? `in ${h} h ${rest} m` : `in ${h} h`;
+    const d = Math.floor(h / 24), hh = h % 24;
+    return hh ? `in ${d} d ${hh} h` : `in ${d} d`;
+  }
+  function dayWord(date) {
+    const today = todayISO();
+    const iso = new Intl.DateTimeFormat("en-CA", { timeZone: tz(), year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+    if (iso === today) return "";
+    const tomorrow = new Date(new Date(today + "T12:00:00Z").getTime() + 86400000).toISOString().slice(0, 10);
+    if (iso === tomorrow) return "Tomorrow";
+    return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz() }).format(date);
+  }
+  function nextEventChip(now) {
+    const days = (state.calendar && state.calendar.days) || [];
+    let pick = null;
+    for (const day of days) {
+      for (const e of day.events || []) {
+        if (e.all_day) continue;
+        const start = new Date(e.start), end = new Date(e.end || e.start);
+        if (end.getTime() < now) continue;
+        pick = { e, start }; break;
+      }
+      if (pick) break;
+    }
+    if (!pick) {
+      const soon = days.find((d) => (d.events || []).some((e) => e.all_day) && d.label !== "Today");
+      const ev = soon && soon.events.find((e) => e.all_day);
+      return ev ? `${escapeHTML(soon.label)}: <b>${escapeHTML(ev.title)}</b>` : "";
+    }
+    const { e, start } = pick;
+    const title = `<b>${escapeHTML(e.title)}</b>`;
+    if (start.getTime() <= now) return `${title} now`;
+    const word = dayWord(start);
+    const diff = start.getTime() - now;
+    if (!word && diff < 12 * 3600000) return `${title} ${untilText(diff)}`;
+    return `${word ? escapeHTML(word) + " " : ""}${escapeHTML(fmtShortTime(start))} ${title}`;
+  }
+  function nextCountdownChip() {
+    const today = new Date(todayISO() + "T00:00:00Z").getTime();
+    const items = (cfg("countdowns", []) || []).map((c) => ({ ...c, days: Math.round((new Date(c.date + "T00:00:00Z").getTime() - today) / 86400000) })).filter((c) => c.days >= 0).sort((a, b) => a.days - b.days);
+    if (!items.length) return "";
+    const c = items[0];
+    const name = `${c.icon ? c.icon + " " : ""}<b>${escapeHTML(c.title)}</b>`;
+    return c.days === 0 ? `${name} today!` : `${name} in ${c.days} d`;
+  }
+  function nextGameChip(now) {
+    const teams = sportsState.teams || [];
+    const live = teams.find((t) => t.live);
+    if (live) {
+      const g = live.live, score = g.score_us == null || g.score_them == null ? "" : ` ${g.score_us}–${g.score_them}`;
+      return `<span class="live">LIVE</span> <b>${escapeHTML(live.short || live.name)}</b>${escapeHTML(score)}`;
+    }
+    const upcoming = teams.filter((t) => t.next && t.next.date).map((t) => ({ t, when: new Date(t.next.date).getTime() })).filter((x) => x.when > now - 3 * 3600000).sort((a, b) => a.when - b.when);
+    if (!upcoming.length) return "";
+    const { t, when } = upcoming[0];
+    if (when - now > 7 * 86400000) return "";
+    const who = `<b>${escapeHTML(t.short || t.name)}</b> ${t.next.home ? "vs" : "at"} ${escapeHTML(t.next.opp_abbr || t.next.opponent)}`;
+    if (t.next.time_tbd) return `${who} ${escapeHTML(dayWord(new Date(when)) || "today")}`;
+    const diff = when - now;
+    if (diff <= 0) return `${who} starting`;
+    if (diff < 12 * 3600000) return `${who} ${untilText(diff)}`;
+    return `${who} ${escapeHTML(dayWord(new Date(when)) || "today")} ${escapeHTML(fmtShortTime(new Date(when)))}`;
+  }
+  let nextDrawnMinute = -1;
+  function renderNext(force = true) {
+    const el = $("clock-next");
+    if (!el) return;
+    const now = Date.now();
+    const minute = Math.floor(now / 60000);
+    if (!force && minute === nextDrawnMinute) return;
+    nextDrawnMinute = minute;
+    const cdBox = $("countdowns");
+    const countdownShown = cdBox && !cdBox.classList.contains("hidden");  // already on the right: don't repeat it
+    const chips = [nextGameChip(now), nextEventChip(now), countdownShown ? "" : nextCountdownChip()].filter(Boolean);
+    el.innerHTML = chips.join('<span class="sep">·</span>');
+    el.classList.toggle("hidden", chips.length === 0);
+  }
+  async function pollHealth() {
+    const dot = $("health-dot");
+    try {
+      const h = await getJSON("/api/health");
+      const problems = [];
+      let level = "good";
+      for (const [name, s] of Object.entries(h.sources || {})) {
+        if (!s.ok) { level = "bad"; problems.push(`${name}: ${s.error || "no data yet"}`); }
+        else if (s.stale || s.error) { if (level === "good") level = "warn"; problems.push(`${name}: ${s.stale ? "updated " + ago(s.age_seconds) : s.error}`); }
+      }
+      dot.className = "health-dot " + level;
+      dot.title = problems.length ? problems.join("\n") : "All feeds are fresh";
+    } catch (err) {
+      dot.className = "health-dot bad";
+      dot.title = "Can't reach the dashboard server";
+    }
+  }
+  function startHealth() { pollHealth(); setInterval(pollHealth, 60000); }
+
   // ---------- clock, countdowns, schedule --------------------------------------------------
   let lastDay = "";
   const CLOCK_STYLES = ["classic", "neon", "led", "hud", "rings"];
@@ -155,6 +257,7 @@
       drawClockExtras(now, Number(get("hour")) || 0, Number(get("minute")) || 0, style);
       const day = todayISO();
       if (day !== lastDay) { lastDay = day; renderCountdowns(); }
+      renderNext(false);
       applySchedule();
       checkDailyReload(now);
     }
@@ -685,6 +788,7 @@
     // the live team simply gets a longer turn so the score is on screen most of the time.
     sportsState.index = live >= 0 && (sportsState.index === 0 || wasLive) ? live : Math.min(sportsState.index, teams.length - 1);
     drawTeam();
+    renderNext();
     if (teams.length > 1) sportsState.timer = setTimeout(stepTeam, teamTurnMs());
   }
   function teamTurnMs() {
@@ -768,6 +872,8 @@
   function renderCalendar(d) {
     // Every day in the window is listed, empty ones included, so the week reads as a week.
     // The box auto-scrolls when it is taller than the panel.
+    state.calendar = d;
+    renderNext();
     const html = [];
     for (const day of d.days || []) {
       const isToday = day.label === "Today";
@@ -980,6 +1086,7 @@
     applyClockStyle();
     startClock();
     renderCountdowns();
+    startHealth();
     startWidget("weather", every("weather", 300), renderWeather);
     startWidget("alerts", every("alerts", 300), renderAlerts, () => $("alert-banner").classList.add("hidden"));
     startWidget("radar", every("radar", 300), renderRadar);
