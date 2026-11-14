@@ -3,14 +3,15 @@
 A free, self-hosted replacement for a DAKboard-style wall display, built for a
 Raspberry Pi 5 (or Pi 4) plugged into a TV or monitor. It shows:
 
-- **Clock and date**, with **countdowns** to dates you care about
-- **Current weather, an hourly strip and a 5-day outlook**, plus UV, air quality, sunrise/sunset and moon phase (Open-Meteo, no account needed)
+- **Clock and date** in five looks (seven-segment LED, neon, tactical HUD, orbital rings, classic), with **countdowns** and a **"what's next" line** (the next event, the next game, the nearest countdown)
+- **Current weather, an hourly strip and a 5-day outlook**, plus a "rain starts around 4:15 PM" line from the 15-minute nowcast, a sunrise-to-sunset arc, an animated conditions icon, UV, air quality and moon phase (Open-Meteo, no account needed)
 - **Severe weather banner** for active National Weather Service watches and warnings (US)
 - **Live animated radar** for the last two hours (RainViewer, no account needed)
 - **Stocks** (Finnhub, free API key) and a **favorite team tile** with record, next game and last result (ESPN)
 - **Your calendars**, as many as you like, each in its own color (published ICS links, no Microsoft or Google developer setup)
-- **Photo slideshow** from photos you add from your phone
-- **Shared to-do list and a note** everyone in the house can see and edit from a phone
+- **Photo slideshow** from photos you add from your phone, captioned with where and when they were taken, with **"on this day"** memories first, and famous paintings mixed in
+- **Shared to-do list, a note and family messages** ("Dad lands at 6:30") everyone in the house can post from a phone, plus **package tracking** (17TRACK, free key)
+- **Night mode** that dims the board, turns the clock red and slows the photos between the hours you choose
 - **Now playing** card for Spotify, and a **screen schedule** that turns the TV off at night and on in the morning
 - **Scrolling news ticker** from RSS feeds (NPR, BBC, CBS by default)
 
@@ -160,7 +161,8 @@ computer's name or IP address) from any device on your Wi-Fi.
 |---|---|
 | **Photos** | Add photos from your phone, see what's on the dashboard, delete |
 | **To-do** | A shared household list. Add, check off, delete. Checked items disappear the next day. |
-| **Notes** | A short message shown on the dashboard; saves as you type |
+| **Notes** | A short standing note, and **Post a message to the TV**: a banner with your name that clears itself (until midnight, 1 hour, 4 hours, or until removed) |
+| **Packages** | Paste a tracking number; the TV shows "Out for delivery · Arriving today" under the to-do list (needs a free 17TRACK key) |
 | **Settings** | Every setting: location by ZIP code, units, 24-hour clock, which panels to show, weather options, radar zoom, calendars with colors, stocks (search a company name or tap a quick pick), your sports teams (search by name), countdowns, news feeds (tap one from the built-in list, or paste any website address and the dashboard finds its feed), photo speed, screen schedule, and your keys and links |
 | **Music** | Connect Spotify so the dashboard shows what's playing |
 | **System** | Dashboard address, version, free disk, Pi temperature, which keys are set, and buttons to restart, update to the latest version, turn the screen off or on, and reboot |
@@ -372,6 +374,62 @@ added inside the app: open `http://localhost:4173` in a browser on the
 dashboard computer itself and use its **Provider Settings**. The app only
 shows that page there.
 
+### What's next, under the clock
+
+One line under the clock always shows what is coming up: a live game with its
+score, the next calendar event ("Lunch in 2 h", "Tomorrow 12 PM Lunch"), the
+next team game within a week, and the nearest countdown when the countdown
+column is not already showing it. It refreshes every minute. The small dot in
+the clock panel's corner is the dashboard's own health: green when every feed
+is fresh, amber when something is stale, red when a feed has no data (hover it
+with a mouse to see which).
+
+### Night mode
+
+Settings → Screen → **Night mode** (on by default, 22:00 to 06:00): the board
+dims, the LED clock turns deep red, the neon clock glows a soft red, photos
+change three times slower with a longer fade, and the weather icon stops
+moving. It never fights the screen-off schedule; when the screen is off, it is
+off.
+
+### Family messages
+
+Phone → Notes → **Post a message to the TV**. Type the message, your name (the
+phone remembers it) and how long it should stay: until midnight (default), 1
+hour, 4 hours, or until removed. Within half a minute it shows as a banner
+across the photo panel with your name and the time; several messages take
+turns every 8 seconds, and a new one also pops up in the middle of the screen
+for a moment. Remove one early from the same page.
+
+### Packages
+
+Phone → **Packages**: paste a tracking number and what it is ("New shoes"). The
+carrier (UPS, FedEx, USPS, Amazon, DHL and most others) is recognised by
+itself. The TV lists packages under the to-do list with the carrier, the last
+place seen and the status; "Out for delivery · Arriving today" is highlighted,
+and delivered ones disappear after two days.
+
+It needs a free 17TRACK API key:
+
+1. Sign up at [api.17track.net](https://api.17track.net) and copy the key from
+   its dashboard (Settings → Security → API key).
+2. Phone → Settings → **Keys & links** → *17TRACK API key* → Save.
+
+Adding a number uses one unit of the account's quota (a free account comes
+with a couple of hundred); checking a package's status afterwards is free. The
+dashboard checks every 30 minutes.
+
+### Photo captions and "on this day"
+
+Photos you add keep the date and place the phone recorded in them, so the
+slideshow can say "Lincoln, Nebraska · July 2019" in the corner. A photo taken
+within three days of today's date in an earlier year is a memory: it leads the
+slideshow and its caption carries an **On this day** tag. Both are on by
+default and can be switched off under Settings → Photos. Place names come from
+OpenStreetMap's Nominatim service, a few new spots per scan, and are cached;
+screenshots, scanned prints and photos sent through chat apps usually have no
+date or place, and simply get no caption.
+
 ### Countdowns
 
 Settings → Countdowns: a title, a date and an optional emoji. The clock panel
@@ -382,7 +440,8 @@ shows up to three upcoming countdowns. Past dates disappear by themselves.
 Settings → Sports teams: search by name (college and pro football, basketball,
 baseball, hockey, MLS) and pick a team; search again to add more. The tile
 shows the record and standing, the next game with TV channel, the last result,
-and the live score while a game is on. With several teams the tile rotates
+and the live score while a game is on; before a game it counts down ("Kickoff
+in 3 h 16 m", "Tomorrow 2:30 PM") in the clock style's own font. With several teams the tile rotates
 through them every 12 seconds (small dots show which one is up); a team that
 is playing right now gets a double-length turn with the live score and clock. The data comes from ESPN's public
 site.
@@ -482,7 +541,17 @@ the Music tab removes the connection.
 
 - **System tab** shows what is still missing and lets you restart.
 - **See what the server is doing:** `journalctl -u dashboard -f`
-- **Check every data source:** `curl http://localhost:8080/api/health`
+- **Check every data source:** `curl http://localhost:8080/api/health` (the
+  small dot in the clock panel's corner shows the same thing at a glance)
+- **Packages say "No tracking info yet" for hours:** some carriers only report
+  once the package is scanned; if it never changes, check the number on the
+  carrier's site. "Add your 17TRACK API key first" means the key is missing
+  under Settings → Keys & links; a 17TRACK error about quota means the free
+  allowance is used up.
+- **Photo captions never show a place:** the computer could not reach
+  OpenStreetMap when the photo was scanned; it tries again on the next scan.
+  Photos without a recorded date or place (screenshots, scans, pictures sent
+  through chat apps) get no caption at all.
 - **Dashboard closed and you want it back:** desktop icon, app menu, or the
   phone's System tab.
 - **TV does not switch off or on with the schedule:** the Pi 5 has a CEC

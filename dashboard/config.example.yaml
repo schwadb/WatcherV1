@@ -85,6 +85,7 @@ countdowns:
 # Find other teams with: .venv/bin/python tools/find_team.py "kansas city"
 sports:
   refresh_minutes: 10
+  rotate_seconds: 12          # how long each team stays on the tile (a live game gets double)
   teams:
     - sport: football
       league: college-football
@@ -110,6 +111,8 @@ photos:
   max_size: 1920              # longest edge after resizing, in pixels
   max_upload_mb: 25           # per photo, for uploads from the manage page
   fit: fit                    # fit = show the whole photo with blurred edges; fill = crop to fill the box
+  captions: true              # "Lincoln, Nebraska · July 2019" from the photo's own date and place
+  memories: true              # photos from this week in past years lead the show with an "On this day" tag
 
 todo:
   max_items: 8                # shown on the dashboard
