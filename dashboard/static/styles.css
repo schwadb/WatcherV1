@@ -111,6 +111,20 @@ body.clock-rings .clock .clock-next { font-family: "Exo 2", sans-serif; font-wei
 .health-dot.warn { background: var(--warn); opacity: 1; animation: health-pulse 2.5s ease-in-out infinite; }
 .health-dot.bad { background: var(--down); opacity: 1; animation: health-pulse 1.5s ease-in-out infinite; }
 @keyframes health-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.6); opacity: 0.5; } }
+/* Night mode (Settings → Screen): the dim overlay does most of it; these keep the clock readable and calm */
+body.night .photo .layer, body.night .photo .backdrop { transition-duration: 4s; }
+body.night .ticker, body.night .badge, body.night .health-dot { opacity: 0.55; }
+body.night .health-dot.warn, body.night .health-dot.bad { animation: none; }
+body.night.clock-led .clock .time { color: #ff4a3d; text-shadow: 0 0 8px rgba(255,74,61,0.8), 0 0 22px rgba(255,40,30,0.35); }
+body.night.clock-led .clock .ghost { color: rgba(255,74,61,0.12); }
+body.night.clock-led .clock .ampm, body.night.clock-led .clock .date { color: #ff6a5a; text-shadow: 0 0 6px rgba(255,74,61,0.6); }
+body.night.clock-led .clock .clock-next { color: #c97a6c; } body.night.clock-led .clock .clock-next b { color: #ffb0a4; }
+body.night.clock-led .clock { border-color: rgba(255,74,61,0.18); }
+body.night.clock-neon .clock .time { color: #ffd6d0; text-shadow: 0 0 6px #ff7a6a, 0 0 18px rgba(255,80,60,0.6); }
+body.night.clock-neon .clock .ampm, body.night.clock-neon .clock .date { color: #ff9a8a; text-shadow: 0 0 8px rgba(255,80,60,0.6); }
+body.night.clock-neon .clock { background: var(--panel); }
+body.night.clock-hud .clock .seconds-bar b, body.night.clock-hud .clock .clock-label { box-shadow: none; opacity: 0.7; }
+body.night .clock .rings .arc { opacity: 0.7; }
 /* Clock styles (Settings → Panels → Clock style). "classic" is the plain look above; the others add a body class. */
 .clock .main { position: relative; min-width: 0; }
 .clock .time { position: relative; }

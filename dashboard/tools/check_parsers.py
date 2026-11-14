@@ -281,6 +281,17 @@ check("news: feed summary has title and first headline", (news.feed_summary((FX 
 check("news: HTML is not mistaken for a feed", news.feed_summary(b"<html><body>hi</body></html>") is None)
 check("news: catalogue groups all have feeds with http addresses", all(g["feeds"] and all(f["url"].startswith("http") for f in g["feeds"]) for g in news.FEED_CATALOG))
 
+# ---- config: clock times survive the YAML round trip ------------------------------------------
+from app.manage import write_config as _wc
+_cf = Path(_tmp.mkdtemp()) / "config.yaml"
+_wc(_cf, {"display": {"night_from": "22:30", "screen_off": "", "dim_level": 0.5}})
+_txt = _cf.read_text()
+check("config: a clock time is written quoted so YAML keeps it a string", '"22:30"' in _txt)
+import os as _os2
+_os2.environ["DASHBOARD_CONFIG"] = str(_cf); _cf.write_text(_txt.replace('"22:30"', "22:30"))
+check("config: an unquoted clock time still loads as 22:30", load_settings().cfg["display"]["night_from"] == "22:30")
+del _os2.environ["DASHBOARD_CONFIG"]
+
 # ---- weather nowcast + sun arc -------------------------------------------------------------------
 _t = [f"2026-11-14T{h:02d}:{m:02d}" for h in range(15, 20) for m in (0, 15, 30, 45)]
 _r = weather.rain_summary(_t, [0, 0, 0, 0.02, 0.05, 0.01, 0] + [0] * 13, None, "2026-11-14T15:07", True)

@@ -222,7 +222,7 @@
     setField(p, "photos.seconds_per_photo", c.photos.seconds_per_photo); setField(p, "photos.order", c.photos.order);
     setField(p, "photos.max_upload_mb", c.photos.max_upload_mb); setField(p, "todo.max_items", c.todo.max_items);
     const d = forms.display;
-    for (const k of ["screen_off", "screen_on", "dim_from", "dim_level", "reload_at", "control", "start_at_login", "locked_kiosk", "stop_idle_lock"]) setField(d, "display." + k, c.display[k]);
+    for (const k of ["screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "reload_at", "control", "start_at_login", "locked_kiosk", "stop_idle_lock"]) setField(d, "display." + k, c.display[k]);
     document.querySelectorAll("[data-secret]").forEach((el) => { const s = settings.secrets[el.dataset.secret]; el.textContent = s && s.set ? `currently: ${s.hint}` : "not set"; });
   }
 
@@ -241,7 +241,7 @@
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })), quotes: g("news.quotes"), quote_every: Number(g("news.quote_every")) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")), fit: g("photos.fit"), art: g("photos.art"), art_every: Number(g("photos.art_every")), artists: g("photos.artists") }, todo: { max_items: Number(g("todo.max_items")) } } };
-      case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk"), stop_idle_lock: g("display.stop_idle_lock") } } };
+      case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), night_mode: g("display.night_mode"), night_from: g("display.night_from"), night_to: g("display.night_to"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk"), stop_idle_lock: g("display.stop_idle_lock") } } };
       case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
     }
     return {};

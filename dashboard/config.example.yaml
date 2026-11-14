@@ -124,6 +124,9 @@ display:
   screen_on: ""               # e.g. "06:00"
   dim_from: ""                # e.g. "21:30" dims the page until screen_on
   dim_level: 0.5              # 0 = no dimming, 0.9 = very dark
+  night_mode: true            # quiet look at night: dimmer panels, red clock, slow photo fades
+  night_from: "22:00"
+  night_to: "06:00"
   control: auto               # auto = switch the HDMI output on/off; off = only dim the page
 
 chronalert:

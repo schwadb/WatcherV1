@@ -143,6 +143,11 @@ const foreign = await rawGet("/", { ...globeHeaders, "X-Forwarded-For": "9.9.9.9
 check("globe.localhost is refused for clients that are not this computer", foreign.status === 403, String(foreign.status));
 const notGlobe = await rawGet("/api/config", { Host: `localhost:${basePort}` });
 check("other host names are not proxied", notGlobe.status === 200 && notGlobe.body.includes("config_version"));
+const badNight = await api("/api/settings", { method: "PUT", json: { config: { display: { night_from: "25:99" } } } });
+check("bad night-mode time rejected", badNight.status === 422 && /night_from/.test((badNight.data.errors || []).join(" ")), JSON.stringify(badNight.data));
+const nowHM = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Chicago" }).format(new Date());
+const nightOn = await api("/api/settings", { method: "PUT", json: { config: { display: { night_mode: true, night_from: nowHM, night_to: nowHM < "23:00" ? "23:59" : "00:30" } } } });
+check("night-mode window saved", nightOn.status === 200 && (await api("/api/config")).data.display.night_mode === true, JSON.stringify(nightOn.data));
 const badClock = await api("/api/settings", { method: "PUT", json: { config: { clock: { style: "sideways" } } } });
 check("unknown clock style rejected", badClock.status === 422 && /clock.style/.test((badClock.data.errors || []).join(" ")), JSON.stringify(badClock.data));
 const ledClock = await api("/api/settings", { method: "PUT", json: { config: { clock: { style: "led" } } } });
@@ -232,8 +237,10 @@ const clockInfo = await tv.evaluate(async () => { await document.fonts.ready; re
 const nextInfo = await tv.evaluate(() => ({ hidden: document.getElementById("clock-next").classList.contains("hidden"), text: document.getElementById("clock-next").textContent, dot: document.getElementById("health-dot").className, title: document.getElementById("health-dot").title }));
 check("what's next strip shows the live game and the next event", !nextInfo.hidden && /LIVE/.test(nextInfo.text) && /Lunch|in \d+ [mh]|Tomorrow/.test(nextInfo.text), JSON.stringify(nextInfo));
 check("health dot reports the feeds", /health-dot (good|warn|bad)/.test(nextInfo.dot) && nextInfo.title.length > 0, JSON.stringify(nextInfo));
+const nightInfo = await tv.evaluate(() => ({ night: document.body.classList.contains("night"), overlay: getComputedStyle(document.getElementById("dim-overlay")).opacity, ledColor: getComputedStyle(document.getElementById("clock-time")).color }));
+check("night mode is on inside its window (dim overlay, red LED clock)", nightInfo.night && Number(nightInfo.overlay) > 0.3 && nightInfo.ledColor === "rgb(255, 74, 61)", JSON.stringify(nightInfo));
 const wxInfo = await tv.evaluate(() => ({ rain: document.getElementById("weather-rain").textContent, soon: document.getElementById("weather-rain").classList.contains("soon"), dot: document.getElementById("sun-arc-dot").getAttribute("cx"), rise: document.getElementById("sun-arc-rise").textContent, anim: getComputedStyle(document.querySelector("#weather-icon .cloud, #weather-icon .rays, #weather-icon .moon, #weather-icon .fog") || document.body).animationName }));
-check("weather panel shows the rain line, the sun arc and an animated icon", /starts around/.test(wxInfo.rain) && wxInfo.soon && wxInfo.dot !== "8" && wxInfo.rise.length > 0 && wxInfo.anim !== "none", JSON.stringify(wxInfo));
+check("weather panel shows the rain line and the sun arc; the icon animates only outside night mode", /starts around/.test(wxInfo.rain) && wxInfo.soon && wxInfo.dot !== "8" && wxInfo.rise.length > 0 && (nightInfo.night ? wxInfo.anim === "none" : wxInfo.anim !== "none"), JSON.stringify({ ...wxInfo, night: nightInfo.night }));
 check("LED clock style is on with its font loaded", clockInfo.led && clockInfo.font && /^\d{1,2}:\d{2}$/.test(clockInfo.time) && /^8?8:88$/.test(clockInfo.ghost) && /^[A-Z]{3} [A-Z]{3} \d{1,2}$/.test(clockInfo.date), JSON.stringify(clockInfo));
 await tv.keyboard.press("v"); await tv.waitForTimeout(2500);
 const globeFrame = tv.frames().find((f) => f.url().startsWith("http://globe.localhost:"));
@@ -248,7 +255,7 @@ stub.close();
 await new Promise((r) => setTimeout(r, 300));
 const down = await rawGet("/", globeHeaders);
 check("globe.localhost explains when the app is not running", down.status === 502 && down.body.includes("isn't running"), `${down.status}`);
-await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 }, clock: { style: "led" } } } });
+await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 }, clock: { style: "led" }, display: { night_mode: true, night_from: "22:00", night_to: "06:00" } } } });
 // cleanup to-do + note
 for (const i of (await api("/api/todo")).data.data.items) await api(`/api/todo/${i.id}`, { method: "DELETE" });
 await api("/api/notes", { method: "PUT", json: { text: "" } });

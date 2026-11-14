@@ -57,7 +57,7 @@ DEFAULTS: dict[str, Any] = {
         "alerts": True, "radar": True, "stocks": True, "sports": True, "calendar": True,
         "todo": True, "news": True, "photos": True, "nowplaying": True,
     },
-    "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "control": "auto", "start_at_login": True, "locked_kiosk": False, "stop_idle_lock": True},
+    "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "night_mode": True, "night_from": "22:00", "night_to": "06:00", "control": "auto", "start_at_login": True, "locked_kiosk": False, "stop_idle_lock": True},
     "audio": {"card": "", "profile": "", "port": ""},
     "scores": {"leagues": ["football/nfl", "football/college-football", "basketball/nba", "baseball/mlb", "hockey/nhl", "basketball/mens-college-basketball",
                            "volleyball/womens-college-volleyball", "baseball/college-baseball", "nsaa/fb", "nsaa/vb", "nsaa/bb", "nsaa/gb", "nsaa/wr"],
@@ -219,6 +219,11 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
     if source is not None:
         with open(source, encoding="utf-8") as fh:
             user_cfg = yaml.safe_load(fh) or {}
+    # A clock time written without quotes (22:30) comes back from YAML as the number 1350; turn it back.
+    for key in ("reload_at", "screen_off", "screen_on", "dim_from", "night_from", "night_to"):
+        v = (user_cfg.get("display") or {}).get(key)
+        if isinstance(v, int) and not isinstance(v, bool) and 0 <= v < 1440:
+            user_cfg["display"][key] = f"{v // 60:02d}:{v % 60:02d}"
         if source != path:
             errors.append(f"{path.name} not found; using {source.name} (the settings page will create {path.name})")
     else:

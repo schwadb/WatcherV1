@@ -306,9 +306,12 @@
     const nowMin = minutesOf(hm);
     const off = inWindow(nowMin, minutesOf(d.screen_off), minutesOf(d.screen_on));
     const dim = !off && inWindow(nowMin, minutesOf(d.dim_from), minutesOf(d.screen_on || "06:00"));
+    const night = !off && d.night_mode !== false && inWindow(nowMin, minutesOf(d.night_from || "22:00"), minutesOf(d.night_to || "06:00"));
     const overlay = $("dim-overlay");
-    overlay.style.opacity = off ? "1" : dim ? String(Math.min(0.9, Number(d.dim_level) || 0.5)) : "0";
+    const level = Math.max(dim ? Math.min(0.9, Number(d.dim_level) || 0.5) : 0, night ? 0.45 : 0);
+    overlay.style.opacity = off ? "1" : level ? String(level) : "0";
     document.body.classList.toggle("screen-off", off);
+    document.body.classList.toggle("night", night);
   }
 
   // ---------- alerts -------------------------------------------------------------------------
@@ -985,7 +988,7 @@
     };
     img.onerror = () => console.warn("photo failed", url);
     img.src = url;
-    slideshow.timer = setTimeout(nextPhoto, slideshow.seconds * 1000);
+    slideshow.timer = setTimeout(nextPhoto, slideshow.seconds * (document.body.classList.contains("night") ? 3 : 1) * 1000);  // slower at night
   }
 
   // ---------- now playing --------------------------------------------------------------------

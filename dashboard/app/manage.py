@@ -28,6 +28,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFi
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from PIL import Image
 from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
@@ -347,7 +348,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit", "art", "art_every", "artists")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
-        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
+        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
     }
 
 
@@ -514,13 +515,16 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     if "display" in body:
         d = body["display"] or {}
         out = {}
-        for key in ("reload_at", "screen_off", "screen_on", "dim_from"):
+        for key in ("reload_at", "screen_off", "screen_on", "dim_from", "night_from", "night_to"):
             v = str(d.get(key, "")).strip()
             if v and not _HHMM.match(v):
                 errors.append(f"display.{key} must be a time like 22:30")
             out[key] = v
         if not out["reload_at"]:
             out["reload_at"] = "03:30"
+        out["night_from"] = out["night_from"] or DEFAULTS["display"]["night_from"]
+        out["night_to"] = out["night_to"] or DEFAULTS["display"]["night_to"]
+        out["night_mode"] = bool(d.get("night_mode", True))
         out["dim_level"] = num("display", "dim_level", 0, 0.9) if d.get("dim_level") not in (None, "") else 0.5
         out["control"] = "off" if str(d.get("control", "auto")).lower() == "off" else "auto"
         out["start_at_login"] = bool(d.get("start_at_login", True))
@@ -528,6 +532,17 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         out["stop_idle_lock"] = bool(d.get("stop_idle_lock", True))
         clean["display"] = out
     return clean, errors
+
+
+def _quote_times(value: Any) -> Any:
+    """Clock times like 22:30 must be written quoted: unquoted, YAML reads them as the number 1350."""
+    if isinstance(value, dict):
+        return {k: _quote_times(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_quote_times(v) for v in value]
+    if isinstance(value, str) and _HHMM.match(value):
+        return DoubleQuotedScalarString(value)
+    return value
 
 
 def write_config(path: Path, clean: dict[str, Any]) -> None:
@@ -540,6 +555,7 @@ def write_config(path: Path, clean: dict[str, Any]) -> None:
     if doc is None:
         doc = {}
     for section, value in clean.items():
+        value = _quote_times(value)
         if isinstance(value, dict) and isinstance(doc.get(section), dict) and section not in ("panels",):
             for key, v in value.items():
                 doc[section][key] = v
