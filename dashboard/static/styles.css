@@ -355,6 +355,17 @@ body.no-photos .quotes { grid-template-columns: repeat(3, 1fr); }
 
 /* ---- to-do + notes ---- */
 .todo-list { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+/* packages (17TRACK) under the to-do list */
+.packages { list-style: none; margin: 0.5rem 0 0; padding: 0.5rem 0 0; border-top: 1px solid var(--panel-edge); }
+.todo-list:empty + .packages { margin-top: 0; padding-top: 0; border-top: 0; }
+.packages li { display: grid; grid-template-columns: 1.8rem 1fr auto; gap: 0.6rem; align-items: baseline; padding: 0.3rem 0; font-size: 1.15rem; }
+.packages li .ic { font-size: 1.2rem; }
+.packages li .what { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.packages li .what small { display: block; color: var(--muted); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.packages li .st { color: var(--text-2); font-size: 0.95rem; white-space: nowrap; text-align: right; }
+.packages li.hot .st { color: var(--accent); font-weight: 600; }
+.packages li.done .st { color: var(--up); }
+.packages li.warn .st { color: var(--warn); }
 .todo-list li { display: grid; grid-template-columns: 1.8rem 1fr; gap: 0.6rem; align-items: baseline; font-size: 1.25rem; padding: 0.3rem 0; }
 .todo-list li .box { width: 1.3rem; height: 1.3rem; border: 2px solid var(--text-2); border-radius: 0.3rem; display: inline-block; position: relative; top: 0.15rem; }
 .todo-list li.done { color: var(--muted); text-decoration: line-through; }

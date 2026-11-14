@@ -292,6 +292,26 @@ _os2.environ["DASHBOARD_CONFIG"] = str(_cf); _cf.write_text(_txt.replace('"22:30
 check("config: an unquoted clock time still loads as 22:30", load_settings().cfg["display"]["night_from"] == "22:30")
 del _os2.environ["DASHBOARD_CONFIG"]
 
+# ---- packages (17TRACK) --------------------------------------------------------------------------
+from app.sources import packages as _pk
+_fx = _pk.parse_fixture(json.loads((FX / "track17.json").read_text()))
+check("packages: fixture parsed (UPS out for delivery, USPS in transit, FedEx delivered)",
+      _fx["1Z999AA10123456784"]["status_text"] == "Out for delivery" and _fx["1Z999AA10123456784"]["carrier"] == "UPS"
+      and _fx["9400111899223197428490"]["status"] == "InTransit" and _fx["DELIVERED123"]["done"] and _fx["DELIVERED123"]["delivered_on"])
+check("packages: eta words", _pk.eta_label("2026-11-14T09:00:00-06:00", "2026-11-14") == "Arriving today" and _pk.eta_label("2026-11-15T00:00:00-06:00", "2026-11-14") == "Arriving tomorrow"
+      and _pk.eta_label("2026-11-16T00:00:00-06:00", "2026-11-14") == "Arriving Mon" and _pk.eta_label("2026-11-30", "2026-11-14") == "Arriving Nov 30" and _pk.eta_label(None, "2026-11-14") == "")
+check("packages: numbers are cleaned and checked", _pk.valid_number(" 1z 999-aa10123456784 ") == "1Z999AA10123456784")
+try:
+    _pk.valid_number("12"); check("packages: a short number is refused", False)
+except ValueError:
+    check("packages: a short number is refused", True)
+_now = _dt(2026, 11, 14, 20, 0, tzinfo=_dt.now().astimezone().tzinfo)
+_items = [{"number": "DELIVERED123", "label": "Old", "added": "2026-11-01T00:00:00+00:00", "done": True, "delivered_seen": "2026-11-10T00:00:00+00:00", "order": -1},
+          {"number": "9400111899223197428490", "label": "Book", "added": "2026-11-12T00:00:00+00:00", "done": False, "order": 1},
+          {"number": "1Z999AA10123456784", "label": "Shoes", "added": "2026-11-13T00:00:00+00:00", "done": False, "order": 1}]
+_merged = _pk.merge(_items, _fx, _now.astimezone(timezone.utc))
+check("packages: merge drops an old delivered one and puts out-for-delivery first", [p["label"] for p in _merged] == ["Shoes", "Book"] and _merged[0]["status"] == "OutForDelivery")
+
 # ---- family messages ------------------------------------------------------------------------------
 from app import messages as _msgs
 _now = _dt(2026, 11, 14, 21, 30, tzinfo=_Z("America/Chicago"))

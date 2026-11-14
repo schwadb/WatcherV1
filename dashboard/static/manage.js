@@ -36,7 +36,7 @@
   async function confirmAction(text) { return window.confirm(text); }
 
   // ---------- tabs ---------------------------------------------------------------------------
-  const loaders = { photos: loadPhotos, todo: loadTodo, notes: loadNotes, settings: loadSettings, scores: loadScores, music: loadMusic, system: loadSystem };
+  const loaders = { photos: loadPhotos, todo: loadTodo, notes: loadNotes, packages: loadPackages, settings: loadSettings, scores: loadScores, music: loadMusic, system: loadSystem };
   function showTab(name) {
     if (!loaders[name]) name = "photos";
     document.querySelectorAll(".tab").forEach((el) => el.classList.toggle("active", el.id === "tab-" + name));
@@ -125,6 +125,33 @@
   });
   $("todo-clear").addEventListener("click", async () => {
     try { await api("/api/todo", { method: "DELETE" }); loadTodo(); } catch (err) { toast(err.message, true); }
+  });
+
+  // ---------- packages (17TRACK) ----------------------------------------------------------------
+  async function loadPackages() {
+    const list = $("pkg-list"), line = $("pkg-status");
+    try {
+      const env = await api("/api/packages");
+      const d = env.data || {};
+      line.textContent = d.configured ? "" : "No 17TRACK key yet: add it under Settings → Keys & links.";
+      line.classList.toggle("bad", !d.configured);
+      const items = d.items || [];
+      list.innerHTML = items.length ? items.map((p) => `<div class="item msg" data-number="${esc(p.number)}"><span><b>${esc(p.label || p.number)}</b><small>${esc([p.carrier, p.status_text, p.eta_text, p.last_event, p.last_place].filter(Boolean).join(" · "))}</small><small>${esc(p.number)}</small></span><button type="button" class="del" title="Stop tracking">✕</button></div>`).join("") : '<p class="muted">No packages on the list.</p>';
+    } catch (err) { list.innerHTML = `<p class="status bad">${esc(err.message)}</p>`; }
+  }
+  $("pkg-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
+    try {
+      const d = await api("/api/packages", { method: "POST", json: { number: $("pkg-number").value, label: $("pkg-label").value } });
+      toast(d.message); $("pkg-number").value = ""; $("pkg-label").value = ""; loadPackages();
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false;
+  });
+  $("pkg-list").addEventListener("click", async (e) => {
+    const btn = e.target.closest(".del"); if (!btn) return;
+    const number = btn.closest(".item").dataset.number;
+    try { await api(`/api/packages/${encodeURIComponent(number)}`, { method: "DELETE" }); loadPackages(); } catch (err) { toast(err.message, true); }
   });
 
   // ---------- notes + family messages ----------------------------------------------------------
@@ -269,7 +296,7 @@
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })), quotes: g("news.quotes"), quote_every: Number(g("news.quote_every")) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")), fit: g("photos.fit"), art: g("photos.art"), art_every: Number(g("photos.art_every")), artists: g("photos.artists") }, todo: { max_items: Number(g("todo.max_items")) } } };
       case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), night_mode: g("display.night_mode"), night_from: g("display.night_from"), night_to: g("display.night_to"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk"), stop_idle_lock: g("display.stop_idle_lock") } } };
-      case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
+      case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
     }
     return {};
   }

@@ -1036,10 +1036,24 @@
     bar.classList.remove("hidden");
   }
 
-  const todoState = { items: 0, notes: false };
+  const todoState = { items: 0, notes: false, packages: 0 };
   function updateTodoVisibility() {
     const enabled = cfg("panels.todo", true) !== false;
-    document.body.classList.toggle("has-todo", enabled && (todoState.items > 0 || todoState.notes));
+    document.body.classList.toggle("has-todo", enabled && (todoState.items > 0 || todoState.notes || todoState.packages > 0));
+  }
+  function renderPackages(d) {
+    const items = (d.items || []).slice(0, 5);
+    todoState.packages = items.length;
+    const list = $("packages");
+    list.innerHTML = items.map((p) => {
+      const cls = p.done ? "done" : p.order >= 5 ? "hot" : p.order === 4 ? "warn" : "";
+      const place = (p.last_place || "").replace(/, US$/, "").toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase()).replace(/\b(Ne|Ks|Ia|Mo|Sd|Co|Wy|Ca|Ny|Tx|Il|Mn|Wi|Ok|Ar|Fl|Ga|Pa|Oh|Mi|In|Ky|Tn|Nc|Sc|Va|Md|Nj|Ct|Ma|Wa|Or|Az|Nm|Nv|Ut|Id|Mt|Nd|La|Ms|Al|Wv|De|Ri|Vt|Nh|Me|Hi|Ak|Dc)\b/g, (m) => m.toUpperCase());
+      const detail = [p.carrier, place || p.last_event].filter(Boolean).join(" · ");
+      const status = p.done ? "Delivered" : (p.eta_text && p.order >= 3 ? `${p.status_text} · ${p.eta_text}` : p.status_text);
+      return `<li class="${cls}"><span class="ic">📦</span><span class="what">${escapeHTML(p.label || p.number)}<small>${escapeHTML(detail)}</small></span><span class="st">${escapeHTML(status)}</span></li>`;
+    }).join("");
+    list.classList.toggle("hidden", !items.length);
+    updateTodoVisibility();
   }
   function renderTodo(d) {
     const max = Number(d.max_items) || 8;
@@ -1152,6 +1166,7 @@
     if (cfg("panels.todo", true) !== false) {
       startWidget("todo", 30, renderTodo, () => {});
       startWidget("notes", 30, renderNotes, () => {});
+      startWidget("packages", 120, renderPackages, () => {});
     }
     if (cfg("now_playing.provider", "off") !== "off" && cfg("panels.nowplaying", true) !== false) {
       startWidget("nowplaying", Number(cfg("now_playing.refresh_seconds", 10)) || 10, renderNowPlaying, () => $("now-playing").classList.add("hidden"));

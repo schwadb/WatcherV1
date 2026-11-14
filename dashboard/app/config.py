@@ -97,6 +97,7 @@ class Settings:
     ics_url: str = ""
     pin: str = ""
     spotify_client_id: str = ""
+    track17_key: str = ""
     mock: bool = False
     root: Path = ROOT
     config_path: Path = ROOT / "config.yaml"
@@ -244,6 +245,7 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
         ics_url=os.environ.get("OUTLOOK_ICS_URL", "").strip(),
         pin=os.environ.get("DASHBOARD_PIN", "").strip(),
         spotify_client_id=os.environ.get("SPOTIFY_CLIENT_ID", "").strip(),
+        track17_key=os.environ.get("TRACK17_API_KEY", "").strip(),
         mock=os.environ.get("DASHBOARD_MOCK", "0").strip().lower() in ("1", "true", "yes"),
         errors=errors,
         version=version,

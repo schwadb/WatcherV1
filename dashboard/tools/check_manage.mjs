@@ -143,6 +143,14 @@ const foreign = await rawGet("/", { ...globeHeaders, "X-Forwarded-For": "9.9.9.9
 check("globe.localhost is refused for clients that are not this computer", foreign.status === 403, String(foreign.status));
 const notGlobe = await rawGet("/api/config", { Host: `localhost:${basePort}` });
 check("other host names are not proxied", notGlobe.status === 200 && notGlobe.body.includes("config_version"));
+const badPkg = await api("/api/packages", { method: "POST", json: { number: "12", label: "x" } });
+check("bad tracking number refused", badPkg.status === 422 && /tracking number/.test(badPkg.data.detail || ""), JSON.stringify(badPkg.data));
+const pkg = await api("/api/packages", { method: "POST", json: { number: "1Z999AA10123456784", label: "New shoes" } });
+check("package added (mock)", pkg.status === 200 && pkg.data.item.number === "1Z999AA10123456784", JSON.stringify(pkg.data));
+const pkgDup = await api("/api/packages", { method: "POST", json: { number: "1z999aa10123456784", label: "again" } });
+check("duplicate package refused", pkgDup.status === 409);
+const pkgs = (await api("/api/packages")).data.data;
+check("packages listed with a status and an arrival day", pkgs.items.some((p) => p.number === "1Z999AA10123456784" && p.status_text === "Out for delivery" && /Arriving/.test(p.eta_text)), JSON.stringify(pkgs.items));
 const posted = await api("/api/messages", { method: "POST", json: { text: "Dad lands at 6:30", from: "Mom", ttl: "4h" } });
 check("message posted", posted.status === 200 && posted.data.id && posted.data.expires, JSON.stringify(posted.data));
 const badMsg = await api("/api/messages", { method: "POST", json: { text: "   ", ttl: "4h" } });
@@ -243,6 +251,8 @@ const clockInfo = await tv.evaluate(async () => { await document.fonts.ready; re
 const nextInfo = await tv.evaluate(() => ({ hidden: document.getElementById("clock-next").classList.contains("hidden"), text: document.getElementById("clock-next").textContent, dot: document.getElementById("health-dot").className, title: document.getElementById("health-dot").title }));
 check("what's next strip shows the live game and the next event", !nextInfo.hidden && /LIVE/.test(nextInfo.text) && /Lunch|in \d+ [mh]|Tomorrow/.test(nextInfo.text), JSON.stringify(nextInfo));
 check("health dot reports the feeds", /health-dot (good|warn|bad)/.test(nextInfo.dot) && nextInfo.title.length > 0, JSON.stringify(nextInfo));
+const pkgInfo = await tv.evaluate(() => ({ hidden: document.getElementById("packages").classList.contains("hidden"), text: document.getElementById("packages").textContent, hasTodo: document.body.classList.contains("has-todo") }));
+check("TV lists the package under the to-do panel", !pkgInfo.hidden && /New shoes/.test(pkgInfo.text) && /Out for delivery/.test(pkgInfo.text) && pkgInfo.hasTodo, JSON.stringify(pkgInfo));
 const msgInfo = await tv.evaluate(() => ({ hidden: document.getElementById("message-bar").classList.contains("hidden"), text: document.getElementById("message-text").textContent, meta: document.getElementById("message-meta").textContent }));
 check("TV shows the family message", !msgInfo.hidden && msgInfo.text === "Dad lands at 6:30" && /Mom/.test(msgInfo.meta), JSON.stringify(msgInfo));
 const nightInfo = await tv.evaluate(() => ({ night: document.body.classList.contains("night"), overlay: getComputedStyle(document.getElementById("dim-overlay")).opacity, ledColor: getComputedStyle(document.getElementById("clock-time")).color }));
@@ -264,6 +274,8 @@ await new Promise((r) => setTimeout(r, 300));
 const down = await rawGet("/", globeHeaders);
 check("globe.localhost explains when the app is not running", down.status === 502 && down.body.includes("isn't running"), `${down.status}`);
 await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 }, clock: { style: "led" }, display: { night_mode: true, night_from: "22:00", night_to: "06:00" } } } });
+const pkgGone = await api("/api/packages/1Z999AA10123456784", { method: "DELETE" });
+check("package removed", pkgGone.status === 200 && !(await api("/api/packages")).data.data.items.some((p) => p.number === "1Z999AA10123456784"));
 const gone = await api(`/api/messages/${posted.data.id}`, { method: "DELETE" });
 check("message removed", gone.status === 200 && !(await api("/api/messages")).data.data.items.some((m) => m.id === posted.data.id));
 // cleanup to-do + note

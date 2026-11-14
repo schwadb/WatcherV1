@@ -25,6 +25,7 @@ from .config import Settings, load_settings
 from .sources import alerts as alerts_src
 from .sources import calendar as calendar_src
 from .sources import news as news_src
+from .sources import packages as packages_src
 from .sources import photos as photos_src
 from .screen import DisplayState, display_scheduler
 from .sources import radar as radar_src
@@ -41,6 +42,7 @@ STARTED = time.time()
 _PHOTO_ID = re.compile(r"^[0-9a-f]{20}\.jpg$")
 
 
+FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 PERSISTED_SOURCES = ("weather", "alerts", "stocks", "sports", "calendar", "news")  # not radar (frame links expire), photos, nowplaying
 
 
@@ -70,6 +72,8 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
             "nowplaying": partial(spotify_src.fetch, client, settings),
         }
     fetchers["photos"] = partial(photos_src.fetch, settings)
+    if settings.panel("todo"):  # packages share the to-do panel
+        fetchers["packages"] = partial(packages_src.fetch, None, settings, FIXTURES / "track17.json") if settings.mock else partial(packages_src.fetch, client, settings)
     if not settings.mock and settings.panel("photos") and settings.cfg["photos"].get("art", True):
         from .sources import art as art_src
 
@@ -97,6 +101,7 @@ def build_sources(settings: Settings, client: httpx.AsyncClient) -> dict[str, tu
         "sports": lambda: sports_src.refresh_minutes(settings) * 60,
         "nowplaying": lambda: 60.0,
         "art": lambda: 24 * 3600.0,
+        "packages": lambda: packages_src.REFRESH_MINUTES * 60.0,
     }
     sources = {name: (SourceCache(name, intervals[name]), fetchers[name]) for name in fetchers}
     for name in PERSISTED_SOURCES:  # remembered across restarts so a reboot shows last night's data, not "no data"

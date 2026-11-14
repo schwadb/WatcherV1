@@ -35,6 +35,7 @@ from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
 from .pages import page_response
 from .screen import close_dashboard, dashboard_window_running, launch_dashboard, run_screen, set_autostart
+from .sources import packages as packages_src
 from .sources import photos as photos_src
 from .sources import spotify as spotify_src
 from .store import JsonStore
@@ -50,7 +51,7 @@ except Exception:  # noqa: BLE001
 log = logging.getLogger("dashboard")
 router = APIRouter()
 STATIC_DIR = ROOT / "static"
-SECRET_KEYS = ("FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "FAMILY_ICS_URL", "DASHBOARD_PIN", "SPOTIFY_CLIENT_ID")
+SECRET_KEYS = ("FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "FAMILY_ICS_URL", "DASHBOARD_PIN", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY")
 UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 _HHMM = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 _COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -344,6 +345,58 @@ async def messages_delete(request: Request, msg_id: str):
     data = await store.update(lambda d: {"items": [m for m in (d.get("items") or []) if m.get("id") != msg_id]})
     if len(data["items"]) == before:
         raise HTTPException(404, "That message is already gone.")
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------------------------
+# package tracking (17TRACK)
+# ---------------------------------------------------------------------------------------------
+async def _packages_refresh(request: Request) -> None:
+    src = request.app.state.sources.get("packages")
+    if src:
+        await refresh_once(*src)
+
+
+@router.post("/api/packages")
+async def packages_add(request: Request):
+    """Start tracking a number: register it with 17TRACK (one quota unit) and remember it."""
+    require_pin(request)
+    settings = _settings(request)
+    body = await request.json()
+    try:
+        number = packages_src.valid_number(body.get("number", ""))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    label = " ".join(str(body.get("label", "")).split())[:packages_src.MAX_LABEL]
+    if not settings.mock and not settings.track17_key:
+        raise HTTPException(422, "Add your 17TRACK API key first (Settings → Keys & links). A free key is at api.17track.net.")
+    st = packages_src.store(settings)
+    if any(p.get("number") == number for p in (st.read() or {}).get("items") or []):
+        raise HTTPException(409, "That number is already on the list.")
+    carrier = ""
+    if not settings.mock:
+        try:
+            reg = await packages_src.register(request.app.state.client, settings.track17_key, number)
+        except httpx.HTTPError as exc:
+            raise HTTPException(502, f"17TRACK did not answer: {exc}")
+        if not reg["ok"]:
+            raise HTTPException(422, reg["message"])
+    item = {"number": number, "label": label or number, "carrier": carrier, "added": datetime.now(timezone.utc).isoformat(),
+            "status": "NotFound", "status_text": "Checking…", "order": 1, "done": False}
+    await st.update(lambda d: {"items": [*(d.get("items") or []), item][-packages_src.MAX_ITEMS:]})
+    await _packages_refresh(request)
+    return {"ok": True, "message": "Tracking started. The TV shows it under the to-do list.", "item": item}
+
+
+@router.delete("/api/packages/{number}")
+async def packages_delete(request: Request, number: str):
+    require_pin(request)
+    st = packages_src.store(_settings(request))
+    before = len((st.read() or {}).get("items") or [])
+    data = await st.update(lambda d: {"items": [p for p in (d.get("items") or []) if p.get("number") != number.upper()]})
+    if len(data["items"]) == before:
+        raise HTTPException(404, "That package is not on the list.")
+    await _packages_refresh(request)
     return {"ok": True}
 
 

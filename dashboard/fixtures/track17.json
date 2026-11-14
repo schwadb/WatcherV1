@@ -1,0 +1,40 @@
+{
+  "code": 0,
+  "data": {
+    "accepted": [
+      {
+        "number": "1Z999AA10123456784",
+        "carrier": 100002,
+        "track_info": {
+          "latest_status": {"status": "OutForDelivery", "sub_status": "OutForDelivery_Other"},
+          "latest_event": {"time_iso": "2026-11-14T08:12:00-06:00", "description": "Out For Delivery Today", "location": "LINCOLN, NE, US"},
+          "time_metrics": {"estimated_delivery_date": {"source": "Official", "from": "2026-11-14T09:00:00-06:00", "to": "2026-11-14T19:00:00-06:00"}},
+          "tracking": {"providers": [{"provider": {"key": 100002, "name": "UPS"}}]}
+        }
+      },
+      {
+        "number": "9400111899223197428490",
+        "carrier": 21051,
+        "track_info": {
+          "latest_status": {"status": "InTransit", "sub_status": "InTransit_Other"},
+          "latest_event": {"time_iso": "2026-11-13T21:40:00-06:00", "description": "Arrived at USPS Regional Facility", "location": "OMAHA NE DISTRIBUTION CENTER"},
+          "time_metrics": {"estimated_delivery_date": {"source": "Official", "from": "2026-11-16T00:00:00-06:00", "to": null}},
+          "tracking": {"providers": [{"provider": {"key": 21051, "name": "USPS"}}]}
+        }
+      },
+      {
+        "number": "DELIVERED123",
+        "carrier": 100003,
+        "track_info": {
+          "latest_status": {"status": "Delivered", "sub_status": "Delivered_Other"},
+          "latest_event": {"time_iso": "2026-11-13T15:02:00-06:00", "description": "Delivered, Front Door", "location": "PLYMOUTH, NE, US"},
+          "time_metrics": {"estimated_delivery_date": {"source": null, "from": null, "to": null}},
+          "tracking": {"providers": [{"provider": {"key": 100003, "name": "FedEx"}}]}
+        }
+      }
+    ],
+    "rejected": [
+      {"number": "NOPE1", "carrier": 0, "error": {"code": -18019902, "message": "The tracking number 'NOPE1' does not register, please register first."}}
+    ]
+  }
+}
