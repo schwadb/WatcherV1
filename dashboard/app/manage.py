@@ -197,7 +197,8 @@ async def photos_upload(request: Request, files: list[UploadFile]):
                     from PIL import ImageOps
 
                     im = ImageOps.exif_transpose(im) or im
-                    im.convert("RGB").save(target, "JPEG", quality=92)
+                    exif = im.info.get("exif")
+                    im.convert("RGB").save(target, "JPEG", quality=92, **({"exif": exif} if exif else {}))  # keep date + place
             else:
                 target = folder / _safe_name(name)
                 target.write_bytes(data)
@@ -446,7 +447,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "countdowns": [{"title": x.get("title", ""), "date": str(x.get("date", "")), "icon": x.get("icon", "")} for x in (c.get("countdowns") or []) if isinstance(x, dict)],
         "sports": {"teams": [{"sport": t.get("sport", ""), "league": t.get("league", ""), "team": str(t.get("team", t.get("team_id", ""))), "name": t.get("name", "")} for t in (sports_cfg.get("teams") or []) if isinstance(t, dict)]},
         "news": {"feeds": [{"name": f.get("name", ""), "url": f.get("url", "")} for f in (c["news"].get("feeds") or []) if isinstance(f, dict)], "quotes": c["news"].get("quotes", True), "quote_every": c["news"].get("quote_every", 4)},
-        "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit", "art", "art_every", "artists")},
+        "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit", "art", "art_every", "artists", "captions", "memories")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
         "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
@@ -606,6 +607,7 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         fit = str((body["photos"] or {}).get("fit", "fit")).lower()
         clean["photos"] = {"seconds_per_photo": int(num("photos", "seconds_per_photo", 5, 600, int) or 20), "order": order if order in ("shuffle", "name") else "shuffle", "max_upload_mb": int(num("photos", "max_upload_mb", 1, 100, int) or 25), "fit": fit if fit in ("fit", "fill") else "fit",
                           "art": bool((body["photos"] or {}).get("art", True)), "art_every": int(num("photos", "art_every", 1, 20, int) or 4),
+                          "captions": bool((body["photos"] or {}).get("captions", True)), "memories": bool((body["photos"] or {}).get("memories", True)),
                           "artists": [str(a).strip()[:60] for a in (((body["photos"] or {}).get("artists") or "").split(",") if isinstance((body["photos"] or {}).get("artists"), str) else ((body["photos"] or {}).get("artists") or [])) if str(a).strip()][:30]}
     if "todo" in body:
         clean["todo"] = {"max_items": int(num("todo", "max_items", 1, 20, int) or 8)}

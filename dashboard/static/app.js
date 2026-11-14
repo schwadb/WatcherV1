@@ -983,8 +983,11 @@
       $(frontId.replace("photo-", "photo-bg-")).classList.remove("visible");
       slideshow.front = slideshow.front === "a" ? "b" : "a";
       const cap = $("photo-caption");
-      if (item.caption) { cap.innerHTML = `${escapeHTML(item.caption)}<span class="credit">${escapeHTML(item.credit || "Art Institute of Chicago")}</span>`; cap.classList.remove("hidden"); }
-      else cap.classList.add("hidden");
+      if (item.caption) {
+        cap.innerHTML = `${item.memory ? '<span class="memory">On this day</span>' : ""}${escapeHTML(item.caption)}${item.credit ? `<span class="credit">${escapeHTML(item.credit)}</span>` : ""}`;
+        cap.classList.toggle("is-memory", !!item.memory);
+        cap.classList.remove("hidden");
+      } else cap.classList.add("hidden");
     };
     img.onerror = () => console.warn("photo failed", url);
     img.src = url;

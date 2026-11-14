@@ -122,7 +122,7 @@ async def refresh(client: httpx.AsyncClient, settings: Settings) -> dict[str, An
 def catalog(settings: Settings) -> list[dict[str, Any]]:
     """Paintings ready to show: [{url, caption, art: True}] (empty until the first refresh)."""
     if settings.mock:
-        return [{"id": f"mock{i}", "url": f"/static/mock/painting{i}.jpg", "caption": c, "art": True}
+        return [{"id": f"mock{i}", "url": f"/static/mock/painting{i}.jpg", "caption": c, "credit": "Art Institute of Chicago", "art": True}
                 for i, c in ((1, "Wheat Field with Cypresses — Vincent van Gogh, 1889"), (2, "Water Lilies — Claude Monet, 1906"), (3, "The Great Wave — Katsushika Hokusai, 1831"))]
     path = catalog_path(settings)
     if not path.exists():
@@ -132,7 +132,7 @@ def catalog(settings: Settings) -> list[dict[str, Any]]:
     except (OSError, ValueError):
         return []
     folder = art_dir(settings)
-    return [{"id": w["id"], "url": f"/art/{w['file']}", "caption": w["caption"], "art": True} for w in works if (folder / w["file"]).exists()]
+    return [{"id": w["id"], "url": f"/art/{w['file']}", "caption": w["caption"], "credit": w.get("credit") or "Art Institute of Chicago", "art": True} for w in works if (folder / w["file"]).exists()]
 
 
 def interleave(photos: list[dict[str, Any]], paintings: list[dict[str, Any]], every: int) -> list[dict[str, Any]]:

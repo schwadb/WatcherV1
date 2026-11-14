@@ -292,6 +292,24 @@ _os2.environ["DASHBOARD_CONFIG"] = str(_cf); _cf.write_text(_txt.replace('"22:30
 check("config: an unquoted clock time still loads as 22:30", load_settings().cfg["display"]["night_from"] == "22:30")
 del _os2.environ["DASHBOARD_CONFIG"]
 
+# ---- photo captions: EXIF date/place, "on this day" ------------------------------------------------
+from app.sources import photos as _ph
+from PIL import Image as _Img
+_pd = Path(_tmp.mkdtemp()); _pf = _pd / "lake.jpg"
+_im = _Img.new("RGB", (40, 30), (20, 90, 160)); _ex = _im.getexif()
+_ex.get_ifd(_ph.EXIF_IFD)[_ph.TAG_DATETIME_ORIGINAL] = "2019:07:04 18:22:10"
+_gps = _ex.get_ifd(_ph.GPS_IFD); _gps[1] = "N"; _gps[2] = (40.0, 48.0, 50.4); _gps[3] = "W"; _gps[4] = (96.0, 42.0, 0.0)
+_im.save(_pf, "JPEG", exif=_ex.tobytes())
+_info = _ph.exif_info(_pf)
+check("photos: EXIF date and GPS read from the original", _info["taken"] == "2019-07-04" and abs(_info["lat"] - 40.814) < 0.001 and abs(_info["lon"] + 96.7) < 0.001)
+check("photos: a file without EXIF gives blanks", _ph.exif_info(Path(_tmp.mkdtemp()) / "missing.jpg") == {"taken": None, "lat": None, "lon": None})
+check("photos: US place is town + state, abroad town + country", _ph.place_name({"city": "Lincoln", "state": "Nebraska", "country": "United States", "country_code": "us"}) == "Lincoln, Nebraska"
+      and _ph.place_name({"town": "Cascais", "state": "Lisboa", "country": "Portugal", "country_code": "pt"}) == "Cascais, Portugal")
+check("photos: caption wording", _ph.caption_for_photo("2019-07-04", "Lincoln, Nebraska", "2026-11-14") == "Lincoln, Nebraska · July 2019"
+      and _ph.caption_for_photo("2019-07-04", "", "2026-11-14") == "July 2019" and _ph.caption_for_photo(None, "Lincoln, Nebraska", "2026-11-14") == "Lincoln, Nebraska" and _ph.caption_for_photo(None, "", "2026-11-14") == "")
+check("photos: a photo from this week in an earlier year is a memory", _ph.is_memory("2019-11-16", "2026-11-14") and _ph.is_memory("2019-11-11", "2026-11-14") and not _ph.is_memory("2019-11-20", "2026-11-14") and not _ph.is_memory("2026-11-14", "2026-11-14"))
+check("photos: a memory keeps the plain caption (the page adds the tag)", _ph.caption_for_photo("2019-11-15", "Lincoln, Nebraska", "2026-11-14") == "Lincoln, Nebraska · November 2019")
+
 # ---- packages (17TRACK) --------------------------------------------------------------------------
 from app.sources import packages as _pk
 _fx = _pk.parse_fixture(json.loads((FX / "track17.json").read_text()))

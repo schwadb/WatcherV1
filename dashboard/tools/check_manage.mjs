@@ -41,6 +41,8 @@ check("valid settings saved", good.status === 200 && good.data.ok, JSON.stringif
 const after = (await api("/api/config")).data;
 check("hot reload bumped config_version", after.config_version === before + 1, `${before} -> ${after.config_version}`);
 check("new location visible without restart", after.location.name === "Lincoln, NE" && after.countdowns.some((c) => c.title === "Test day") && after.panels.radar === false);
+const ph = (await api("/api/photos")).data.data;
+check("photos carry caption, credit and memory fields", Array.isArray(ph.photos) && ph.photos.every((p) => "caption" in p && "credit" in p) && typeof ph.memories === "number", JSON.stringify(ph.photos.slice(0, 2)));
 const wx = (await api("/api/weather")).data.data;
 check("weather carries the nowcast, rain line and sun arc", wx.rain && wx.rain.kind === "starts" && wx.rain.soon === true && wx.sun && typeof wx.sun.progress === "number" && Array.isArray(wx.nowcast), JSON.stringify({ rain: wx.rain, sun: wx.sun }));
 const health = (await api("/api/health")).data;
