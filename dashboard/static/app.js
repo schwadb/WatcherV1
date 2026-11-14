@@ -1011,6 +1011,31 @@
   }
 
   // ---------- to-do + notes ------------------------------------------------------------------
+  // ---------- family messages (phone → TV) ---------------------------------------------------
+  const msgState = { items: [], index: 0, timer: null, seen: new Set(), first: true };
+  function renderMessages(d) {
+    const items = d.items || [];
+    const fresh = items.filter((m) => !msgState.seen.has(m.id));
+    for (const m of items) msgState.seen.add(m.id);
+    if (!msgState.first && fresh.length) notice(`📣 ${fresh[0].from ? fresh[0].from + ": " : ""}${fresh[0].text}`, 10000);
+    msgState.first = false;
+    msgState.items = items;
+    if (msgState.index >= items.length) msgState.index = 0;
+    drawMessage();
+    clearInterval(msgState.timer); msgState.timer = null;
+    if (items.length > 1) msgState.timer = setInterval(() => { msgState.index = (msgState.index + 1) % msgState.items.length; drawMessage(); }, 8000);
+  }
+  function drawMessage() {
+    const bar = $("message-bar"), items = msgState.items;
+    if (!items.length) { bar.classList.add("hidden"); return; }
+    const m = items[msgState.index] || items[0];
+    $("message-text").textContent = m.text;
+    const when = m.created ? fmtShortTime(new Date(m.created)) : "";
+    $("message-meta").textContent = [m.from, when].filter(Boolean).join(" · ");
+    $("message-count").textContent = items.length > 1 ? `${msgState.index + 1}/${items.length}` : "";
+    bar.classList.remove("hidden");
+  }
+
   const todoState = { items: 0, notes: false };
   function updateTodoVisibility() {
     const enabled = cfg("panels.todo", true) !== false;
@@ -1123,6 +1148,7 @@
     startWidget("calendar", every("calendar", 300), renderCalendar);
     startWidget("news", every("news", 600), renderNews);
     startWidget("photos", every("photos", 300), renderPhotos);
+    startWidget("messages", 30, renderMessages, () => {});
     if (cfg("panels.todo", true) !== false) {
       startWidget("todo", 30, renderTodo, () => {});
       startWidget("notes", 30, renderNotes, () => {});

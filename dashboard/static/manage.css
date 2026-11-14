@@ -60,6 +60,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 .list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.5rem 0; }
 .item { display: grid; gap: 0.5rem; align-items: center; background: #0d1117; border: 1px solid var(--edge); border-radius: 10px; padding: 0.6rem; }
 .item.cal { grid-template-columns: 1fr 3.2rem auto; }
+.item.msg { grid-template-columns: 1fr auto; margin-top: 0.5rem; }
+.item.msg small { display: block; color: var(--text-2); font-size: 0.8rem; margin-top: 0.15rem; }
 .item.cal .url { grid-column: 1 / -1; }
 .item.stock { grid-template-columns: 6rem 1fr auto; }
 .item.cd { grid-template-columns: 1fr 9rem 3.5rem auto; }

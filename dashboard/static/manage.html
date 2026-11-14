@@ -69,6 +69,17 @@
 
   <!-- NOTES -->
   <section id="tab-notes" class="tab">
+    <form class="card" id="msg-form">
+      <h2>Post a message to the TV</h2>
+      <p class="muted">Shows as a banner on the TV right away ("Dad lands at 6:30") and clears itself after the time you pick.</p>
+      <textarea id="msg-text" rows="2" maxlength="200" placeholder="Dad lands at 6:30 — pizza when he's home"></textarea>
+      <div class="row two">
+        <label>From <input id="msg-from" type="text" maxlength="30" placeholder="Mom"></label>
+        <label>Show for <select id="msg-ttl"><option value="midnight">Until midnight</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="never">Until removed</option></select></label>
+      </div>
+      <div class="row end"><button type="submit">Post to the TV</button></div>
+      <div class="list" id="msg-list"></div>
+    </form>
     <div class="card">
       <h2>Note on the dashboard</h2>
       <p class="muted">A short message everyone sees. Saves by itself a second after you stop typing.</p>

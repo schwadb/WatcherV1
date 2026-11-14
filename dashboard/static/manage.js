@@ -127,12 +127,39 @@
     try { await api("/api/todo", { method: "DELETE" }); loadTodo(); } catch (err) { toast(err.message, true); }
   });
 
-  // ---------- notes --------------------------------------------------------------------------
+  // ---------- notes + family messages ----------------------------------------------------------
   let notesTimer = null;
   async function loadNotes() {
     const env = await api("/api/notes");
     if (document.activeElement !== $("notes-text")) $("notes-text").value = env.data.text || "";
+    loadMessages();
   }
+  async function loadMessages() {
+    const list = $("msg-list");
+    try {
+      const items = (await api("/api/messages")).data.items || [];
+      list.innerHTML = items.length ? items.map((m) => `<div class="item msg" data-id="${esc(m.id)}"><span><b>${esc(m.text)}</b><small>${esc([m.from, m.expires ? "until " + new Date(m.expires).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "until removed"].filter(Boolean).join(" · "))}</small></span><button type="button" class="del" title="Remove">✕</button></div>`).join("") : '<p class="muted">Nothing on the TV right now.</p>';
+    } catch (err) { list.innerHTML = `<p class="status bad">${esc(err.message)}</p>`; }
+  }
+  try { $("msg-from").value = localStorage.getItem("dashboard_msg_from") || ""; } catch (e) { /* private mode */ }
+  $("msg-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = $("msg-text").value.trim();
+    if (!text) { toast("Type a message first.", true); return; }
+    const from = $("msg-from").value.trim();
+    try { localStorage.setItem("dashboard_msg_from", from); } catch (err) { /* ignore */ }
+    try {
+      await api("/api/messages", { method: "POST", json: { text, from, ttl: $("msg-ttl").value } });
+      $("msg-text").value = "";
+      toast("Posted. It's on the TV now.");
+      loadMessages();
+    } catch (err) { toast(err.message, true); }
+  });
+  $("msg-list").addEventListener("click", async (e) => {
+    const btn = e.target.closest(".del"); if (!btn) return;
+    const id = btn.closest(".item").dataset.id;
+    try { await api(`/api/messages/${id}`, { method: "DELETE" }); loadMessages(); } catch (err) { toast(err.message, true); }
+  });
   $("notes-text").addEventListener("input", () => {
     clearTimeout(notesTimer);
     $("notes-status").textContent = "Typing…";

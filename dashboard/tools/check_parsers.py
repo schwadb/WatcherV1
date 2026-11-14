@@ -292,6 +292,17 @@ _os2.environ["DASHBOARD_CONFIG"] = str(_cf); _cf.write_text(_txt.replace('"22:30
 check("config: an unquoted clock time still loads as 22:30", load_settings().cfg["display"]["night_from"] == "22:30")
 del _os2.environ["DASHBOARD_CONFIG"]
 
+# ---- family messages ------------------------------------------------------------------------------
+from app import messages as _msgs
+_now = _dt(2026, 11, 14, 21, 30, tzinfo=_Z("America/Chicago"))
+check("messages: 'until midnight' expires at the next local midnight", _msgs.expiry_for("midnight", _now) == "2026-11-15T00:00:00-06:00")
+check("messages: 1h / 4h / never", _msgs.expiry_for("1h", _now).startswith("2026-11-14T22:30") and _msgs.expiry_for("4h", _now).startswith("2026-11-15T01:30") and _msgs.expiry_for("never", _now) is None)
+_m = _msgs.make("  Dad lands   at 6:30  ", "Mom", "4h", _now)
+check("messages: text is tidied and capped, id assigned", _m["text"] == "Dad lands at 6:30" and _m["from"] == "Mom" and len(_m["id"]) == 8 and _m["ttl"] == "4h")
+_old = _msgs.make("old", "", "1h", _now - _dt.resolution * 0)
+_old["expires"] = "2026-11-14T21:00:00-06:00"
+check("messages: expired ones are pruned, newest first", [x["text"] for x in _msgs.prune([_old, _m], _now)] == ["Dad lands at 6:30"])
+
 # ---- weather nowcast + sun arc -------------------------------------------------------------------
 _t = [f"2026-11-14T{h:02d}:{m:02d}" for h in range(15, 20) for m in (0, 15, 30, 45)]
 _r = weather.rain_summary(_t, [0, 0, 0, 0.02, 0.05, 0.01, 0] + [0] * 13, None, "2026-11-14T15:07", True)

@@ -30,6 +30,7 @@ from PIL import Image
 from ruamel.yaml import YAML
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
+from . import messages
 from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
 from .pages import page_response
@@ -297,6 +298,53 @@ async def todo_clear_done(request: Request):
 @router.get("/api/notes")
 async def notes_get(request: Request):
     return _envelope("notes", _store(request, "notes", {"text": "", "updated": None}).read())
+
+
+# ---------------------------------------------------------------------------------------------
+# family messages (posted from the phone, shown on the TV for a while)
+# ---------------------------------------------------------------------------------------------
+def _msg_now(settings: Settings) -> datetime:
+    return datetime.now(ZoneInfo(settings.timezone))
+
+
+@router.get("/api/messages")
+async def messages_get(request: Request):
+    settings = _settings(request)
+    store = _store(request, "messages", {"items": []})
+    now = _msg_now(settings)
+    data = store.read()
+    live = messages.prune(data.get("items") or [], now)
+    if len(live) != len(data.get("items") or []):
+        data = await store.update(lambda d: {"items": messages.prune(d.get("items") or [], now)})
+    return _envelope("messages", {"items": live, "now": now.isoformat()})
+
+
+@router.post("/api/messages")
+async def messages_post(request: Request):
+    require_pin(request)
+    settings = _settings(request)
+    body = await request.json()
+    text = " ".join(str(body.get("text", "")).split())
+    if not text:
+        raise HTTPException(422, "Type a message first.")
+    ttl = str(body.get("ttl", "midnight")).lower()
+    if ttl not in messages.TTL_CHOICES:
+        raise HTTPException(422, "ttl must be one of: " + ", ".join(messages.TTL_CHOICES))
+    now = _msg_now(settings)
+    item = messages.make(text, body.get("from", ""), ttl, now)
+    await _store(request, "messages", {"items": []}).update(lambda d: {"items": messages.prune([item, *(d.get("items") or [])], now)})
+    return item
+
+
+@router.delete("/api/messages/{msg_id}")
+async def messages_delete(request: Request, msg_id: str):
+    require_pin(request)
+    store = _store(request, "messages", {"items": []})
+    before = len(store.read().get("items") or [])
+    data = await store.update(lambda d: {"items": [m for m in (d.get("items") or []) if m.get("id") != msg_id]})
+    if len(data["items"]) == before:
+        raise HTTPException(404, "That message is already gone.")
+    return {"ok": True}
 
 
 @router.put("/api/notes")

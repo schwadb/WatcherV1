@@ -143,6 +143,12 @@ const foreign = await rawGet("/", { ...globeHeaders, "X-Forwarded-For": "9.9.9.9
 check("globe.localhost is refused for clients that are not this computer", foreign.status === 403, String(foreign.status));
 const notGlobe = await rawGet("/api/config", { Host: `localhost:${basePort}` });
 check("other host names are not proxied", notGlobe.status === 200 && notGlobe.body.includes("config_version"));
+const posted = await api("/api/messages", { method: "POST", json: { text: "Dad lands at 6:30", from: "Mom", ttl: "4h" } });
+check("message posted", posted.status === 200 && posted.data.id && posted.data.expires, JSON.stringify(posted.data));
+const badMsg = await api("/api/messages", { method: "POST", json: { text: "   ", ttl: "4h" } });
+check("empty message refused", badMsg.status === 422);
+const msgs = (await api("/api/messages")).data;
+check("messages listed for the TV", msgs.data.items.some((m) => m.id === posted.data.id && m.text === "Dad lands at 6:30"), JSON.stringify(msgs.data));
 const badNight = await api("/api/settings", { method: "PUT", json: { config: { display: { night_from: "25:99" } } } });
 check("bad night-mode time rejected", badNight.status === 422 && /night_from/.test((badNight.data.errors || []).join(" ")), JSON.stringify(badNight.data));
 const nowHM = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Chicago" }).format(new Date());
@@ -237,6 +243,8 @@ const clockInfo = await tv.evaluate(async () => { await document.fonts.ready; re
 const nextInfo = await tv.evaluate(() => ({ hidden: document.getElementById("clock-next").classList.contains("hidden"), text: document.getElementById("clock-next").textContent, dot: document.getElementById("health-dot").className, title: document.getElementById("health-dot").title }));
 check("what's next strip shows the live game and the next event", !nextInfo.hidden && /LIVE/.test(nextInfo.text) && /Lunch|in \d+ [mh]|Tomorrow/.test(nextInfo.text), JSON.stringify(nextInfo));
 check("health dot reports the feeds", /health-dot (good|warn|bad)/.test(nextInfo.dot) && nextInfo.title.length > 0, JSON.stringify(nextInfo));
+const msgInfo = await tv.evaluate(() => ({ hidden: document.getElementById("message-bar").classList.contains("hidden"), text: document.getElementById("message-text").textContent, meta: document.getElementById("message-meta").textContent }));
+check("TV shows the family message", !msgInfo.hidden && msgInfo.text === "Dad lands at 6:30" && /Mom/.test(msgInfo.meta), JSON.stringify(msgInfo));
 const nightInfo = await tv.evaluate(() => ({ night: document.body.classList.contains("night"), overlay: getComputedStyle(document.getElementById("dim-overlay")).opacity, ledColor: getComputedStyle(document.getElementById("clock-time")).color }));
 check("night mode is on inside its window (dim overlay, red LED clock)", nightInfo.night && Number(nightInfo.overlay) > 0.3 && nightInfo.ledColor === "rgb(255, 74, 61)", JSON.stringify(nightInfo));
 const wxInfo = await tv.evaluate(() => ({ rain: document.getElementById("weather-rain").textContent, soon: document.getElementById("weather-rain").classList.contains("soon"), dot: document.getElementById("sun-arc-dot").getAttribute("cx"), rise: document.getElementById("sun-arc-rise").textContent, anim: getComputedStyle(document.querySelector("#weather-icon .cloud, #weather-icon .rays, #weather-icon .moon, #weather-icon .fog") || document.body).animationName }));
@@ -256,6 +264,8 @@ await new Promise((r) => setTimeout(r, 300));
 const down = await rawGet("/", globeHeaders);
 check("globe.localhost explains when the app is not running", down.status === 502 && down.body.includes("isn't running"), `${down.status}`);
 await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 }, clock: { style: "led" }, display: { night_mode: true, night_from: "22:00", night_to: "06:00" } } } });
+const gone = await api(`/api/messages/${posted.data.id}`, { method: "DELETE" });
+check("message removed", gone.status === 200 && !(await api("/api/messages")).data.data.items.some((m) => m.id === posted.data.id));
 // cleanup to-do + note
 for (const i of (await api("/api/todo")).data.data.items) await api(`/api/todo/${i.id}`, { method: "DELETE" });
 await api("/api/notes", { method: "PUT", json: { text: "" } });
