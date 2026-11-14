@@ -103,6 +103,44 @@ check("autostart with a missing AppImage is refused with a message", badAuto.sta
 const chronStatus = await api("/api/chronalert/status");
 check("ChronAlert reachability check answers", chronStatus.status === 200 && typeof chronStatus.data.reachable === "boolean" && chronStatus.data.url.startsWith("http"), JSON.stringify(chronStatus.data));
 await api("/api/settings", { method: "PUT", json: { config: { weather: { takeover_minutes: 10, takeover_sound: true }, chronalert: { mode: "rotate", open_mode: "iframe", show_seconds: 20, photo_seconds: 20 } } } });
+// ---- God's Eye View globe: settings, install (mock), and the globe.localhost proxy ---------------
+const http = await import("node:http");
+const rawGet = (path, headers) => new Promise((resolve, reject) => {
+  const u = new URL(base);
+  const req = http.request({ host: u.hostname, port: u.port || 80, path, method: "GET", headers, setHost: false }, (res) => {
+    let body = ""; res.setEncoding("utf8"); res.on("data", (c) => body += c); res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, body }));
+  });
+  req.on("error", reject); req.end();
+});
+const basePort = new URL(base).port || "80";
+const globeHeaders = { Host: `globe.localhost:${basePort}`, Origin: `http://globe.localhost:${basePort}`, Via: "1.1 test" };
+const stub = http.createServer((req, res) => {
+  res.setHeader("X-Frame-Options", "DENY"); res.setHeader("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'"); res.setHeader("Content-Type", "text/html");
+  res.end(`<html><body id="stub">stub ${req.headers.host} ${req.headers.origin || "-"} ${req.headers.via || "-"} ${req.url}</body></html>`);
+});
+await new Promise((r) => stub.listen(0, "127.0.0.1", r));
+const stubPort = stub.address().port;
+const globeStatus = await api("/api/globe/status");
+check("globe status answers", globeStatus.status === 200 && typeof globeStatus.data.reachable === "boolean" && globeStatus.data.port > 0, JSON.stringify(globeStatus.data));
+const globeApp = await api("/api/globe/app");
+check("globe app info answers", globeApp.status === 200 && typeof globeApp.data.installed === "boolean" && typeof globeApp.data.autostart === "boolean" && Array.isArray((globeApp.data.install || {}).log), JSON.stringify(globeApp.data));
+const badPort = await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 80 } } } });
+check("globe port outside 1024-65535 rejected", badPort.status === 422, JSON.stringify(badPort.data));
+const badGlobeAuto = await api("/api/globe/autostart", { method: "POST", json: { on: true } });
+check("globe autostart refused before install", badGlobeAuto.status === 422 && /not installed/.test(badGlobeAuto.data.detail || ""), JSON.stringify(badGlobeAuto.data));
+await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: stubPort } } } });
+const inst = await api("/api/globe/install", { method: "POST", json: {} });
+const instAgain = await api("/api/globe/install", { method: "POST", json: {} });
+check("globe install starts once", inst.status === 200 && inst.data.install.running === true && instAgain.status === 409, `${inst.status} ${instAgain.status}`);
+await new Promise((r) => setTimeout(r, 4500));
+const instDone = await api("/api/globe/app");
+check("mock install finishes and turns the TV button on", instDone.data.install.running === false && instDone.data.install.exit_code === 0 && instDone.data.enabled === true && (await api("/api/config")).data.globe.enabled === true, JSON.stringify(instDone.data.install));
+const viaProxy = await rawGet("/hello?x=1", globeHeaders);
+check("globe.localhost is proxied to the app with framing headers removed", viaProxy.status === 200 && !("x-frame-options" in viaProxy.headers) && viaProxy.headers["content-security-policy"] === "default-src 'self'" && viaProxy.body.includes(`stub 127.0.0.1:${stubPort} http://127.0.0.1:${stubPort} - /hello?x=1`), `${viaProxy.status} ${JSON.stringify(viaProxy.headers)} ${viaProxy.body}`);
+const foreign = await rawGet("/", { ...globeHeaders, "X-Forwarded-For": "9.9.9.9" });  // uvicorn reads this as a client at 9.9.9.9
+check("globe.localhost is refused for clients that are not this computer", foreign.status === 403, String(foreign.status));
+const notGlobe = await rawGet("/api/config", { Host: `localhost:${basePort}` });
+check("other host names are not proxied", notGlobe.status === 200 && notGlobe.body.includes("config_version"));
 const sysinfo = await api("/api/system");
 check("system info", sysinfo.status === 200 && typeof sysinfo.data.disk_free_gb === "number" && sysinfo.data.version);
 // restore
@@ -178,7 +216,26 @@ check("kiosk mode shows the on-screen keyboard", kbdVisible);
 await page.click('#kbd button[data-k="h"]'); await page.click('#kbd button[data-k="i"]');
 check("on-screen keyboard types", (await page.inputValue("#todo-input")) === "hi");
 check("no page errors", errors.length === 0, errors.join(" | "));
+// the TV page: V opens the globe inside the dashboard (the stub stands in for the app)
+const tv = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+const tvErrors = []; tv.on("pageerror", (e) => tvErrors.push(e.message));
+await tv.goto(base + "/", { waitUntil: "load" });
+await tv.waitForTimeout(2500); await tv.keyboard.press("Escape");
+check("Globe button is on the TV menu", await tv.$eval("#globe-btn", (el) => !el.classList.contains("hidden")));
+await tv.keyboard.press("v"); await tv.waitForTimeout(2500);
+const globeFrame = tv.frames().find((f) => f.url().startsWith("http://globe.localhost:"));
+const globeShown = await tv.$eval("#globe-full", (el) => !el.classList.contains("hidden"));
+const frameText = globeFrame ? await globeFrame.textContent("body").catch(() => "") : "";
+check("V shows the globe frame from globe.localhost with the app inside", globeShown && globeFrame && frameText.includes("stub"), `${globeShown} ${globeFrame && globeFrame.url()} ${frameText}`);
+await tv.keyboard.press("Escape"); await tv.waitForTimeout(400);
+check("Escape closes the globe and blanks its frame", await tv.$eval("#globe-full", (el) => el.classList.contains("hidden")) && (await tv.$eval("#globe-full-frame", (el) => el.getAttribute("src"))) === "about:blank");
+check("no TV page errors", tvErrors.length === 0, tvErrors.join(" | "));
 await browser.close();
+stub.close();
+await new Promise((r) => setTimeout(r, 300));
+const down = await rawGet("/", globeHeaders);
+check("globe.localhost explains when the app is not running", down.status === 502 && down.body.includes("isn't running"), `${down.status}`);
+await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 } } } });
 // cleanup to-do + note
 for (const i of (await api("/api/todo")).data.data.items) await api(`/api/todo/${i.id}`, { method: "DELETE" });
 await api("/api/notes", { method: "PUT", json: { text: "" } });

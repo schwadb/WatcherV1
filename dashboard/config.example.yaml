@@ -131,6 +131,10 @@ chronalert:
   photo_seconds: 180          # how long the photos get between turns
   open_mode: iframe           # iframe = full screen inside the dashboard; window = a separate browser window
 
+globe:                        # God's Eye View 3D globe (☰ → Globe, key V); install it from the phone's settings page
+  enabled: false              # show the Globe button on the TV (turned on automatically after the install)
+  port: 4173                  # the port the app listens on (on this computer only)
+
 server:
   host: "0.0.0.0"
   port: 8080

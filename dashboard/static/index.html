@@ -129,6 +129,7 @@
   <div class="music-msg" id="music-msg"></div>
 </div>
 <div id="chron-full" class="chron-full hidden"><iframe id="chron-full-frame" title="ChronAlert full screen" referrerpolicy="no-referrer"></iframe><button type="button" class="corner chron-close" id="chron-close">✕ Close map</button></div>
+<div id="globe-full" class="chron-full globe-full hidden"><iframe id="globe-full-frame" title="God's Eye View globe" allow="fullscreen; geolocation; microphone"></iframe><button type="button" class="corner chron-close" id="globe-close">✕ Close globe</button></div>
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
 <div id="notice" class="notice hidden"></div>
@@ -137,10 +138,11 @@
     <button id="scores-btn" class="corner" type="button" title="Scoreboard (G)">&#127944; Scores</button>
     <button id="music-btn" class="corner hidden" type="button" title="Music (M)">&#9835; Music</button>
     <button id="chron-btn" class="corner hidden" type="button" title="ChronAlert map (C)">&#127758; Map</button>
+    <button id="globe-btn" class="corner hidden" type="button" title="God's Eye View globe (V)">&#128752; Globe</button>
     <button id="desktop-btn" class="corner" type="button" title="Use this computer as a computer (D)">&#128421; Desktop</button>
     <a id="gear" class="corner" href="/manage?kiosk=1" title="Settings (S)">&#9881; Settings</a>
   </div>
-  <button id="corner-menu" class="corner corner-menu" type="button" title="Menu: Scores, Music, Map, Desktop, Settings" aria-label="Menu">&#9776;</button>
+  <button id="corner-menu" class="corner corner-menu" type="button" title="Menu: Scores, Music, Map, Globe, Desktop, Settings" aria-label="Menu">&#9776;</button>
 </div>
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/icons.js"></script>

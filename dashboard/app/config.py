@@ -30,6 +30,7 @@ DEFAULTS: dict[str, Any] = {
         "takeover_events": ["*Warning", "Tornado Watch"],
     },
     "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": ""},
+    "globe": {"enabled": False, "port": 4173},
     "radar": {
         "provider": "rainviewer",
         "refresh_minutes": 5,
@@ -185,6 +186,7 @@ class Settings:
             "display": c["display"],
             "takeover": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("takeover", "takeover_minutes", "takeover_sound")},
             "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
+            "globe": {**DEFAULTS["globe"], **(c.get("globe") or {})},
             "reload_at": c["display"]["reload_at"],
             "mock": self.mock,
             "manage": True,

@@ -200,6 +200,8 @@
     const ca = forms.chronalert;
     for (const k of ["mode", "open_mode", "url", "show_seconds", "photo_seconds", "app_path"]) setField(ca, "chronalert." + k, c.chronalert[k]);
     loadChron();
+    setField(forms.globe, "globe.enabled", c.globe.enabled); setField(forms.globe, "globe.port", c.globe.port);
+    loadGlobe();
     setField(w, "radar.zoom", c.radar.zoom); setField(w, "radar.provider", c.radar.provider);
     $("calendar-list").replaceChildren(...c.calendars.map((x) => row("cal", x)));
     setField(forms.calendars, "calendar.days_ahead", c.calendar.days_ahead);
@@ -230,6 +232,7 @@
       case "panels": return { config: { panels: Object.fromEntries(Object.keys(PANEL_LABELS).map((k) => [k, g("panels." + k)])) } };
       case "weather": return { config: { weather: { hourly_hours: Number(g("weather.hourly_hours")), forecast_days: Number(g("weather.forecast_days")), air_quality: g("weather.air_quality"), alerts: g("weather.alerts"), takeover: g("weather.takeover"), takeover_minutes: Number(g("weather.takeover_minutes")), takeover_sound: g("weather.takeover_sound") }, radar: { zoom: Number(g("radar.zoom")), provider: g("radar.provider") } } };
       case "chronalert": return { config: { chronalert: { mode: g("chronalert.mode"), open_mode: g("chronalert.open_mode"), url: g("chronalert.url"), show_seconds: Number(g("chronalert.show_seconds")), photo_seconds: Number(g("chronalert.photo_seconds")), app_path: g("chronalert.app_path") } } };
+      case "globe": return { config: { globe: { enabled: g("globe.enabled"), port: Number(g("globe.port")) } } };
       case "calendars": return { config: { calendars: [...$("calendar-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value, color: r.querySelector(".color").value })), calendar: { days_ahead: Number(g("calendar.days_ahead")) } } };
       case "stocks": return { config: { stocks: { symbols: Object.fromEntries([...$("stock-list").children].map((r) => [r.querySelector(".sym").value.trim().toUpperCase(), r.querySelector(".name").value.trim()]).filter(([s]) => s)) } } };
       case "sports": return { config: { sports: { teams: [...$("team-list").children].map((r) => JSON.parse(r.dataset.json)) } } };
@@ -453,6 +456,49 @@
       const d = await api("/api/chronalert/autostart", { method: "POST", json: { on, app_path: chronPathField().value.trim() } });
       toast(d.message);
       setTimeout(loadChron, 2500);
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false;
+  });
+
+  // ---------- God's Eye View globe: install it, start it with the computer --------------------
+  let globeApp = null, globePoll = null;
+  async function loadGlobe() {
+    const line = $("globe-status"), log = $("globe-log");
+    try {
+      globeApp = await api("/api/globe/app");
+      const inst = globeApp.install || {};
+      const parts = [];
+      if (inst.running) parts.push("Installing…");
+      else if (!globeApp.installed) parts.push("Not installed yet.");
+      else parts.push(globeApp.reachable ? `The globe is running on port ${globeApp.port}.` : "Installed, but not running.");
+      if (globeApp.installed && globeApp.node_version) parts.push(`Node.js ${globeApp.node_version}.`);
+      if (globeApp.autostart) parts.push(globeApp.service_running ? "The dashboard computer starts it automatically." : "Autostart is on but the service is not running yet.");
+      line.textContent = parts.join(" ");
+      line.classList.toggle("bad", !inst.running && !globeApp.reachable);
+      $("globe-install").textContent = globeApp.installed ? "Update God's Eye View" : "Install God's Eye View";
+      $("globe-install").disabled = !!inst.running;
+      $("globe-autostart").textContent = globeApp.autostart ? "Stop starting the globe with the dashboard" : "Start the globe with the dashboard";
+      const show = inst.running || (inst.log && inst.log.length && inst.finished && Date.now() / 1000 - inst.finished < 600);
+      log.classList.toggle("hidden", !show);
+      if (show) { log.textContent = inst.log.join("\n"); log.scrollTop = log.scrollHeight; }
+      clearTimeout(globePoll);
+      if (inst.running) globePoll = setTimeout(loadGlobe, 3000);
+      else if (inst.finished && inst.exit_code === 0 && !globeApp.enabled) setTimeout(loadSettings, 1500);  // the install flips the TV button on
+    } catch (err) { line.textContent = err.message; }
+  }
+  $("globe-install").addEventListener("click", async () => {
+    const btn = $("globe-install"); btn.disabled = true;
+    try { const d = await api("/api/globe/install", { method: "POST", json: {} }); toast(d.message); setTimeout(loadGlobe, 1000); }
+    catch (err) { toast(err.message, true); btn.disabled = false; }
+  });
+  $("globe-recheck").addEventListener("click", loadGlobe);
+  $("globe-autostart").addEventListener("click", async () => {
+    const btn = $("globe-autostart"); btn.disabled = true;
+    try {
+      const on = !(globeApp && globeApp.autostart);
+      const d = await api("/api/globe/autostart", { method: "POST", json: { on } });
+      toast(d.message);
+      setTimeout(loadGlobe, 2500);
     } catch (err) { toast(err.message, true); }
     btn.disabled = false;
   });

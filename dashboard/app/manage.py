@@ -334,6 +334,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
         "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts", "takeover", "takeover_minutes", "takeover_sound")},
         "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
+        "globe": {**DEFAULTS["globe"], **(c.get("globe") or {})},
         "scores": {"leagues": list((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"]), "high_schools": list((c.get("scores") or {}).get("high_schools") or [])},
         "radar": {k: c["radar"].get(k, DEFAULTS["radar"][k]) for k in ("provider", "zoom")},
         "stocks": {"symbols": symbols},
@@ -406,6 +407,9 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         }
         if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
+    if "globe" in body:
+        gl = body["globe"] or {}
+        clean["globe"] = {"enabled": bool(gl.get("enabled", False)), "port": int(num("globe", "port", 1024, 65535, int) or DEFAULTS["globe"]["port"])}
     if "scores" in body:
         from .sources.scores import ALL_KEYS
 
@@ -704,6 +708,87 @@ async def chronalert_autostart(request: Request):
         await reload_sources(request.app)
     _chron_status["checked"] = 0.0  # re-probe next time
     return {"ok": True, "message": message, "autostart": True, "app_path": app_path}
+
+
+# ---------------------------------------------------------------------------------------------
+# God's Eye View globe (app/globe.py)
+# ---------------------------------------------------------------------------------------------
+_globe_status: dict[str, Any] = {"checked": 0.0, "reachable": False, "port": 0}
+
+
+def _globe_port(settings) -> int:
+    return int((settings.cfg.get("globe") or {}).get("port") or DEFAULTS["globe"]["port"])
+
+
+async def _globe_probe(port: int) -> bool:
+    try:
+        async with httpx.AsyncClient(timeout=2) as client:
+            resp = await client.get(f"http://127.0.0.1:{port}/")
+            return resp.status_code < 500
+    except Exception:
+        return False
+
+
+@router.get("/api/globe/status")
+async def globe_status(request: Request):
+    """Is God's Eye View answering on this computer? The TV only opens the globe when it is."""
+    settings = request.app.state.settings
+    port = _globe_port(settings)
+    now = time.monotonic()
+    if _globe_status["port"] == port and now - _globe_status["checked"] < 30:
+        reachable = _globe_status["reachable"]
+    else:
+        reachable = await _globe_probe(port)
+        _globe_status.update(checked=now, reachable=reachable, port=port)
+    return {"reachable": reachable, "port": port, "enabled": bool((settings.cfg.get("globe") or {}).get("enabled"))}
+
+
+@router.get("/api/globe/app")
+async def globe_app(request: Request):
+    """For the settings page: installed? which Node? started by us? answering? plus install progress."""
+    require_pin(request)
+    from . import globe
+
+    settings = request.app.state.settings
+    port = _globe_port(settings)
+    info = {"dir": str(globe.install_dir()), "installed": False, "node": "", "node_version": ""} if settings.mock else await asyncio.to_thread(globe.script_status)
+    svc = globe.status()
+    reachable = await _globe_probe(port)
+    _globe_status.update(checked=time.monotonic(), reachable=reachable, port=port)
+    return {
+        **info, "autostart": svc["enabled"], "service_running": svc["running"], "reachable": reachable, "port": port,
+        "enabled": bool((settings.cfg.get("globe") or {}).get("enabled")), "install": request.app.state.globe_install.summary(),
+    }
+
+
+@router.post("/api/globe/install")
+async def globe_install(request: Request):
+    """Download/update God's Eye View and its packages in the background (deploy/globe.sh install)."""
+    require_pin(request)
+    installer = request.app.state.globe_install
+    try:
+        installer.begin()
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+    return {"ok": True, "message": "Installing God's Eye View. This takes a few minutes the first time; the log below shows progress.", "install": installer.summary()}
+
+
+@router.post("/api/globe/autostart")
+async def globe_autostart(request: Request):
+    """Turn 'the computer starts the globe and keeps it running' on or off."""
+    require_pin(request)
+    from . import globe
+
+    settings = request.app.state.settings
+    body = await request.json()
+    if not body.get("on"):
+        return {"ok": True, "message": globe.remove(), "autostart": False}
+    try:
+        message = globe.start(None, _globe_port(settings))
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, str(exc))
+    _globe_status["checked"] = 0.0
+    return {"ok": True, "message": message, "autostart": True}
 
 
 STOCK_TYPES_FIRST = ("Common Stock", "ETP", "ETF")

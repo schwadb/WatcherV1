@@ -160,6 +160,21 @@
       </div>
       <p class="muted">The dashboard computer then starts ChronAlert at boot (without its own window) and restarts it if it stops. Turn it off with the same button.</p>
     </form>
+    <form class="card" data-section="globe">
+      <h2>God's Eye View globe</h2>
+      <p class="muted">A free 3D globe with live flights, ships, satellites, public cameras, earthquakes and more (github.com/bilawalsidhu/gods-eye-view). Once installed, the TV gets a Globe button in its ☰ menu (also the V key) with a Close button to come back.</p>
+      <p class="status" id="globe-status">Checking…</p>
+      <div class="row">
+        <button type="button" id="globe-install">Install God's Eye View</button>
+        <button type="button" id="globe-autostart">Start the globe with the dashboard</button>
+        <button type="button" class="ghost" id="globe-recheck">Check again</button>
+      </div>
+      <pre class="log hidden" id="globe-log"></pre>
+      <label class="check"><input name="globe.enabled" type="checkbox"> Show the Globe button on the TV</label>
+      <label>Port it listens on <input name="globe.port" type="number" min="1024" max="65535"></label>
+      <div class="row end"><button type="submit">Save</button></div>
+      <p class="muted">Install needs a few minutes and about 500 MB the first time; it also fetches Node.js 24 for the globe if this computer has no Node 24/26 (nothing system-wide changes). It works without any API keys. Optional keys (Cesium ion, Google Maps…) are added inside the app itself: open http://localhost:4173 on the dashboard computer, the app's Provider Settings page only opens there.</p>
+    </form>
 
     <form class="card" data-section="calendars">
       <h2>Calendars</h2>

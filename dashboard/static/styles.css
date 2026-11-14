@@ -242,6 +242,7 @@ body.no-photos .quotes { grid-template-columns: repeat(3, 1fr); }
 .corner-buttons { position: fixed; right: 1.2rem; top: 1.2rem; z-index: 960; display: flex; align-items: center; gap: 0.6rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
 body.show-cursor .corner-buttons, .corner-buttons.open { opacity: 1; }
 body.overlay-open .corner-buttons { display: none; }
+body.overlay-open .setup-note { display: none; }  /* not over a full-screen panel */
 .corner-buttons .corner-row { display: none; gap: 0.6rem; }
 .corner-buttons.open .corner-row { display: flex; }
 .corner-buttons .corner-row .corner, .corner-buttons .corner-menu { pointer-events: none; }
@@ -258,6 +259,7 @@ body.show-cursor .corner-buttons .corner-row .corner, body.show-cursor .corner-b
 .chron-full { position: fixed; inset: 0; z-index: 950; background: #000; }
 .chron-full iframe { width: 100%; height: 100%; border: 0; }
 .chron-full .chron-close { position: absolute; right: 1.2rem; top: 1.2rem; opacity: 1; pointer-events: auto; }
+.globe-full iframe { background: #000; }  /* God's Eye View (key V) uses the same full-screen frame + Close button */
 
 /* ---- scoreboard (every game today, key G) ---- */
 .scores-full { position: fixed; inset: 0; z-index: 950; background: #0b0f14; display: flex; flex-direction: column; padding: 1.4rem 2rem; gap: 1rem; }

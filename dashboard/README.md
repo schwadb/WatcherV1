@@ -169,7 +169,7 @@ Changes apply right away; the dashboard page reloads itself when settings change
 
 **On the TV itself:** plug a mouse, keyboard or touchscreen into the Pi, move the
 mouse or touch the screen, and click the **☰** button in the top-right corner. It
-opens a row of buttons (Scores, Music, Map, Desktop, Settings) and stays open until
+opens a row of buttons (Scores, Music, Map, Globe, Desktop, Settings) and stays open until
 you click **☰** again or press Escape. Tap **Settings** (or press `S`) and the same
 settings page opens on the TV with larger buttons, a
 **Back to dashboard** link, and an on-screen keyboard for touchscreens.
@@ -331,6 +331,42 @@ inside another page), set *Open full screen as* to **A separate window**. The
 Map button then opens ChronAlert in its own Chromium window on the TV;
 Alt+Tab or closing it brings the dashboard back.
 
+### God's Eye View globe
+
+[God's Eye View](https://github.com/bilawalsidhu/gods-eye-view) is a free 3D
+globe in the browser: live aircraft, ships, satellites, launches, public
+cameras, earthquakes, fires and much more, all from public sources, no API keys
+needed. The dashboard can install it, keep it running and show it full screen
+from the ☰ menu (**Globe**, or the **V** key); **✕ Close globe** or **Esc**
+brings the dashboard back.
+
+To set it up (any Linux desktop, the Mac Pro included):
+
+1. On the phone: Settings → **God's Eye View globe** → **Install God's Eye
+   View**. This downloads the app into `~/Applications/gods-eye-view` and its
+   packages (about 500 MB, a few minutes), fetches a private copy of Node.js 24
+   if the computer has no Node 24/26, starts the app as a service that comes
+   back after reboots, and turns on the Globe button. The log on the page shows
+   progress.
+2. On the TV: ☰ → **Globe**. The first start takes a little while (the app
+   builds itself); after that it opens in a few seconds.
+
+Prefer the terminal? `bash ~/WatcherV1/dashboard/deploy/globe.sh install`, then
+press **Start the globe with the dashboard** on the phone. **Update God's Eye
+View** (same button later) pulls the newest version.
+
+How it is shown: the app refuses to appear inside another web page, so the
+dashboard serves it through its own port under the name `globe.localhost`
+(browsers treat every `*.localhost` name as "this computer"). That is why the
+Globe button works on the TV itself and not on a phone that opened the TV page.
+Only connections from the dashboard computer are passed through; the app stays
+unreachable from the network, as it is on its own.
+
+Optional API keys (Cesium ion for photoreal 3D, Google Maps, cameras…) are
+added inside the app: open `http://localhost:4173` in a browser on the
+dashboard computer itself and use its **Provider Settings**. The app only
+shows that page there.
+
 ### Countdowns
 
 Settings → Countdowns: a title, a date and an optional emoji. The clock panel
@@ -464,6 +500,17 @@ the Music tab removes the connection.
   meantime shows the last data it saved (weather, calendar, stocks, sports,
   news) with an amber "updated … ago" note. If the red notes stay for more than
   a minute after Wi-Fi connects, check `journalctl -u dashboard -f`.
+- **Globe says "God's Eye View isn't running":** on the phone, Settings →
+  God's Eye View globe → **Check again**. If it is installed but not running,
+  press **Start the globe with the dashboard**; if that fails, run
+  `systemctl --user status globe` and `journalctl --user -u globe -n 50` on the
+  computer. The first start after an install or update can take a minute.
+- **Globe is choppy or black:** it needs a graphics card with working 3D in
+  Chromium. Inside the app, turn off layers you do not use and the 3D
+  buildings. On very old machines it will stay slow.
+- **Globe install says Node.js is missing or too old:** the install downloads
+  its own Node.js 24 into `~/.local/share/watcher-dashboard/node`; if the
+  download failed (no internet at the time), press Install again.
 - **Phone says the page took too long to respond, but it works on the
   computer itself:** the computer's firewall is blocking it. Omarchy turns on
   `ufw`; run `sudo ufw allow 8080/tcp` (the installer now does this for you)

@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import manage, mock
+from . import globe, manage, mock
 from .pages import page_response
 from .cache import SourceCache, refresh_once, run_poller
 from .config import Settings, load_settings
@@ -166,6 +166,27 @@ async def reload_sources(app: FastAPI) -> Settings:
         return settings
 
 
+async def globe_installed(app: FastAPI, code: int) -> None:
+    """After a successful install: start the globe as a user service and show its button on the TV."""
+    installer = app.state.globe_install
+    if code != 0:
+        installer.lines.append("[globe] the install did not finish; see the lines above")
+        return
+    settings = app.state.settings
+    port = int((settings.cfg.get("globe") or {}).get("port") or globe.DEFAULT_PORT)
+    if settings.mock:
+        installer.lines.append("[globe] (mock) the globe would be started now")
+    else:
+        try:
+            installer.lines.append("[globe] " + await asyncio.to_thread(globe.start, None, port))
+        except (ValueError, RuntimeError) as exc:
+            installer.lines.append(f"[globe] could not start it: {exc}")
+    if not (settings.cfg.get("globe") or {}).get("enabled"):
+        await asyncio.to_thread(manage.write_config, settings.config_path, {"globe": {"enabled": True}})
+        await reload_sources(app)
+        installer.lines.append("[globe] the Globe button is now on the TV's menu")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = load_settings()
@@ -178,6 +199,8 @@ async def lifespan(app: FastAPI):
     app.state.sources = {}
     app.state.display = DisplayState()
     app.state.spotify_pending = {}
+    app.state.globe_install = globe.Installer(settings.mock)
+    app.state.globe_install.on_done = partial(globe_installed, app)
     await start_sources(app, settings)
     scheduler = asyncio.create_task(display_scheduler(app), name="display-scheduler")
     try:
@@ -192,6 +215,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Watcher Dashboard", lifespan=lifespan)
 app.state.started = STARTED
 app.include_router(manage.router)  # literal routes first; the /api/{name} catch-all below comes last
+app.add_middleware(
+    globe.GlobeProxy, client_getter=lambda: app.state.client,
+    port_getter=lambda: int((app.state.settings.cfg.get("globe") or {}).get("port") or globe.DEFAULT_PORT),
+)  # http://globe.localhost:<port>/ shows God's Eye View inside the TV page
 
 
 def _cache(name: str) -> SourceCache:

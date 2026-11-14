@@ -281,5 +281,31 @@ check("news: feed summary has title and first headline", (news.feed_summary((FX 
 check("news: HTML is not mistaken for a feed", news.feed_summary(b"<html><body>hi</body></html>") is None)
 check("news: catalogue groups all have feeds with http addresses", all(g["feeds"] and all(f["url"].startswith("http") for f in g["feeds"]) for g in news.FEED_CATALOG))
 
+# ---- God's Eye View globe: header rewriting, node choice, service unit --------------------------
+from app import globe as _gl
+_hdrs = [("X-Frame-Options", "DENY"), ("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; img-src *"), ("Content-Type", "text/html"), ("Transfer-Encoding", "chunked"), ("Content-Length", "12")]
+_out = _gl.strip_framing(_hdrs)
+check("globe: framing headers removed, the rest of the CSP and content-length kept",
+      ("Content-Security-Policy", "default-src 'self'; img-src *") in _out and ("Content-Type", "text/html") in _out and ("Content-Length", "12") in _out
+      and not any(k.lower() in ("x-frame-options", "transfer-encoding") for k, _ in _out))
+check("globe: a CSP that was only frame-ancestors disappears", _gl.strip_framing([("content-security-policy", "frame-ancestors 'none'")]) == [])
+_up = _gl.upstream_headers([("host", "globe.localhost:8080"), ("origin", "http://globe.localhost:8080"), ("referer", "http://globe.localhost:8080/?x=1"), ("x-forwarded-for", "1.2.3.4"), ("via", "proxy"), ("accept", "*/*")], "127.0.0.1:4173")
+check("globe: request headers point at the app and carry no proxy headers",
+      ("host", "127.0.0.1:4173") in _up and ("origin", "http://127.0.0.1:4173") in _up and ("referer", "http://127.0.0.1:4173/") in _up and ("accept", "*/*") in _up
+      and not any(k.startswith("x-forwarded") or k == "via" for k, _ in _up) and sum(1 for k, _ in _up if k == "host") == 1)
+check("globe: only globe.localhost is proxied", _gl.is_globe_host("globe.localhost:8080") and _gl.is_globe_host("GLOBE.localhost") and not _gl.is_globe_host("localhost:8080") and not _gl.is_globe_host("evil.globe.localhost"))
+_gh = Path(_tmp.mkdtemp())
+check("globe: no usable node when the system one is too old", _gl.node_bin(_gh, "/usr/bin/node", 22) == "" and _gl.node_bin(_gh, None) == "" or _gl.node_bin(_gh, "/usr/bin/node", 22) == "")
+check("globe: a system Node 24 or 26 is used", _gl.node_bin(_gh, "/usr/bin/node", 24) == "/usr/bin" and _gl.node_bin(_gh, "/usr/bin/node", 26) == "/usr/bin" and _gl.node_bin(_gh, "/usr/bin/node", 25) == "")
+(_gh / ".local/share/watcher-dashboard/node/bin").mkdir(parents=True); (_gh / ".local/share/watcher-dashboard/node/bin/node").write_text("")
+check("globe: the private Node 24 wins over the system one", _gl.node_bin(_gh, "/usr/bin/node", 24).endswith("watcher-dashboard/node/bin"))
+_unit = _gl.service_text(_gh, 4173, "/opt/node/bin")
+check("globe: service runs npm run dev in the app folder with the chosen node", "ExecStart=/opt/node/bin/npm run dev" in _unit and f"WorkingDirectory={_gh}/Applications/gods-eye-view" in _unit
+      and "Environment=PATH=/opt/node/bin:" in _unit and "Environment=PORT=4173" in _unit and "Environment=HOST=127.0.0.1" in _unit and "Restart=always" in _unit)
+try:
+    _gl.start(_gh); check("globe: start refused before the app is installed", False)
+except ValueError as exc:
+    check("globe: start refused before the app is installed", "not installed" in str(exc))
+
 print(f"\n{sum(checks)}/{len(checks)} checks passed")
 sys.exit(0 if all(checks) else 1)

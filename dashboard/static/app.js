@@ -486,6 +486,31 @@
     if (chron.mode === "rotate") chron.timer = setTimeout(chronShowMap, (Number(cfg("chronalert.photo_seconds", 180)) || 180) * 1000);
   }
 
+  // ---------- God's Eye View globe (key V) ---------------------------------------------------
+  // The app is served through the dashboard under globe.localhost (see app/globe.py), so it can be
+  // framed with our own Close button. That name only means "this computer" inside a browser, so the
+  // button works on the TV itself, not on a phone that opened this page.
+  const globe = { open: false };
+  const GLOBE_DOWN = "God's Eye View isn't running on the dashboard computer. On the phone's settings page, under God's Eye View globe, press Install (first time) or \"Start the globe with the dashboard\".";
+  function globeOnThisComputer() { return ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname); }
+  async function globeToggle() {
+    const box = $("globe-full");
+    if (globe.open) { globe.open = false; box.classList.add("hidden"); $("globe-full-frame").src = "about:blank"; chronPause(false); return; }
+    if (!globeOnThisComputer()) { notice("The globe shows on the TV itself; open it there with the ☰ menu or the V key."); return; }
+    let st = { reachable: true };
+    try { st = await (await fetch("/api/globe/status", { cache: "no-store" })).json(); } catch (e) { /* can't tell: try anyway */ }
+    if (!st.reachable) { notice(GLOBE_DOWN, 12000); return; }
+    globe.open = true; chronPause(true);
+    $("globe-full-frame").src = `http://globe.localhost:${location.port || 80}/`;
+    box.classList.remove("hidden");
+  }
+  function startGlobe() {
+    if (!cfg("globe.enabled", false)) return;
+    $("globe-btn").classList.remove("hidden");
+    $("globe-btn").addEventListener("click", globeToggle);
+    $("globe-close").addEventListener("click", globeToggle);
+  }
+
   // ---------- weather ------------------------------------------------------------------------
   function renderWeather(d) {
     const c = d.current || {};
@@ -857,7 +882,7 @@
   // The corner row is collapsed into one menu button. Click/tap it to open the row and click again to close it;
   // it also closes on Escape or when a full-screen panel opens, and the whole bar is hidden while one is open.
   function updateOverlayClass() {
-    const open = ["chron-full", "music-full", "scores-full", "takeover"].some((id) => { const el = $(id); return el && !el.classList.contains("hidden"); });
+    const open = ["chron-full", "globe-full", "music-full", "scores-full", "takeover"].some((id) => { const el = $(id); return el && !el.classList.contains("hidden"); });
     document.body.classList.toggle("overlay-open", open);
     if (open) $("corner-buttons").classList.remove("open");
   }
@@ -871,7 +896,7 @@
     const bar = $("corner-buttons"), menu = $("corner-menu");
     menu.addEventListener("click", () => { bar.classList.toggle("open"); show(); });
     const overlayWatch = new MutationObserver(updateOverlayClass);
-    for (const id of ["chron-full", "music-full", "scores-full", "takeover"]) { const el = $(id); if (el) overlayWatch.observe(el, { attributes: true, attributeFilter: ["class"] }); }
+    for (const id of ["chron-full", "globe-full", "music-full", "scores-full", "takeover"]) { const el = $(id); if (el) overlayWatch.observe(el, { attributes: true, attributeFilter: ["class"] }); }
     window.addEventListener("mousemove", show, { passive: true });
     window.addEventListener("touchstart", show, { passive: true });
     window.addEventListener("keydown", (e) => {
@@ -879,11 +904,12 @@
       if (e.key === "d" || e.key === "D") switchToDesktop();
       if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
       if ((e.key === "c" || e.key === "C") && chron.mode !== "off") chronToggleFull();
+      if ((e.key === "v" || e.key === "V") && cfg("globe.enabled", false)) globeToggle();
       if ((e.key === "m" || e.key === "M") && cfg("now_playing.provider", "off") === "spotify") musicToggle();
       if (e.key === "g" || e.key === "G") scoresToggle();
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
-      if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (takeover.shown) dismissTakeover(true); }
+      if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (globe.open) globeToggle(); if (takeover.shown) dismissTakeover(true); }
     });
     $("desktop-btn").addEventListener("click", switchToDesktop);
     $("takeover-dismiss").addEventListener("click", () => dismissTakeover(true));
@@ -946,6 +972,7 @@
     }
     startInputWatch();
     startChron();
+    startGlobe();
     startMusic();
     startScores();
     setTimeout(watchConfigVersion, 60000);

@@ -112,7 +112,7 @@ if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -qi "sta
 fi
 
 # ---- full-screen dashboard at login ---------------------------------------------------------
-chmod +x "$DIR/deploy/kiosk.sh" "$DIR/deploy/screen.sh"
+chmod +x "$DIR/deploy/kiosk.sh" "$DIR/deploy/screen.sh" "$DIR/deploy/globe.sh"
 START_AT_LOGIN="$(grep -E '^\s*start_at_login:\s*false' "$DIR/config.yaml" | head -1 || true)"
 if [ -z "$START_AT_LOGIN" ]; then
   echo "==> Opening the dashboard full-screen at login"
