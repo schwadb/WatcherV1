@@ -61,6 +61,17 @@
       </div>
     </div>
     <div class="today-line" id="weather-today">&nbsp;</div>
+    <div class="sun-row">
+      <svg class="sun-arc" id="sun-arc" viewBox="0 0 100 56" aria-hidden="true">
+        <path class="track" d="M8 46 A42 42 0 0 1 92 46"/>
+        <path class="lit" id="sun-arc-lit" d=""/>
+        <line class="horizon" x1="4" y1="46" x2="96" y2="46"/>
+        <circle class="body" id="sun-arc-dot" cx="8" cy="46" r="4"/>
+        <text class="t" x="1" y="55" text-anchor="start" id="sun-arc-rise"></text>
+        <text class="t" x="99" y="55" text-anchor="end" id="sun-arc-set"></text>
+      </svg>
+      <div class="rain-line" id="weather-rain"></div>
+    </div>
     <div class="chips" id="weather-chips"></div>
     <ul class="hourly" id="hourly"></ul>
     <ul class="forecast" id="forecast"></ul>

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
@@ -53,6 +54,67 @@ AQI_BANDS = [
 UV_BANDS = [(3, "Low"), (6, "Moderate"), (8, "High"), (11, "Very high"), (10**6, "Extreme")]
 
 
+NOWCAST_SLOTS = 48  # 12 hours of 15-minute slots
+SNOW_CODES = {71, 73, 75, 77, 85, 86}
+
+
+def rain_summary(times: list[str], precip: list[Any], codes: list[Any] | None, now: str, imperial: bool) -> dict[str, Any]:
+    """What the next hours hold, from 15-minute precipitation slots (local "YYYY-MM-DDTHH:MM" strings).
+
+    Returns {"kind": "starts"|"stops"|"later"|"ongoing"|"dry"|"", "at": time or None, "what": "rain"|"snow", "soon": bool}.
+    The page turns it into "Rain starts around 4:15 PM". "soon" = within two hours (worth highlighting).
+    """
+    threshold = 0.01 if imperial else 0.25
+    slot = now[:14] + f"{(int(now[14:16]) // 15) * 15:02d}" if len(now) >= 16 else now
+    rows = [(t, p, (codes or [None] * len(times))[i] if i < len(codes or []) else None) for i, (t, p) in enumerate(zip(times, precip)) if t >= slot]
+    if not rows:
+        return {"kind": "", "at": None, "what": "rain", "soon": False}
+
+    def wet(row):
+        try:
+            return float(row[1] or 0) >= threshold
+        except (TypeError, ValueError):
+            return False
+
+    def what(row):
+        try:
+            return "snow" if int(row[2]) in SNOW_CODES else "rain"
+        except (TypeError, ValueError):
+            return "rain"
+
+    if wet(rows[0]):
+        for row in rows[1:]:
+            if not wet(row):
+                return {"kind": "stops", "at": row[0], "what": what(rows[0]), "soon": True}
+        return {"kind": "ongoing", "at": None, "what": what(rows[0]), "soon": True}
+    for i, row in enumerate(rows[1:], start=1):
+        if wet(row):
+            soon = i <= 8
+            return {"kind": "starts" if soon else "later", "at": row[0], "what": what(row), "soon": soon}
+    return {"kind": "dry", "at": None, "what": "rain", "soon": False}
+
+
+def _naive(value: Any) -> datetime | None:
+    try:
+        return datetime.strptime(str(value)[:16], "%Y-%m-%dT%H:%M")
+    except (TypeError, ValueError):
+        return None
+
+
+def sun_progress(sunrise: Any, sunset: Any, now: Any, next_sunrise: Any = None) -> dict[str, Any]:
+    """Where the sun is in its day: progress 0..1 through daylight, or through the night after sunset."""
+    sr, ss, t = _naive(sunrise), _naive(sunset), _naive(now)
+    if not (sr and ss and t):
+        return {"sunrise": sunrise, "sunset": sunset, "progress": 0.0, "is_day": True}
+    if sr <= t < ss:
+        return {"sunrise": sunrise, "sunset": sunset, "progress": round((t - sr) / (ss - sr), 3), "is_day": True}
+    nxt = _naive(next_sunrise) or (sr + timedelta(days=1))
+    if t < sr:  # before dawn: the night began at yesterday's sunset
+        prev_ss = ss - timedelta(days=1)
+        return {"sunrise": sunrise, "sunset": sunset, "progress": round(max(0.0, (t - prev_ss) / (sr - prev_ss)), 3), "is_day": False}
+    return {"sunrise": sunrise, "sunset": sunset, "progress": round(min(1.0, (t - ss) / (nxt - ss)), 3), "is_day": False}
+
+
 def describe(code: Any) -> tuple[str, str]:
     try:
         return WMO.get(int(code), ("Unknown", "cloudy"))
@@ -75,6 +137,8 @@ def params(settings: Settings) -> dict[str, Any]:
         ),
         "hourly": "temperature_2m,weather_code,precipitation_probability,is_day",
         "forecast_hours": int(w.get("hourly_hours", 8)) + 2,
+        "minutely_15": "precipitation,weather_code",  # 15-minute nowcast (HRRR in the US) for "rain starts at…"
+        "forecast_minutely_15": NOWCAST_SLOTS,
         "daily": ",".join(
             [
                 "weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_probability_max",
@@ -183,8 +247,21 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
         if len(hourly) >= hours_wanted:
             break
 
+    minutely_raw = raw.get("minutely_15") or {}
+    now_local = cur.get("time") or ""
+    rain = rain_summary(minutely_raw.get("time") or [], minutely_raw.get("precipitation") or [], minutely_raw.get("weather_code"), now_local, settings.imperial)
+    nowcast = [
+        {"time": t, "precip": _get(minutely_raw, "precipitation", i)}
+        for i, t in enumerate(minutely_raw.get("time") or []) if t >= now_local[:14] + "00"
+    ][:8]
+    today = daily[0] if daily else {}
+    sun = sun_progress(today.get("sunrise"), today.get("sunset"), now_local, daily[1].get("sunrise") if len(daily) > 1 else None)
+
     return {
         "location": settings.cfg["location"]["name"],
+        "rain": rain,
+        "nowcast": nowcast,
+        "sun": sun,
         "units": {"temp": "°F" if settings.imperial else "°C", "wind": "mph" if settings.imperial else "km/h"},
         "current": {
             "time": cur.get("time"),

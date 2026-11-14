@@ -639,6 +639,30 @@
   }
 
   // ---------- weather ------------------------------------------------------------------------
+  /** The sun's place in the day on a half-circle (progress 0 = rise, 1 = set); at night the moon runs along the dim arc. */
+  function drawSunArc(sun) {
+    const svg = $("sun-arc");
+    if (!sun || !sun.sunrise) { svg.classList.add("hidden"); return; }
+    svg.classList.remove("hidden");
+    const p = Math.max(0, Math.min(1, Number(sun.progress) || 0));
+    const a = Math.PI * (1 - p), cx = 50, cy = 46, r = 42;
+    const x = cx + r * Math.cos(a), y = cy - r * Math.sin(a);
+    svg.classList.toggle("night", sun.is_day === false);
+    $("sun-arc-dot").setAttribute("cx", x.toFixed(1)); $("sun-arc-dot").setAttribute("cy", y.toFixed(1));
+    $("sun-arc-lit").setAttribute("d", p > 0.01 ? `M8 46 A42 42 0 ${p > 0.5 ? 1 : 0} 1 ${x.toFixed(1)} ${y.toFixed(1)}` : "");
+    $("sun-arc-rise").textContent = fmtLocalClock(sun.sunrise);
+    $("sun-arc-set").textContent = fmtLocalClock(sun.sunset);
+  }
+  function drawRainLine(rain) {
+    const el = $("weather-rain");
+    if (!rain || !rain.kind) { el.textContent = ""; el.classList.remove("soon"); return; }
+    const what = rain.what === "snow" ? "Snow" : "Rain";
+    const at = rain.at ? fmtLocalClock(rain.at) : "";
+    const text = { starts: `${what} starts around ${at}`, stops: `${what} stops around ${at}`, later: `${what} later, around ${at}`,
+      ongoing: `${what} for the next few hours`, dry: "Dry for the next 12 hours" }[rain.kind] || "";
+    el.innerHTML = text ? `${window.weatherIcon(rain.kind === "dry" ? "clear" : rain.what === "snow" ? "snow" : "rain", true)}<span>${escapeHTML(text)}</span>` : "";
+    el.classList.toggle("soon", !!rain.soon);
+  }
   function renderWeather(d) {
     const c = d.current || {};
     $("weather-place").textContent = d.location || "Weather";
@@ -655,8 +679,9 @@
       const ss = fmtLocalClock(t.sunset);
       $("weather-today").textContent = `Today ${t.hi ?? "--"}° / ${t.lo ?? "--"}° · ${t.label}${t.precip_pct ? ` · ${t.precip_pct}% rain` : ""}`;
     }
+    drawSunArc(d.sun || (t && t.sunrise ? { sunrise: t.sunrise, sunset: t.sunset, progress: 0, is_day: true } : null));
+    drawRainLine(d.rain);
     const chips = [];
-    if (t && t.sunrise) chips.push(`<span class="chip">☀ ${escapeHTML(fmtLocalClock(t.sunrise))} – ${escapeHTML(fmtLocalClock(t.sunset))}</span>`);
     if (t && t.uv) chips.push(`<span class="chip">UV ${escapeHTML(Math.round(t.uv.index))} ${escapeHTML(t.uv.label)}</span>`);
     if (d.air) chips.push(`<span class="chip"><i class="dot" style="background:${escapeHTML(d.air.color)}"></i>Air ${escapeHTML(d.air.aqi)} ${escapeHTML(d.air.label)}</span>`);
     if (d.moon) chips.push(`<span class="chip" title="${escapeHTML(d.moon.name)}">${window.moonIcon(d.moon.phase)}${escapeHTML(d.moon.illumination)}%</span>`);

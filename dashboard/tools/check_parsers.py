@@ -281,6 +281,24 @@ check("news: feed summary has title and first headline", (news.feed_summary((FX 
 check("news: HTML is not mistaken for a feed", news.feed_summary(b"<html><body>hi</body></html>") is None)
 check("news: catalogue groups all have feeds with http addresses", all(g["feeds"] and all(f["url"].startswith("http") for f in g["feeds"]) for g in news.FEED_CATALOG))
 
+# ---- weather nowcast + sun arc -------------------------------------------------------------------
+_t = [f"2026-11-14T{h:02d}:{m:02d}" for h in range(15, 20) for m in (0, 15, 30, 45)]
+_r = weather.rain_summary(_t, [0, 0, 0, 0.02, 0.05, 0.01, 0] + [0] * 13, None, "2026-11-14T15:07", True)
+check("weather: rain starting within two hours is 'starts' and soon", _r == {"kind": "starts", "at": "2026-11-14T15:45", "what": "rain", "soon": True})
+_r = weather.rain_summary(_t, [0.1, 0.1, 0.1, 0] + [0] * 16, None, "2026-11-14T15:00", True)
+check("weather: rain now that ends -> 'stops' at the first dry slot", _r["kind"] == "stops" and _r["at"] == "2026-11-14T15:45" and _r["soon"])
+_r = weather.rain_summary(_t, [0] * 20, None, "2026-11-14T15:00", True)
+check("weather: no rain in the window -> dry", _r["kind"] == "dry" and not _r["soon"])
+_r = weather.rain_summary(_t, [0] * 12 + [0.3] * 8, [3] * 12 + [73] * 8, "2026-11-14T15:00", False)
+check("weather: snow three hours out -> 'later' and not soon, named snow", _r["kind"] == "later" and _r["what"] == "snow" and not _r["soon"])
+check("weather: empty nowcast is harmless", weather.rain_summary([], [], None, "", True)["kind"] == "")
+_s = weather.sun_progress("2026-11-14T07:10", "2026-11-14T17:10", "2026-11-14T12:10")
+check("weather: sun progress at solar noon is 0.5 and daytime", _s["progress"] == 0.5 and _s["is_day"])
+_s = weather.sun_progress("2026-11-14T07:10", "2026-11-14T17:10", "2026-11-14T22:10", "2026-11-15T07:11")
+check("weather: evening progress runs through the night", not _s["is_day"] and 0.3 < _s["progress"] < 0.4)
+_s = weather.sun_progress("2026-11-14T07:10", "2026-11-14T17:10", "2026-11-14T03:00")
+check("weather: before dawn is night, near the end of it", not _s["is_day"] and _s["progress"] > 0.6)
+
 # ---- God's Eye View globe: header rewriting, node choice, service unit --------------------------
 from app import globe as _gl
 _hdrs = [("X-Frame-Options", "DENY"), ("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; img-src *"), ("Content-Type", "text/html"), ("Transfer-Encoding", "chunked"), ("Content-Length", "12")]

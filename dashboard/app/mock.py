@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .config import Settings
@@ -31,6 +31,17 @@ async def weather(settings: Settings) -> dict[str, Any]:
     base = now.replace(minute=0, second=0, microsecond=0)
     raw["hourly"]["time"] = [(base.timestamp() + i * 3600) for i in range(hours)]
     raw["hourly"]["time"] = [datetime.fromtimestamp(t).strftime("%Y-%m-%dT%H:%M") for t in raw["hourly"]["time"]]
+    # Daily block: today onwards, keeping the fixture's sunrise/sunset clock times.
+    day0 = now.date()
+    for i, _ in enumerate(raw["daily"]["time"]):
+        d = day0 + timedelta(days=i)
+        raw["daily"]["time"][i] = d.isoformat()
+        raw["daily"]["sunrise"][i] = f"{d.isoformat()}T{raw['daily']['sunrise'][i][11:16]}"
+        raw["daily"]["sunset"][i] = f"{d.isoformat()}T{raw['daily']['sunset'][i][11:16]}"
+    # 15-minute nowcast: dry for two slots, then rain for 90 minutes (so the page says "Rain starts around …").
+    slot = now.replace(minute=(now.minute // 15) * 15, second=0, microsecond=0)
+    times = [(slot + timedelta(minutes=15 * i)).strftime("%Y-%m-%dT%H:%M") for i in range(48)]
+    raw["minutely_15"] = {"time": times, "precipitation": [0.0, 0.0] + [0.03] * 6 + [0.0] * 40, "weather_code": [3, 3] + [61] * 6 + [3] * 40}
     return weather_src.parse(raw, settings, _load(settings, "air.json"))
 
 
