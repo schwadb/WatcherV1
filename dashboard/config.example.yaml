@@ -10,6 +10,8 @@ location:
 
 units: imperial               # imperial = °F / mph, metric = °C / km/h
 clock_24h: false
+clock:
+  style: led                  # classic | neon (glowing digits) | led (seven-segment) | hud (tactical) | rings (orbital)
 
 # Show or hide whole panels. Hidden panels give their space to their neighbors.
 panels:

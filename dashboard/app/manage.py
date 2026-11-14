@@ -331,6 +331,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "location": {k: c["location"].get(k) for k in ("name", "lat", "lon", "timezone")},
         "units": c.get("units", "imperial"),
         "clock_24h": bool(c.get("clock_24h", False)),
+        "clock": {"style": (c.get("clock") or {}).get("style") or DEFAULTS["clock"]["style"]},
         "panels": {**DEFAULTS["panels"], **(c.get("panels") or {})},
         "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts", "takeover", "takeover_minutes", "takeover_sound")},
         "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
@@ -378,6 +379,12 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         clean["units"] = "metric" if str(body["units"]).lower() == "metric" else "imperial"
     if "clock_24h" in body:
         clean["clock_24h"] = bool(body["clock_24h"])
+    if "clock" in body:
+        style = str((body["clock"] or {}).get("style", "")).strip().lower()
+        if style not in CLOCK_STYLES:
+            errors.append("clock.style must be one of: " + ", ".join(CLOCK_STYLES))
+        else:
+            clean["clock"] = {"style": style}
     if "panels" in body:
         clean["panels"] = {k: bool((body["panels"] or {}).get(k, True)) for k in DEFAULTS["panels"]}
     if "weather" in body:
@@ -789,6 +796,9 @@ async def globe_autostart(request: Request):
         raise HTTPException(422, str(exc))
     _globe_status["checked"] = 0.0
     return {"ok": True, "message": message, "autostart": True}
+
+
+CLOCK_STYLES = ("classic", "neon", "led", "hud", "rings")
 
 
 STOCK_TYPES_FIRST = ("Common Stock", "ETP", "ETF")

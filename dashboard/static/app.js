@@ -122,13 +122,37 @@
 
   // ---------- clock, countdowns, schedule --------------------------------------------------
   let lastDay = "";
+  const CLOCK_STYLES = ["classic", "neon", "led", "hud", "rings"];
+  function clockStyle() { const s = cfg("clock.style", "led"); return CLOCK_STYLES.includes(s) ? s : "led"; }
+  function applyClockStyle() {
+    const style = clockStyle();
+    for (const s of CLOCK_STYLES) document.body.classList.toggle("clock-" + s, s === style);
+    $("clock-label").textContent = `Local time · ${cfg("location.name", "")}`.replace(/ · $/, "");
+  }
+  function drawClockExtras(now, hour, minute, style) {
+    const sec = now.getSeconds();
+    if (style === "hud") { $("clock-bar").style.width = `${(sec / 60) * 100}%`; $("clock-seconds").textContent = ":" + String(sec).padStart(2, "0"); }
+    if (style === "rings") {
+      const h = hour12() ? hour % 12 : hour;
+      const set = (id, len, frac) => { $(id).style.strokeDashoffset = (len * (1 - Math.max(0, Math.min(1, frac)))).toFixed(1); };
+      set("ring-hour", 276.5, (h + minute / 60) / (hour12() ? 12 : 24)); set("ring-minute", 213.6, (minute + sec / 60) / 60); set("ring-second", 150.8, sec / 60);
+      $("ring-seconds").textContent = ":" + String(sec).padStart(2, "0");
+    }
+  }
   function startClock() {
     function draw() {
       const now = new Date();
+      const style = clockStyle();
       const get = fmtParts(now, { hour: "numeric", minute: "2-digit" });
-      $("clock-time").textContent = `${get("hour")}:${get("minute")}`;
+      const hourText = get("hour");
+      $("clock-time").textContent = `${hourText}:${get("minute")}`;
       $("clock-ampm").textContent = get("dayPeriod") || "";
-      $("clock-date").textContent = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz() }).format(now);
+      $("clock-ghost").textContent = hourText.length > 1 ? "88:88" : "8:88";
+      const dateOpts = style === "led" || style === "rings" ? { weekday: "short", day: "numeric", month: "short" } : { weekday: "long", month: "long", day: "numeric" };
+      let dateText = new Intl.DateTimeFormat("en-US", { ...dateOpts, timeZone: tz() }).format(now);
+      if (style === "led") dateText = dateText.replace(/,/g, "").toUpperCase();  // DSEG14 has no lowercase or commas
+      $("clock-date").textContent = dateText;
+      drawClockExtras(now, Number(get("hour")) || 0, Number(get("minute")) || 0, style);
       const day = todayISO();
       if (day !== lastDay) { lastDay = day; renderCountdowns(); }
       applySchedule();
@@ -953,6 +977,7 @@
     const every = (name, fallback) => Math.max(30, Math.min(Number(iv[name]) || fallback, fallback));
     applyPanels();
     showSetupNote();
+    applyClockStyle();
     startClock();
     renderCountdowns();
     startWidget("weather", every("weather", 300), renderWeather);

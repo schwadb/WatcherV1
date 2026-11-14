@@ -17,6 +17,7 @@ DEFAULTS: dict[str, Any] = {
     "location": {"name": "Plymouth, NE", "lat": 40.3039, "lon": -97.0012, "timezone": "America/Chicago"},
     "units": "imperial",
     "clock_24h": False,
+    "clock": {"style": "led"},  # classic | neon | led | hud | rings (Settings → Panels)
     "weather": {
         "refresh_minutes": 10,
         "forecast_days": 5,
@@ -160,6 +161,7 @@ class Settings:
             "location": c["location"],
             "units": "imperial" if self.imperial else "metric",
             "clock_24h": bool(c.get("clock_24h", False)),
+            "clock": {"style": (c.get("clock") or {}).get("style") or DEFAULTS["clock"]["style"]},
             "timezone": self.timezone,
             "intervals_seconds": {
                 "weather": self.minutes("weather") * 60,

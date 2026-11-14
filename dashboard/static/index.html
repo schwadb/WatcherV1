@@ -11,10 +11,19 @@
 <main class="board">
 
   <section class="panel clock" data-widget="clock">
+    <div class="hud-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="main">
-      <div class="time"><span id="clock-time">--:--</span><span id="clock-ampm" class="ampm"></span></div>
+      <div class="clock-label" id="clock-label"></div>
+      <div class="time"><span class="ghost" id="clock-ghost" aria-hidden="true">88:88</span><span id="clock-time">--:--</span><span id="clock-ampm" class="ampm"></span></div>
       <div id="clock-date" class="date">&nbsp;</div>
+      <div class="seconds-bar" aria-hidden="true"><b id="clock-bar"></b><small id="clock-seconds"></small></div>
     </div>
+    <svg class="rings" id="clock-rings" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="44" class="track"/><circle cx="50" cy="50" r="44" class="arc hour" id="ring-hour"/>
+      <circle cx="50" cy="50" r="34" class="track"/><circle cx="50" cy="50" r="34" class="arc minute" id="ring-minute"/>
+      <circle cx="50" cy="50" r="24" class="track"/><circle cx="50" cy="50" r="24" class="arc second" id="ring-second"/>
+      <text x="50" y="54" text-anchor="middle" id="ring-seconds"></text>
+    </svg>
     <div class="countdowns hidden" id="countdowns"></div>
   </section>
 

@@ -141,6 +141,10 @@ const foreign = await rawGet("/", { ...globeHeaders, "X-Forwarded-For": "9.9.9.9
 check("globe.localhost is refused for clients that are not this computer", foreign.status === 403, String(foreign.status));
 const notGlobe = await rawGet("/api/config", { Host: `localhost:${basePort}` });
 check("other host names are not proxied", notGlobe.status === 200 && notGlobe.body.includes("config_version"));
+const badClock = await api("/api/settings", { method: "PUT", json: { config: { clock: { style: "sideways" } } } });
+check("unknown clock style rejected", badClock.status === 422 && /clock.style/.test((badClock.data.errors || []).join(" ")), JSON.stringify(badClock.data));
+const ledClock = await api("/api/settings", { method: "PUT", json: { config: { clock: { style: "led" } } } });
+check("clock style saved and visible", ledClock.status === 200 && (await api("/api/config")).data.clock.style === "led");
 const sysinfo = await api("/api/system");
 check("system info", sysinfo.status === 200 && typeof sysinfo.data.disk_free_gb === "number" && sysinfo.data.version);
 // restore
@@ -222,6 +226,8 @@ const tvErrors = []; tv.on("pageerror", (e) => tvErrors.push(e.message));
 await tv.goto(base + "/", { waitUntil: "load" });
 await tv.waitForTimeout(2500); await tv.keyboard.press("Escape");
 check("Globe button is on the TV menu", await tv.$eval("#globe-btn", (el) => !el.classList.contains("hidden")));
+const clockInfo = await tv.evaluate(async () => { await document.fonts.ready; return { led: document.body.classList.contains("clock-led"), font: document.fonts.check("40px DSEG7"), time: document.getElementById("clock-time").textContent, ghost: document.getElementById("clock-ghost").textContent, date: document.getElementById("clock-date").textContent }; });
+check("LED clock style is on with its font loaded", clockInfo.led && clockInfo.font && /^\d{1,2}:\d{2}$/.test(clockInfo.time) && /^8?8:88$/.test(clockInfo.ghost) && /^[A-Z]{3} [A-Z]{3} \d{1,2}$/.test(clockInfo.date), JSON.stringify(clockInfo));
 await tv.keyboard.press("v"); await tv.waitForTimeout(2500);
 const globeFrame = tv.frames().find((f) => f.url().startsWith("http://globe.localhost:"));
 const globeShown = await tv.$eval("#globe-full", (el) => !el.classList.contains("hidden"));
@@ -235,7 +241,7 @@ stub.close();
 await new Promise((r) => setTimeout(r, 300));
 const down = await rawGet("/", globeHeaders);
 check("globe.localhost explains when the app is not running", down.status === 502 && down.body.includes("isn't running"), `${down.status}`);
-await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 } } } });
+await api("/api/settings", { method: "PUT", json: { config: { globe: { enabled: false, port: 4173 }, clock: { style: "led" } } } });
 // cleanup to-do + note
 for (const i of (await api("/api/todo")).data.data.items) await api(`/api/todo/${i.id}`, { method: "DELETE" });
 await api("/api/notes", { method: "PUT", json: { text: "" } });

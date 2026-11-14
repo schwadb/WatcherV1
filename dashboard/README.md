@@ -174,6 +174,11 @@ you click **☰** again or press Escape. Tap **Settings** (or press `S`) and the
 settings page opens on the TV with larger buttons, a
 **Back to dashboard** link, and an on-screen keyboard for touchscreens.
 
+**Clock style:** Settings → Panels → **Clock style** picks the look of the clock:
+seven-segment LED (the default, an amber cockpit readout), neon glow, tactical
+HUD with a seconds bar, orbital rings, or the plain classic text. The fonts are
+bundled, so it works without internet.
+
 **Hiding panels:** turn off anything you don't use under Settings → Panels. The
 neighbors expand to fill the space. Turn off the radar and the weather panel gets
 taller; turn off stocks and the photo gets the whole middle column.

@@ -192,6 +192,7 @@
     const f = forms.location;
     setField(f, "location.name", c.location.name); setField(f, "location.lat", c.location.lat); setField(f, "location.lon", c.location.lon);
     setField(f, "location.timezone", c.location.timezone); setField(f, "units", c.units); setField(f, "clock_24h", c.clock_24h);
+    setField(forms.panels, "clock.style", (c.clock || {}).style || "led");
     $("panel-checks").innerHTML = Object.keys(PANEL_LABELS).map((k) => `<label class="check"><input type="checkbox" name="panels.${k}" ${c.panels[k] !== false ? "checked" : ""}> ${esc(PANEL_LABELS[k])}</label>`).join("");
     const w = forms.weather;
     setField(w, "weather.hourly_hours", c.weather.hourly_hours); setField(w, "weather.forecast_days", c.weather.forecast_days);
@@ -229,7 +230,7 @@
     const g = (n) => getField(form, n);
     switch (section) {
       case "location": return { config: { location: { name: g("location.name"), lat: Number(g("location.lat")), lon: Number(g("location.lon")), timezone: g("location.timezone") }, units: g("units"), clock_24h: g("clock_24h") } };
-      case "panels": return { config: { panels: Object.fromEntries(Object.keys(PANEL_LABELS).map((k) => [k, g("panels." + k)])) } };
+      case "panels": return { config: { panels: Object.fromEntries(Object.keys(PANEL_LABELS).map((k) => [k, g("panels." + k)])), clock: { style: g("clock.style") } } };
       case "weather": return { config: { weather: { hourly_hours: Number(g("weather.hourly_hours")), forecast_days: Number(g("weather.forecast_days")), air_quality: g("weather.air_quality"), alerts: g("weather.alerts"), takeover: g("weather.takeover"), takeover_minutes: Number(g("weather.takeover_minutes")), takeover_sound: g("weather.takeover_sound") }, radar: { zoom: Number(g("radar.zoom")), provider: g("radar.provider") } } };
       case "chronalert": return { config: { chronalert: { mode: g("chronalert.mode"), open_mode: g("chronalert.open_mode"), url: g("chronalert.url"), show_seconds: Number(g("chronalert.show_seconds")), photo_seconds: Number(g("chronalert.photo_seconds")), app_path: g("chronalert.app_path") } } };
       case "globe": return { config: { globe: { enabled: g("globe.enabled"), port: Number(g("globe.port")) } } };

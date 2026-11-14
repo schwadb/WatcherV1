@@ -15,6 +15,18 @@
   --gap: 1rem;
 }
 
+/* Fonts for the clock styles, bundled in static/fonts (see LICENSES.md there) */
+@font-face { font-family: "DSEG7"; src: url("/static/fonts/DSEG7Classic-Regular.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DSEG14"; src: url("/static/fonts/DSEG14Classic-Regular.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Orbitron"; font-weight: 500; src: url("/static/fonts/Orbitron_500.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Orbitron"; font-weight: 700; src: url("/static/fonts/Orbitron_700.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Rajdhani"; font-weight: 300; src: url("/static/fonts/Rajdhani_300.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Rajdhani"; font-weight: 500; src: url("/static/fonts/Rajdhani_500.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Rajdhani"; font-weight: 600; src: url("/static/fonts/Rajdhani_600.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Exo 2"; font-weight: 200; src: url("/static/fonts/Exo_2_200.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Exo 2"; font-weight: 600; src: url("/static/fonts/Exo_2_600.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Share Tech Mono"; src: url("/static/fonts/Share_Tech_Mono_400.woff2") format("woff2"); font-display: swap; }
+
 html { font-size: 0.8333vw; }              /* 16px at 1920 wide */
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background: var(--bg); }
@@ -81,6 +93,48 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 .clock .time { font-size: 7rem; font-weight: 300; line-height: 1; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 0.6rem; }
 .clock .ampm { font-size: 2rem; font-weight: 500; color: var(--text-2); }
 .clock .date { margin-top: 0.75rem; font-size: 1.6rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Clock styles (Settings → Panels → Clock style). "classic" is the plain look above; the others add a body class. */
+.clock .main { position: relative; min-width: 0; }
+.clock .time { position: relative; }
+.clock .ghost, .clock .clock-label, .clock .seconds-bar, .clock .hud-frame, .clock .rings { display: none; }
+/* neon: Orbitron with a cyan glow and faint scanlines */
+body.clock-neon .clock { background: radial-gradient(ellipse at 20% 50%, rgba(25,198,255,0.10), transparent 60%), repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 4px), var(--panel); }
+body.clock-neon .clock .time { font-family: "Orbitron", sans-serif; font-weight: 700; font-size: 5.3rem; letter-spacing: 0.02em; color: #dffbff; text-shadow: 0 0 6px #7ff1ff, 0 0 18px #19c6ff, 0 0 42px rgba(25,198,255,0.55); }
+body.clock-neon .clock .ampm { font-family: "Orbitron", sans-serif; font-weight: 500; font-size: 1.6rem; color: #7ff1ff; text-shadow: 0 0 10px #19c6ff; }
+body.clock-neon .clock .date { font-family: "Orbitron", sans-serif; font-weight: 500; font-size: 1.15rem; letter-spacing: 0.18em; text-transform: uppercase; color: #8fd8ea; }
+/* led: seven-segment digits over dim "ghost" segments, like a cockpit readout */
+body.clock-led .clock { background: linear-gradient(180deg, #0e1115, #070809); border-color: rgba(255,138,61,0.18); }
+body.clock-led .clock .time { font-family: "DSEG7", monospace; font-weight: 400; font-size: 5.5rem; letter-spacing: 0.04em; line-height: 1; color: #ff8a3d; text-shadow: 0 0 8px rgba(255,138,61,0.9), 0 0 22px rgba(255,90,20,0.5); }
+body.clock-led .clock .ghost { display: inline; position: absolute; left: 0; top: 0; color: rgba(255,122,47,0.13); text-shadow: none; }
+body.clock-led .clock .ampm { font-family: "DSEG14", monospace; font-weight: 400; font-size: 1.35rem; color: #ff8a3d; text-shadow: 0 0 8px rgba(255,138,61,0.8); margin-left: 0.3rem; }
+body.clock-led .clock .date { font-family: "DSEG14", monospace; font-size: 1.35rem; letter-spacing: 0.08em; color: #ffb48a; text-shadow: 0 0 6px rgba(255,138,61,0.5); margin-top: 0.9rem; }
+body.clock-led .countdowns div, body.clock-led .countdowns .cd { background: rgba(255,138,61,0.06); }
+/* hud: thin tall digits, corner brackets, a seconds bar */
+body.clock-hud .clock .hud-frame { display: block; position: absolute; inset: 0.75rem; pointer-events: none; }
+body.clock-hud .clock .hud-frame i { position: absolute; width: 1.4rem; height: 1.4rem; border: 2px solid var(--accent); opacity: 0.8; }
+body.clock-hud .clock .hud-frame i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+body.clock-hud .clock .hud-frame i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+body.clock-hud .clock .hud-frame i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+body.clock-hud .clock .hud-frame i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+body.clock-hud .clock .clock-label { display: block; font-family: "Rajdhani", sans-serif; font-weight: 600; font-size: 0.8rem; letter-spacing: 0.32em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.clock-hud .clock .time { font-family: "Rajdhani", sans-serif; font-weight: 300; font-size: 6.2rem; line-height: 0.95; letter-spacing: -0.01em; color: #eef6ff; }
+body.clock-hud .clock .ampm { font-family: "Rajdhani", sans-serif; font-weight: 500; font-size: 1.9rem; }
+body.clock-hud .clock .date { font-family: "Rajdhani", sans-serif; font-weight: 500; font-size: 1.35rem; letter-spacing: 0.22em; text-transform: uppercase; margin-top: 0.2rem; }
+body.clock-hud .clock .seconds-bar { display: block; position: relative; margin-top: 0.7rem; height: 3px; width: 92%; background: rgba(90,169,255,0.18); }
+body.clock-hud .clock .seconds-bar b { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); box-shadow: 0 0 8px var(--accent); transition: width 0.9s linear; }
+body.clock-hud .clock .seconds-bar small { position: absolute; right: 0; top: -1.15rem; font-family: "Share Tech Mono", monospace; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.1em; }
+/* rings: light digits plus hour / minute / second progress rings */
+body.clock-rings .clock { grid-template-columns: 1fr auto auto; }
+body.clock-rings .clock .time { font-family: "Exo 2", sans-serif; font-weight: 200; font-size: 4.2rem; color: #f4f8ff; }
+body.clock-rings .clock .ampm { font-family: "Exo 2", sans-serif; font-weight: 600; font-size: 1.6rem; color: var(--accent); letter-spacing: 0.1em; }
+body.clock-rings .clock .date { font-family: "Exo 2", sans-serif; font-weight: 600; font-size: 1.1rem; letter-spacing: 0.2em; text-transform: uppercase; }
+body.clock-rings .clock .rings { display: block; width: 8.5rem; height: 8.5rem; }
+.clock .rings .track { fill: none; stroke: rgba(255,255,255,0.07); stroke-width: 5; }
+.clock .rings .arc { fill: none; stroke-width: 5; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 0.9s linear; }
+.clock .rings .hour { stroke: var(--accent); stroke-dasharray: 276.5; stroke-dashoffset: 276.5; }
+.clock .rings .minute { stroke: var(--up); stroke-dasharray: 213.6; stroke-dashoffset: 213.6; }
+.clock .rings .second { stroke: var(--warn); stroke-dasharray: 150.8; stroke-dashoffset: 150.8; }
+.clock .rings text { font-family: "Exo 2", sans-serif; font-weight: 600; font-size: 11px; fill: var(--text-2); }
 .countdowns { display: flex; flex-direction: column; gap: 0.35rem; justify-content: safe center; max-width: 14rem; align-self: stretch; min-height: 0; overflow-y: auto; scrollbar-width: none; transition: opacity 0.3s; }
 .countdowns::-webkit-scrollbar { display: none; }
 .countdowns.rewind { opacity: 0; }
