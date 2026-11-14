@@ -107,6 +107,8 @@ async def sports(settings: Settings) -> dict[str, Any]:
         now=datetime(2026, 10, 1, tzinfo=timezone.utc),
     )
     team["league"] = "football/college-football"
+    if team.get("next"):  # kick off a few hours from now, so the tile's countdown can be seen
+        team["next"] = dict(team["next"], date=(datetime.now(timezone.utc) + timedelta(hours=3, minutes=17)).strftime("%Y-%m-%dT%H:%MZ"), time_tbd=False)
     # A second, made-up team so the rotating tile can be seen without network access.
     other = dict(team, name="Kansas City Chiefs", short="Chiefs", abbr="KC", color="#e31837", logo="", league="football/nfl",
                  record="3-1", standing="1st in AFC West",

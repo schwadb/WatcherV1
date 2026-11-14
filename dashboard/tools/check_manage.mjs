@@ -269,6 +269,10 @@ const frameText = globeFrame ? await globeFrame.textContent("body").catch(() => 
 check("V shows the globe frame from globe.localhost with the app inside", globeShown && globeFrame && frameText.includes("stub"), `${globeShown} ${globeFrame && globeFrame.url()} ${frameText}`);
 await tv.keyboard.press("Escape"); await tv.waitForTimeout(400);
 check("Escape closes the globe and blanks its frame", await tv.$eval("#globe-full", (el) => el.classList.contains("hidden")) && (await tv.$eval("#globe-full-frame", (el) => el.getAttribute("src"))) === "about:blank");
+const kickLive = await tv.evaluate(() => ({ team: (document.querySelector("#sports .team") || {}).textContent, kick: !!document.querySelector("#sports .kick") }));
+await tv.waitForTimeout(25500);  // the live team gets a double turn (24 s), then the tile rotates
+const kickNext = await tv.evaluate(() => ({ team: (document.querySelector("#sports .team") || {}).textContent, kick: (document.querySelector("#sports .kick") || {}).textContent }));
+check("sports tile: no countdown while live, kickoff countdown for the next game", kickLive.team === "Chiefs" && !kickLive.kick && kickNext.team === "Nebraska" && /^Kickoffin 3 h 1\d m$/.test(kickNext.kick || ""), JSON.stringify({ kickLive, kickNext }));
 check("no TV page errors", tvErrors.length === 0, tvErrors.join(" | "));
 await browser.close();
 stub.close();

@@ -328,6 +328,17 @@ body.no-photos .quotes { grid-template-columns: repeat(3, 1fr); }
 .sports .line .k { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .sports .line .w { color: var(--up); font-weight: 600; }
 .sports .line .l { color: var(--down); font-weight: 600; }
+/* countdown to the next game, in the clock's own style */
+.sports .kick { grid-template-columns: minmax(3rem, auto) 1fr; }
+.sports .kick .v { font-size: 1.4rem; font-weight: 600; line-height: 1.1; color: var(--team, var(--accent)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.clock-led .sports .kick .v { font-family: "DSEG14", monospace; font-weight: 400; font-size: 1.15rem; color: #ff8a3d; text-shadow: 0 0 6px rgba(255,138,61,0.7); text-transform: uppercase; letter-spacing: 0.04em; }
+body.clock-led .tile.sports { border-color: rgba(255,138,61,0.3); border-left-color: var(--team, #ff8a3d); background: linear-gradient(180deg, rgba(255,138,61,0.05), rgba(255,255,255,0.02)); }
+body.clock-neon .sports .kick .v { font-family: "Orbitron", sans-serif; font-weight: 500; font-size: 1.05rem; color: #7ff1ff; text-shadow: 0 0 8px #19c6ff; letter-spacing: 0.04em; }
+body.clock-neon .tile.sports { border-color: rgba(25,198,255,0.35); border-left-color: var(--team, #19c6ff); }
+body.clock-hud .sports .kick .v { font-family: "Rajdhani", sans-serif; font-weight: 600; font-size: 1.45rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+body.clock-hud .tile.sports { border-color: rgba(90,169,255,0.4); border-left-color: var(--team, var(--accent)); border-radius: 0.3rem; }
+body.clock-rings .sports .kick .v { font-family: "Exo 2", sans-serif; font-weight: 600; font-size: 1.35rem; letter-spacing: 0.06em; color: var(--accent); }
+body.night .sports .kick .v { text-shadow: none; }
 .sports .dots { display: flex; gap: 0.35rem; margin-top: 0.6rem; }
 .sports .dots i { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--edge); }
 .sports .dots i.on { background: var(--team, var(--accent)); }

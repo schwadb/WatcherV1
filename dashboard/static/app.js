@@ -258,6 +258,7 @@
       const day = todayISO();
       if (day !== lastDay) { lastDay = day; renderCountdowns(); }
       renderNext(false);
+      if (now.getSeconds() === 0) refreshKickoff();
       applySchedule();
       checkDailyReload(now);
     }
@@ -829,6 +830,24 @@
     drawTeam();
     sportsState.timer = setTimeout(stepTeam, teamTurnMs());
   }
+  const START_WORD = { football: "Kickoff", soccer: "Kickoff", basketball: "Tip-off", baseball: "First pitch", hockey: "Puck drop", volleyball: "First serve" };
+  /** The value next to the "Kickoff" label: "in 3 h 12 m", "now", "Today 7:30 PM", "Tomorrow 2:30 PM", "Sat 2:30 PM", "Nov 28 · 2:30 PM" */
+  function kickoffValue(iso) {
+    const when = new Date(iso), now = Date.now(), diff = when.getTime() - now;
+    if (diff <= 60000) return diff > -3 * 3600000 ? "now" : "";
+    if (diff < 12 * 3600000) return untilText(diff);
+    const day = dayWord(when);
+    if (!day) return `Today ${fmtShortTime(when)}`;
+    if (day === "Tomorrow" || diff < 7 * 86400000) return `${day} ${fmtShortTime(when)}`;
+    return `${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: tz() }).format(when)} · ${fmtShortTime(when)}`;
+  }
+  function kickoffWord(league) { return START_WORD[(league || "").split("/")[0]] || "Starts"; }
+  function refreshKickoff() {  // once a minute, without redrawing the whole tile
+    const el = document.querySelector("#sports .kick");
+    if (!el) return;
+    const text = kickoffValue(el.dataset.when);
+    if (text) el.querySelector(".v").textContent = text; else el.remove();
+  }
   function drawTeam() {
     const teams = sportsState.teams;
     const t = teams[sportsState.index];
@@ -840,6 +859,10 @@
       lines.push(`<div class="line"><span class="k">Live</span><span class="live">${t.live.home ? "vs" : "at"} ${escapeHTML(t.live.opponent)} · ${score} · ${escapeHTML(t.live.clock || "")}</span></div>`);
     } else if (t.next) {
       lines.push(`<div class="line"><span class="k">Next</span><span>${t.next.home ? "vs" : "at"} ${escapeHTML(t.next.opponent)} · ${escapeHTML(gameWhen(t.next))}${t.next.tv ? " · " + escapeHTML(t.next.tv) : ""}</span></div>`);
+    }
+    if (!t.live && t.next && t.next.date && !t.next.time_tbd) {
+      const v = kickoffValue(t.next.date);
+      if (v) lines.push(`<div class="line kick" data-when="${escapeHTML(t.next.date)}"><span class="k">${escapeHTML(kickoffWord(t.league))}</span><span class="v">${escapeHTML(v)}</span></div>`);
     }
     if (t.last) {
       lines.push(`<div class="line"><span class="k">Last</span><span><span class="${t.last.won ? "w" : "l"}">${escapeHTML(t.last.result)}</span> ${t.last.home ? "vs" : "at"} ${escapeHTML(t.last.opponent)}</span></div>`);
