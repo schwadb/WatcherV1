@@ -202,7 +202,7 @@
     const countdownShown = cdBox && !cdBox.classList.contains("hidden");  // already on the right: don't repeat it
     const chips = [nextGameChip(now), nextEventChip(now), countdownShown ? "" : nextCountdownChip()].filter(Boolean);
     nextCycle.chips = chips;
-    el.classList.toggle("hidden", chips.length === 0);
+    el.classList.toggle("blank", chips.length === 0);  // keeps its space, so the clock never moves
     el.innerHTML = chips.join('<span class="sep">·</span>');
     el.classList.remove("wrap");
     const fits = el.scrollWidth <= el.clientWidth + 1;
