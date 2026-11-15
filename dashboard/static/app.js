@@ -204,11 +204,21 @@
     nextCycle.chips = chips;
     el.classList.toggle("hidden", chips.length === 0);
     el.innerHTML = chips.join('<span class="sep">·</span>');
+    el.classList.remove("wrap");
     const fits = el.scrollWidth <= el.clientWidth + 1;
-    if (fits || chips.length < 2) { clearTimeout(nextCycle.timer); nextCycle.timer = null; el.classList.remove("fade"); return; }
+    if (fits || chips.length < 2) {
+      clearTimeout(nextCycle.timer); nextCycle.timer = null; el.classList.remove("fade");
+      if (!fits) el.classList.add("wrap");  // one long item: let it run onto a second line
+      return;
+    }
     if (nextCycle.index >= chips.length) nextCycle.index = 0;
-    el.innerHTML = chips[nextCycle.index];
+    showNextChip(el, chips[nextCycle.index]);
     if (!nextCycle.timer) nextCycle.timer = setTimeout(stepNext, 6000);
+  }
+  function showNextChip(el, html) {
+    el.classList.remove("wrap");
+    el.innerHTML = html;
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add("wrap");  // too long for one line: two lines, whole words
   }
   function stepNext() {
     const el = $("clock-next");
@@ -217,7 +227,7 @@
     el.classList.add("fade");
     setTimeout(() => {
       nextCycle.index = (nextCycle.index + 1) % nextCycle.chips.length;
-      el.innerHTML = nextCycle.chips[nextCycle.index];
+      showNextChip(el, nextCycle.chips[nextCycle.index]);
       el.classList.remove("fade");
       nextCycle.timer = setTimeout(stepNext, 6000);
     }, 320);

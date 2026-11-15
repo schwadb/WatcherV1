@@ -276,6 +276,8 @@ await tv.waitForTimeout(100);
 const turn1 = await tv.evaluate(() => { const el = document.getElementById("clock-next"); return el.textContent; });
 await tv.waitForTimeout(7000);
 const turn2 = await tv.evaluate(() => document.getElementById("clock-next").textContent);
+const wrapInfo = await tv.evaluate(() => { const el = document.getElementById("clock-next"); return { wrap: el.classList.contains("wrap"), lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).fontSize) / 1.2), clipped: el.scrollHeight > el.clientHeight + 1 }; });
+check("a long item runs onto a second line instead of being cut off", !wrapInfo.wrap || (wrapInfo.lines === 2 && !wrapInfo.clipped), JSON.stringify(wrapInfo));
 check("a squeezed what's-next line shows one item at a time and takes turns", !turn1.includes("·") && !turn2.includes("·") && turn1 !== turn2 && turn1.length > 0 && turn2.length > 0, JSON.stringify({ turn1, turn2 }));
 check("health dot reports the feeds", /health-dot (good|warn|bad)/.test(nextInfo.dot) && nextInfo.title.length > 0, JSON.stringify(nextInfo));
 const pkgInfo = await tv.evaluate(() => ({ hidden: document.getElementById("packages").classList.contains("hidden"), text: document.getElementById("packages").textContent, hasTodo: document.body.classList.contains("has-todo") }));

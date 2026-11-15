@@ -97,6 +97,7 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 /* "What's next": one line under the date — next event, nearest countdown, next game */
 .clock .clock-next { margin-top: 0.45rem; font-size: 1.02rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.3s; }
 .clock .clock-next.fade { opacity: 0; }
+.clock .clock-next.wrap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
 .clock .clock-next .sep { color: var(--muted); margin: 0 0.4rem; }
 .clock .clock-next .live { color: var(--down); font-weight: 600; }
 .clock .clock-next b { color: var(--text); font-weight: 600; }
