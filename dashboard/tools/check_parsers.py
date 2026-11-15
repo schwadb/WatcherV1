@@ -289,7 +289,9 @@ _txt = _cf.read_text()
 check("config: a clock time is written quoted so YAML keeps it a string", '"22:30"' in _txt)
 import os as _os2
 _os2.environ["DASHBOARD_CONFIG"] = str(_cf); _cf.write_text(_txt.replace('"22:30"', "22:30"))
-check("config: an unquoted clock time still loads as 22:30", load_settings().cfg["display"]["night_from"] == "22:30")
+_ls = load_settings()
+check("config: an unquoted clock time still loads as 22:30", _ls.cfg["display"]["night_from"] == "22:30")
+check("config: an existing config file raises no 'not found' warning", not any("not found" in e for e in _ls.errors), str(_ls.errors))
 del _os2.environ["DASHBOARD_CONFIG"]
 
 # ---- remote access: Cloudflare Tunnel ------------------------------------------------------------

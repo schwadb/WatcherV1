@@ -222,15 +222,15 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
     if source is not None:
         with open(source, encoding="utf-8") as fh:
             user_cfg = yaml.safe_load(fh) or {}
+        if source != path:
+            errors.append(f"{path.name} not found; using {source.name} (the settings page will create {path.name})")
+    else:
+        errors.append(f"config file not found: {path} (using defaults)")
     # A clock time written without quotes (22:30) comes back from YAML as the number 1350; turn it back.
     for key in ("reload_at", "screen_off", "screen_on", "dim_from", "night_from", "night_to"):
         v = (user_cfg.get("display") or {}).get(key)
         if isinstance(v, int) and not isinstance(v, bool) and 0 <= v < 1440:
             user_cfg["display"][key] = f"{v // 60:02d}:{v % 60:02d}"
-        if source != path:
-            errors.append(f"{path.name} not found; using {source.name} (the settings page will create {path.name})")
-    else:
-        errors.append(f"config file not found: {path} (using defaults)")
     merged = _merge(DEFAULTS, user_cfg)
     cfg = _expand_env(merged)
     for entry in cfg.get("countdowns") or []:
