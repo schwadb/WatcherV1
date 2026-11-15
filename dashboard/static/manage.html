@@ -422,6 +422,26 @@
       </div>
       <pre id="action-log" class="log hidden"></pre>
     </div>
+    <form class="card" id="tunnel-form">
+      <h2>Remote access (Cloudflare Tunnel)</h2>
+      <p class="muted">Open this page from anywhere at a real https address, with no port forwarding. Cloudflare does the hard part; this button does the rest.</p>
+      <ol class="steps">
+        <li>Make a free account at <b>cloudflare.com</b> and add a domain you own (it walks you through pointing the domain at Cloudflare).</li>
+        <li>In Cloudflare, open <b>Zero Trust → Networks → Tunnels → Create a tunnel</b> (Cloudflared), give it a name, and copy the long token from the install command it shows (the part after <code>--token</code>).</li>
+        <li>On the tunnel's <b>Public hostname</b> tab add a name such as <b>board.yourdomain.com</b> with service <b>HTTP</b> and URL <b>localhost:<span id="tunnel-port">8080</span></b>.</li>
+        <li>Paste the token and that name here and press <b>Install &amp; start</b>.</li>
+      </ol>
+      <p class="status" id="tunnel-status">Checking…</p>
+      <label>Tunnel token <small class="hint" data-secret="CLOUDFLARE_TUNNEL_TOKEN"></small><input id="tunnel-token" type="text" autocomplete="off" placeholder="eyJhIjoi… (leave blank to keep the saved one)"></label>
+      <label>Public name <input id="tunnel-hostname" type="text" autocomplete="off" placeholder="board.yourdomain.com"></label>
+      <div class="row">
+        <button type="submit" id="tunnel-install">Install &amp; start the tunnel</button>
+        <button type="button" id="tunnel-autostart">Stop starting the tunnel</button>
+        <button type="button" class="ghost" id="tunnel-recheck">Check again</button>
+      </div>
+      <pre class="log hidden" id="tunnel-log"></pre>
+      <p class="muted">Before using it from away: set a <b>Settings page PIN</b> (Keys &amp; links). Better still, in Cloudflare add an <b>Access</b> application for the name above with a policy that emails you a one-time code, so only your family can even see the page. The Globe button only works on the TV itself.</p>
+    </form>
   </section>
 </main>
 

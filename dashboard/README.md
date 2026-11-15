@@ -162,6 +162,7 @@ computer's name or IP address) from any device on your Wi-Fi.
 | **Photos** | Add photos from your phone, see what's on the dashboard, delete |
 | **To-do** | A shared household list. Add, check off, delete. Checked items disappear the next day. |
 | **Notes** | A short standing note, and **Post a message to the TV**: a banner with your name that clears itself (until midnight, 1 hour, 4 hours, or until removed) |
+| **System** (Remote access) | Reach the dashboard from anywhere through a Cloudflare Tunnel: paste the tunnel token, press one button |
 | **Packages** | Paste a tracking number; the TV shows "Out for delivery · Arriving today" under the to-do list (needs a free 17TRACK key) |
 | **Settings** | Every setting: location by ZIP code, units, 24-hour clock, which panels to show, weather options, radar zoom, calendars with colors, stocks (search a company name or tap a quick pick), your sports teams (search by name), countdowns, news feeds (tap one from the built-in list, or paste any website address and the dashboard finds its feed), photo speed, screen schedule, and your keys and links |
 | **Music** | Connect Spotify so the dashboard shows what's playing |
@@ -430,6 +431,43 @@ OpenStreetMap's Nominatim service, a few new spots per scan, and are cached;
 screenshots, scanned prints and photos sent through chat apps usually have no
 date or place, and simply get no caption.
 
+### Reaching the dashboard from away from home
+
+The dashboard only listens on your home network. To open the phone page (or
+the board itself) from anywhere, it can run a **Cloudflare Tunnel**: Cloudflare
+gives it a real `https://` name on a domain you own, nothing is opened on your
+router, and you can put a login page in front of it. It is free.
+
+On Cloudflare's side (once, in a browser):
+
+1. Make a free account at cloudflare.com and add a domain you own. Cloudflare
+   walks you through pointing the domain's nameservers at it (a few dollars a
+   year buys a domain there too).
+2. Open **Zero Trust → Networks → Tunnels → Create a tunnel**, choose
+   *Cloudflared*, give it a name. On the next screen copy the long token from
+   the install command it shows (everything after `--token`).
+3. On the tunnel's **Public hostname** tab add a name such as
+   `board.yourdomain.com` with service **HTTP** and URL `localhost:8080` (the
+   dashboard's port).
+
+On the phone: **System → Remote access**, paste the token and the name, press
+**Install & start the tunnel**. The dashboard downloads `cloudflared` into its
+own folder, starts it as a service that survives reboots, and the status line
+turns to *Connected* within a minute. From then on
+`https://board.yourdomain.com/manage` works from anywhere; the TV page is at
+the plain name.
+
+Before you rely on it:
+
+- **Set a PIN** (Settings → Keys & links). Without one, the dashboard refuses
+  any change that arrives through the tunnel.
+- **Add a login page** (recommended): in Cloudflare, **Zero Trust → Access →
+  Applications → Add an application → Self-hosted**, the same name, and a
+  policy that allows your family's email addresses. Visitors then get a
+  one-time code by email before they see anything at all.
+- The **Globe** button only works on the TV itself; everything else, including
+  posting messages, packages and photo uploads, works remotely.
+
 ### Countdowns
 
 Settings → Countdowns: a title, a date and an optional emoji. The clock panel
@@ -548,6 +586,13 @@ the Music tab removes the connection.
   carrier's site. "Add your 17TRACK API key first" means the key is missing
   under Settings → Keys & links; a 17TRACK error about quota means the free
   allowance is used up.
+- **Remote access says "Running but not connected":** the token is wrong or
+  was pasted with a line break; copy it again from Cloudflare and press
+  Install & start once more. `journalctl --user -u tunnel -n 30` on the
+  computer shows cloudflared's own messages.
+- **Remote access works but every change is refused:** set a PIN under
+  Settings → Keys & links; the dashboard will not accept changes from outside
+  the house without one.
 - **Photo captions never show a place:** the computer could not reach
   OpenStreetMap when the photo was scanned; it tries again on the next scan.
   Photos without a recorded date or place (screenshots, scans, pictures sent

@@ -292,6 +292,29 @@ _os2.environ["DASHBOARD_CONFIG"] = str(_cf); _cf.write_text(_txt.replace('"22:30
 check("config: an unquoted clock time still loads as 22:30", load_settings().cfg["display"]["night_from"] == "22:30")
 del _os2.environ["DASHBOARD_CONFIG"]
 
+# ---- remote access: Cloudflare Tunnel ------------------------------------------------------------
+from app import tunnel as _tn
+_tu = _tn.service_text("eyJTOKEN", "/opt/bin/cloudflared")
+check("tunnel: unit runs cloudflared with the token in its environment and a local status page", "ExecStart=/opt/bin/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run" in _tu and "Environment=TUNNEL_TOKEN=eyJTOKEN" in _tu and "Restart=always" in _tu)
+check("tunnel: hostnames are cleaned", _tn.valid_hostname(" https://Board.Example.com/manage ") == "board.example.com" and _tn.valid_hostname("") == "")
+try:
+    _tn.valid_hostname("not a host"); check("tunnel: a bad hostname is refused", False)
+except ValueError:
+    check("tunnel: a bad hostname is refused", True)
+_th = Path(_tmp.mkdtemp())
+try:
+    _tn.start("tok", _th); check("tunnel: start refused before cloudflared is installed", False)
+except ValueError as exc:
+    check("tunnel: start refused before cloudflared is installed", "not installed" in str(exc))
+(_th / ".local/share/watcher-dashboard/bin").mkdir(parents=True); (_th / ".local/share/watcher-dashboard/bin/cloudflared").write_text("#!/bin/sh\n"); (_th / ".local/share/watcher-dashboard/bin/cloudflared").chmod(0o755)
+_os.environ["DASHBOARD_SYSTEMCTL_FAKE"] = str(_th / "systemctl.log")
+_tn.start("eyJTOKEN", _th)
+_unit = _th / ".config/systemd/user/tunnel.service"
+check("tunnel: start writes a private unit (0600) with the token and enables it", _unit.exists() and (_unit.stat().st_mode & 0o777) == 0o600 and "TUNNEL_TOKEN=eyJTOKEN" in _unit.read_text() and "enable --now tunnel" in (_th / "systemctl.log").read_text())
+_tn.remove(_th)
+check("tunnel: remove deletes the unit", not _unit.exists())
+del _os.environ["DASHBOARD_SYSTEMCTL_FAKE"]
+
 # ---- photo captions: EXIF date/place, "on this day" ------------------------------------------------
 from app.sources import photos as _ph
 from PIL import Image as _Img

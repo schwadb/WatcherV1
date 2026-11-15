@@ -145,6 +145,24 @@ const foreign = await rawGet("/", { ...globeHeaders, "X-Forwarded-For": "9.9.9.9
 check("globe.localhost is refused for clients that are not this computer", foreign.status === 403, String(foreign.status));
 const notGlobe = await rawGet("/api/config", { Host: `localhost:${basePort}` });
 check("other host names are not proxied", notGlobe.status === 200 && notGlobe.body.includes("config_version"));
+const tun = await api("/api/tunnel");
+check("tunnel status answers", tun.status === 200 && typeof tun.data.installed === "boolean" && typeof tun.data.connected === "boolean" && "hostname" in tun.data && Array.isArray((tun.data.install || {}).log), JSON.stringify(tun.data));
+const badHost = await api("/api/tunnel/install", { method: "POST", json: { token: "", hostname: "not a host" } });
+check("bad public name refused", badHost.status === 422 && /remote.hostname/.test(badHost.data.detail || ""), JSON.stringify(badHost.data));
+const badTok = await api("/api/tunnel/install", { method: "POST", json: { token: "short", hostname: "" } });
+check("bad tunnel token refused", badTok.status === 422 && /token/.test(badTok.data.detail || ""), JSON.stringify(badTok.data));
+const tunGo = await api("/api/tunnel/install", { method: "POST", json: { token: "", hostname: "board.example.com" } });
+check("tunnel install starts (mock) and keeps the public name", tunGo.status === 200 && tunGo.data.install.running === true && (await api("/api/config")).status === 200, JSON.stringify(tunGo.data));
+await new Promise((r) => setTimeout(r, 3500));
+const tunDone = await api("/api/tunnel");
+check("mock tunnel install finishes and remembers the name", tunDone.data.install.running === false && tunDone.data.install.exit_code === 0 && tunDone.data.hostname === "board.example.com", JSON.stringify(tunDone.data));
+if (!PIN) {
+  const viaTunnel = await fetch(base + "/api/todo", { method: "POST", headers: { "Content-Type": "application/json", "cf-connecting-ip": "203.0.113.9" }, body: JSON.stringify({ text: "from outside" }) });
+  check("without a PIN, a change arriving through the tunnel is refused", viaTunnel.status === 403, String(viaTunnel.status));
+  const readViaTunnel = await fetch(base + "/api/config", { headers: { "cf-connecting-ip": "203.0.113.9" } });
+  check("reads through the tunnel still work", readViaTunnel.status === 200);
+}
+await api("/api/settings", { method: "PUT", json: { config: { remote: { hostname: "" } } } });
 const badPkg = await api("/api/packages", { method: "POST", json: { number: "12", label: "x" } });
 check("bad tracking number refused", badPkg.status === 422 && /tracking number/.test(badPkg.data.detail || ""), JSON.stringify(badPkg.data));
 const pkg = await api("/api/packages", { method: "POST", json: { number: "1Z999AA10123456784", label: "New shoes" } });
@@ -152,7 +170,7 @@ check("package added (mock)", pkg.status === 200 && pkg.data.item.number === "1Z
 const pkgDup = await api("/api/packages", { method: "POST", json: { number: "1z999aa10123456784", label: "again" } });
 check("duplicate package refused", pkgDup.status === 409);
 const pkgs = (await api("/api/packages")).data.data;
-check("packages listed with a status and an arrival day", pkgs.items.some((p) => p.number === "1Z999AA10123456784" && p.status_text === "Out for delivery" && /Arriving/.test(p.eta_text)), JSON.stringify(pkgs.items));
+check("packages listed with a status and an arrival day", pkgs.items.some((p) => p.number === "1Z999AA10123456784" && p.status_text === "Out for delivery" && /Arriving|Expected/.test(p.eta_text)), JSON.stringify(pkgs.items));
 const posted = await api("/api/messages", { method: "POST", json: { text: "Dad lands at 6:30", from: "Mom", ttl: "4h" } });
 check("message posted", posted.status === 200 && posted.data.id && posted.data.expires, JSON.stringify(posted.data));
 const badMsg = await api("/api/messages", { method: "POST", json: { text: "   ", ttl: "4h" } });

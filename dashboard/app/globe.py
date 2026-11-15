@@ -115,8 +115,10 @@ def status(h: Path | None = None) -> dict:
 class Installer:
     """Runs the install script once at a time and keeps its last lines for the phone page."""
 
-    def __init__(self, mock: bool = False):
+    def __init__(self, mock: bool = False, command: list[str] | None = None, mock_lines: tuple[str, ...] | None = None):
         self.mock = mock
+        self.command = command or ["bash", str(SCRIPT), "install"]
+        self.mock_lines = mock_lines or ("[globe] downloading God's Eye View (mock)", "[globe] installing the app's packages (mock)", "[globe] done.")
         self.lines: deque[str] = deque(maxlen=60)
         self.task: asyncio.Task | None = None
         self.started = 0.0
@@ -143,13 +145,13 @@ class Installer:
         code = 1
         try:
             if self.mock:
-                for line in ("[globe] downloading God's Eye View (mock)", "[globe] installing the app's packages (mock)", "[globe] done."):
+                for line in self.mock_lines:
                     self.lines.append(line)
                     await asyncio.sleep(1)
                 code = 0
             else:
                 proc = await asyncio.create_subprocess_exec(
-                    "bash", str(SCRIPT), "install", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                    *self.command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
                     env={**os.environ, "HOME": str(home())},
                 )
                 assert proc.stdout is not None
@@ -169,13 +171,13 @@ class Installer:
                 self.lines.append(f"after install: {exc}")
 
 
-def script_status() -> dict[str, Any]:
-    """What deploy/globe.sh sees (dir, installed, node); never raises."""
+def script_status(script: Path = SCRIPT, fallback: dict[str, Any] | None = None) -> dict[str, Any]:
+    """What a deploy/*.sh "status" prints (JSON on its last line); never raises."""
     try:
-        out = subprocess.run(["bash", str(SCRIPT), "status"], capture_output=True, text=True, timeout=20, env={**os.environ, "HOME": str(home())}).stdout
+        out = subprocess.run(["bash", str(script), "status"], capture_output=True, text=True, timeout=20, env={**os.environ, "HOME": str(home())}).stdout
         return json.loads(out.strip().splitlines()[-1])
     except (OSError, ValueError, IndexError, subprocess.TimeoutExpired):
-        return {"dir": str(install_dir()), "installed": installed(), "node": node_bin(), "node_version": ""}
+        return fallback if fallback is not None else {"dir": str(install_dir()), "installed": installed(), "node": node_bin(), "node_version": ""}
 
 
 # ---------------------------------------------------------------------------------------------

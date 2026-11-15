@@ -297,7 +297,7 @@
       case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })), quotes: g("news.quotes"), quote_every: Number(g("news.quote_every")) } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")), fit: g("photos.fit"), art: g("photos.art"), art_every: Number(g("photos.art_every")), artists: g("photos.artists"), captions: g("photos.captions"), memories: g("photos.memories") }, todo: { max_items: Number(g("todo.max_items")) } } };
       case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), night_mode: g("display.night_mode"), night_from: g("display.night_from"), night_to: g("display.night_to"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk"), stop_idle_lock: g("display.stop_idle_lock") } } };
-      case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
+      case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY", "CLOUDFLARE_TUNNEL_TOKEN", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };
     }
     return {};
   }
@@ -689,7 +689,55 @@
       ["Mode", d.mock ? "sample data (DASHBOARD_MOCK=1)" : "live"],
     ];
     $("system-info").innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+    loadTunnel();
   }
+  // ---------- remote access: Cloudflare Tunnel --------------------------------------------------
+  let tunnelInfo = null, tunnelPoll = null;
+  async function loadTunnel() {
+    const line = $("tunnel-status"), log = $("tunnel-log");
+    try {
+      tunnelInfo = await api("/api/tunnel");
+      const t = tunnelInfo, inst = t.install || {};
+      $("tunnel-port").textContent = t.port;
+      if (!$("tunnel-hostname").value && t.hostname) $("tunnel-hostname").value = t.hostname;
+      const parts = [];
+      if (inst.running) parts.push("Setting up…");
+      else if (!t.installed) parts.push("cloudflared is not installed yet.");
+      else if (t.connected) parts.push(`Connected. Open ${t.hostname ? "https://" + t.hostname : "your public name"} from anywhere.`);
+      else if (t.autostart) parts.push(t.service_running ? "Running but not connected yet (check the token, or give it a minute)." : "Autostart is on but the tunnel is not running.");
+      else parts.push("Installed but not started.");
+      if (!t.token_set) parts.push("No token saved yet.");
+      if (!t.pin_set) parts.push("No PIN set: settings can't be changed from outside until you set one.");
+      line.textContent = parts.join(" ");
+      line.classList.toggle("bad", !inst.running && !t.connected);
+      $("tunnel-install").disabled = !!inst.running;
+      $("tunnel-autostart").textContent = t.autostart ? "Stop starting the tunnel" : "Start the tunnel with the dashboard";
+      $("tunnel-autostart").classList.toggle("hidden", !t.installed);
+      const show = inst.running || (inst.log && inst.log.length && inst.finished && Date.now() / 1000 - inst.finished < 600);
+      log.classList.toggle("hidden", !show);
+      if (show) { log.textContent = inst.log.join("\n"); log.scrollTop = log.scrollHeight; }
+      clearTimeout(tunnelPoll);
+      if (inst.running) tunnelPoll = setTimeout(loadTunnel, 3000);
+    } catch (err) { line.textContent = err.message; }
+  }
+  $("tunnel-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = $("tunnel-install"); btn.disabled = true;
+    try {
+      const d = await api("/api/tunnel/install", { method: "POST", json: { token: $("tunnel-token").value.trim(), hostname: $("tunnel-hostname").value.trim() } });
+      $("tunnel-token").value = ""; toast(d.message); setTimeout(loadTunnel, 1000);
+    } catch (err) { toast(err.message, true); btn.disabled = false; }
+  });
+  $("tunnel-recheck").addEventListener("click", loadTunnel);
+  $("tunnel-autostart").addEventListener("click", async () => {
+    const btn = $("tunnel-autostart"); btn.disabled = true;
+    try {
+      const d = await api("/api/tunnel/autostart", { method: "POST", json: { on: !(tunnelInfo && tunnelInfo.autostart) } });
+      toast(d.message); setTimeout(loadTunnel, 2500);
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false;
+  });
+
   const ACTIONS = {
     restart: { path: "/api/system/restart", confirm: "Restart the dashboard? The screen goes blank for about 10 seconds." },
     update: { path: "/api/system/update", confirm: "Download the latest version and restart?" },

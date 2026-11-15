@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import globe, manage, mock
+from . import globe, manage, mock, tunnel
 from .pages import page_response
 from .cache import SourceCache, refresh_once, run_poller
 from .config import Settings, load_settings
@@ -192,6 +192,25 @@ async def globe_installed(app: FastAPI, code: int) -> None:
         installer.lines.append("[globe] the Globe button is now on the TV's menu")
 
 
+async def tunnel_installed(app: FastAPI, code: int) -> None:
+    """After cloudflared is in place: start the tunnel as a user service when a token is known."""
+    installer = app.state.tunnel_install
+    if code != 0:
+        installer.lines.append("[tunnel] the install did not finish; see the lines above")
+        return
+    settings = app.state.settings
+    if not settings.tunnel_token:
+        installer.lines.append("[tunnel] cloudflared is ready; paste the tunnel token and press Install & start again")
+        return
+    if settings.mock:
+        installer.lines.append("[tunnel] (mock) the tunnel would be started now")
+        return
+    try:
+        installer.lines.append("[tunnel] " + await asyncio.to_thread(tunnel.start, settings.tunnel_token))
+    except (ValueError, RuntimeError) as exc:
+        installer.lines.append(f"[tunnel] could not start it: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = load_settings()
@@ -206,6 +225,8 @@ async def lifespan(app: FastAPI):
     app.state.spotify_pending = {}
     app.state.globe_install = globe.Installer(settings.mock)
     app.state.globe_install.on_done = partial(globe_installed, app)
+    app.state.tunnel_install = globe.Installer(settings.mock, ["bash", str(tunnel.SCRIPT), "install"], ("[tunnel] downloading cloudflared (mock)", "[tunnel] installed cloudflared (mock)"))
+    app.state.tunnel_install.on_done = partial(tunnel_installed, app)
     await start_sources(app, settings)
     scheduler = asyncio.create_task(display_scheduler(app), name="display-scheduler")
     try:

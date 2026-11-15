@@ -32,6 +32,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": ""},
     "globe": {"enabled": False, "port": 4173},
+    "remote": {"hostname": ""},  # the public name of the Cloudflare Tunnel (board.example.com), for the status page
     "radar": {
         "provider": "rainviewer",
         "refresh_minutes": 5,
@@ -98,6 +99,7 @@ class Settings:
     pin: str = ""
     spotify_client_id: str = ""
     track17_key: str = ""
+    tunnel_token: str = ""
     mock: bool = False
     root: Path = ROOT
     config_path: Path = ROOT / "config.yaml"
@@ -246,6 +248,7 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
         pin=os.environ.get("DASHBOARD_PIN", "").strip(),
         spotify_client_id=os.environ.get("SPOTIFY_CLIENT_ID", "").strip(),
         track17_key=os.environ.get("TRACK17_API_KEY", "").strip(),
+        tunnel_token=os.environ.get("CLOUDFLARE_TUNNEL_TOKEN", "").strip(),
         mock=os.environ.get("DASHBOARD_MOCK", "0").strip().lower() in ("1", "true", "yes"),
         errors=errors,
         version=version,

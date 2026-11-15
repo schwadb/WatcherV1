@@ -30,7 +30,7 @@ from PIL import Image
 from ruamel.yaml import YAML
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
-from . import messages
+from . import globe, messages, tunnel
 from .cache import refresh_once
 from .config import DEFAULTS, ROOT, Settings
 from .pages import page_response
@@ -51,7 +51,7 @@ except Exception:  # noqa: BLE001
 log = logging.getLogger("dashboard")
 router = APIRouter()
 STATIC_DIR = ROOT / "static"
-SECRET_KEYS = ("FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "FAMILY_ICS_URL", "DASHBOARD_PIN", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY")
+SECRET_KEYS = ("FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "FAMILY_ICS_URL", "DASHBOARD_PIN", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY", "CLOUDFLARE_TUNNEL_TOKEN")
 UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 _HHMM = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 _COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -86,6 +86,8 @@ def _settings(request: Request) -> Settings:
 def require_pin(request: Request) -> None:
     pin = _settings(request).pin
     if not pin:
+        if request.headers.get("cf-connecting-ip"):  # came in through the Cloudflare Tunnel, from outside the house
+            raise HTTPException(403, "Set a PIN under Settings → Keys & links before changing settings from outside your home.")
         return
     given = request.headers.get("X-Pin") or request.cookies.get("dashboard_pin") or ""
     if not secrets.compare_digest(given, pin):
@@ -439,6 +441,7 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "weather": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("forecast_days", "hourly_hours", "air_quality", "alerts", "takeover", "takeover_minutes", "takeover_sound")},
         "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
         "globe": {**DEFAULTS["globe"], **(c.get("globe") or {})},
+        "remote": {"hostname": (c.get("remote") or {}).get("hostname") or ""},
         "scores": {"leagues": list((c.get("scores") or {}).get("leagues") or DEFAULTS["scores"]["leagues"]), "high_schools": list((c.get("scores") or {}).get("high_schools") or [])},
         "radar": {k: c["radar"].get(k, DEFAULTS["radar"][k]) for k in ("provider", "zoom")},
         "stocks": {"symbols": symbols},
@@ -517,6 +520,11 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         }
         if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
+    if "remote" in body:
+        try:
+            clean["remote"] = {"hostname": tunnel.valid_hostname((body["remote"] or {}).get("hostname", ""))}
+        except ValueError as exc:
+            errors.append(str(exc))
     if "globe" in body:
         gl = body["globe"] or {}
         clean["globe"] = {"enabled": bool(gl.get("enabled", False)), "port": int(num("globe", "port", 1024, 65535, int) or DEFAULTS["globe"]["port"])}
@@ -867,6 +875,77 @@ async def globe_status(request: Request):
         reachable = await _globe_probe(port)
         _globe_status.update(checked=now, reachable=reachable, port=port)
     return {"reachable": reachable, "port": port, "enabled": bool((settings.cfg.get("globe") or {}).get("enabled"))}
+
+
+# ---------------------------------------------------------------------------------------------
+# remote access: Cloudflare Tunnel (app/tunnel.py)
+# ---------------------------------------------------------------------------------------------
+def _save_secret(key: str, value: str) -> None:
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        env_path.write_text("", encoding="utf-8")
+    set_key(str(env_path), key, value.strip(), quote_mode="never")
+    os.environ[key] = value.strip()
+
+
+@router.get("/api/tunnel")
+async def tunnel_get(request: Request):
+    """For the settings page: is cloudflared here, is the tunnel running and connected, what is the address."""
+    require_pin(request)
+    settings = _settings(request)
+    info = {"installed": False, "binary": "", "version": ""} if settings.mock else await asyncio.to_thread(globe.script_status, tunnel.SCRIPT, {"installed": tunnel.installed(), "binary": tunnel.binary(), "version": ""})
+    svc = tunnel.status()
+    return {
+        **info, "autostart": svc["enabled"], "service_running": svc["running"], "connected": await tunnel.connected(),
+        "token_set": bool(settings.tunnel_token), "hostname": (settings.cfg.get("remote") or {}).get("hostname") or "",
+        "port": settings.cfg["server"]["port"], "pin_set": bool(settings.pin), "install": request.app.state.tunnel_install.summary(),
+    }
+
+
+@router.post("/api/tunnel/install")
+async def tunnel_install(request: Request):
+    """Save the token/hostname if given, fetch cloudflared in the background, then start the tunnel."""
+    require_pin(request)
+    settings = _settings(request)
+    body = await request.json()
+    token = str(body.get("token") or "").strip()
+    if token and ("\n" in token or len(token) < 20):
+        raise HTTPException(422, "That doesn't look like a tunnel token (it is one long line, usually starting with eyJ).")
+    try:
+        hostname = tunnel.valid_hostname(body.get("hostname", ""))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    from .main import reload_sources
+
+    changed = False
+    if token:
+        _save_secret("CLOUDFLARE_TUNNEL_TOKEN", token)
+        changed = True
+    if hostname and hostname != ((settings.cfg.get("remote") or {}).get("hostname") or ""):
+        await asyncio.to_thread(write_config, settings.config_path, {"remote": {"hostname": hostname}})
+        changed = True
+    if changed:
+        await reload_sources(request.app)
+    installer = request.app.state.tunnel_install
+    try:
+        installer.begin()
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+    return {"ok": True, "message": "Setting up the tunnel. The log below shows progress.", "install": installer.summary()}
+
+
+@router.post("/api/tunnel/autostart")
+async def tunnel_autostart(request: Request):
+    require_pin(request)
+    settings = _settings(request)
+    body = await request.json()
+    if not body.get("on"):
+        return {"ok": True, "message": tunnel.remove(), "autostart": False}
+    try:
+        message = tunnel.start(settings.tunnel_token)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(422, str(exc))
+    return {"ok": True, "message": message, "autostart": True}
 
 
 @router.get("/api/globe/app")

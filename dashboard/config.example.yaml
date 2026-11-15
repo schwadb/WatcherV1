@@ -143,6 +143,9 @@ globe:                        # God's Eye View 3D globe (☰ → Globe, key V); 
   enabled: false              # show the Globe button on the TV (turned on automatically after the install)
   port: 4173                  # the port the app listens on (on this computer only)
 
+remote:                       # reach the dashboard from away through a Cloudflare Tunnel (System → Remote access)
+  hostname: ""                # the public name you gave the tunnel, e.g. board.example.com
+
 server:
   host: "0.0.0.0"
   port: 8080

@@ -67,9 +67,11 @@ RestartSec=5
 WantedBy=default.target
 """
 
-    def install(self) -> None:
+    def install(self, mode: int | None = None) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(self.text(), encoding="utf-8")
+        if mode is not None:
+            self.path.chmod(mode)  # e.g. 0o600 when the unit carries a secret
         code, out = systemctl(["daemon-reload"])
         if code != 0:
             raise RuntimeError(f"could not reach the user session's systemd: {out}")
