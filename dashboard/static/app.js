@@ -250,6 +250,7 @@
       $("clock-time").textContent = `${hourText}:${get("minute")}`;
       $("clock-ampm").textContent = get("dayPeriod") || "";
       $("clock-ghost").textContent = hourText.length > 1 ? "88:88" : "8:88";
+      $("clock-time").parentElement.classList.toggle("wide", hourText.length > 1);  // five glyphs need smaller digits
       const dateOpts = style === "led" || style === "rings" ? { weekday: "short", day: "numeric", month: "short" } : { weekday: "long", month: "long", day: "numeric" };
       let dateText = new Intl.DateTimeFormat("en-US", { ...dateOpts, timeZone: tz() }).format(now);
       if (style === "led") dateText = dateText.replace(/,/g, "").toUpperCase();  // DSEG14 has no lowercase or commas
