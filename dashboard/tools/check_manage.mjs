@@ -275,11 +275,16 @@ await tv.evaluate(() => window.dispatchEvent(new Event("resize")));
 await tv.waitForTimeout(100);
 const turn1 = await tv.evaluate(() => { const el = document.getElementById("clock-next"); return el.textContent; });
 const timeTop1 = await tv.evaluate(() => document.getElementById("clock-time").getBoundingClientRect().top);
-await tv.waitForTimeout(7000);
+// wait for the next swap (the inactive layer gets the next item), then sample mid-crossfade: both layers partly visible
+await tv.waitForFunction(() => document.querySelector("#clock-next .layer:not(.active)").textContent !== "", null, { timeout: 8000 }).catch(() => {});
+await tv.waitForTimeout(350);
+const mid = await tv.evaluate(() => [...document.querySelectorAll("#clock-next .layer")].map((l) => ({ text: l.textContent, opacity: Number(getComputedStyle(l).opacity) })));
+check("items crossfade (no blank moment between turns)", mid.filter((l) => l.text && l.opacity > 0.1).length === 2, JSON.stringify(mid));
+await tv.waitForTimeout(1200);
 const turn2 = await tv.evaluate(() => document.getElementById("clock-next").textContent);
 const timeTop2 = await tv.evaluate(() => document.getElementById("clock-time").getBoundingClientRect().top);
 check("the clock digits do not move while the items take turns", Math.abs(timeTop1 - timeTop2) < 0.5, `${timeTop1} -> ${timeTop2}`);
-const wrapInfo = await tv.evaluate(() => { const el = document.getElementById("clock-next"); return { wrap: el.classList.contains("wrap"), lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).fontSize) / 1.2), clipped: el.scrollHeight > el.clientHeight + 1 }; });
+const wrapInfo = await tv.evaluate(() => { const el = document.querySelector("#clock-next .layer.active"); return { wrap: el.classList.contains("wrap"), lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).fontSize) / 1.2), clipped: el.scrollHeight > el.clientHeight + 1 }; });
 check("a long item runs onto a second line instead of being cut off", !wrapInfo.wrap || (wrapInfo.lines === 2 && !wrapInfo.clipped), JSON.stringify(wrapInfo));
 check("a squeezed what's-next line shows one item at a time and takes turns", !turn1.includes("·") && !turn2.includes("·") && turn1 !== turn2 && turn1.length > 0 && turn2.length > 0, JSON.stringify({ turn1, turn2 }));
 check("health dot reports the feeds", /health-dot (good|warn|bad)/.test(nextInfo.dot) && nextInfo.title.length > 0, JSON.stringify(nextInfo));

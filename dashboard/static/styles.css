@@ -96,10 +96,11 @@ body.no-news .board { grid-template-rows: 13.75rem 1fr 21.25rem; }
 .clock .date { margin-top: 0.75rem; font-size: 1.6rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* "What's next": one line under the date — next event, nearest countdown, next game */
 /* always two lines tall, so the digits and date never move while items take turns or wrap */
-.clock .clock-next { margin-top: 0.45rem; font-size: 1.02rem; line-height: 1.2; height: 2.4em; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.3s; }
-.clock .clock-next.fade { opacity: 0; }
+.clock .clock-next { position: relative; margin-top: 0.45rem; font-size: 1.02rem; line-height: 1.2; height: 2.4em; color: var(--text-2); }
+.clock .clock-next .layer { position: absolute; inset: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity 0.9s ease; }
+.clock .clock-next .layer.active { opacity: 1; }
+.clock .clock-next .layer.wrap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .clock .clock-next.blank { visibility: hidden; }
-.clock .clock-next.wrap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .clock .clock-next .sep { color: var(--muted); margin: 0 0.4rem; }
 .clock .clock-next .live { color: var(--down); font-weight: 600; }
 .clock .clock-next b { color: var(--text); font-weight: 600; }

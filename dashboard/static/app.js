@@ -190,7 +190,13 @@
     return `${who} ${escapeHTML(dayWord(new Date(when)) || "today")} ${escapeHTML(fmtShortTime(new Date(when)))}`;
   }
   let nextDrawnMinute = -1;
-  const nextCycle = { chips: [], index: 0, timer: null };  // when the items don't all fit, they take turns
+  const nextCycle = { chips: [], index: 0, timer: null, clear: null };  // when the items don't all fit, they take turns
+  const nextLayers = (el) => ({ on: el.querySelector(".layer.active"), off: el.querySelector(".layer:not(.active)") });
+  function fitLayer(layer, html) {  // write an item into a layer; let it run onto a second line when one won't do
+    layer.classList.remove("wrap");
+    layer.innerHTML = html;
+    if (layer.scrollWidth > layer.clientWidth + 1) layer.classList.add("wrap");
+  }
   function renderNext(force = true) {
     const el = $("clock-next");
     if (!el) return;
@@ -203,34 +209,31 @@
     const chips = [nextGameChip(now), nextEventChip(now), countdownShown ? "" : nextCountdownChip()].filter(Boolean);
     nextCycle.chips = chips;
     el.classList.toggle("blank", chips.length === 0);  // keeps its space, so the clock never moves
-    el.innerHTML = chips.join('<span class="sep">·</span>');
-    el.classList.remove("wrap");
-    const fits = el.scrollWidth <= el.clientWidth + 1;
+    const { on, off } = nextLayers(el);
+    on.classList.remove("wrap");
+    on.innerHTML = chips.join('<span class="sep">·</span>');
+    const fits = on.scrollWidth <= on.clientWidth + 1;
     if (fits || chips.length < 2) {
-      clearTimeout(nextCycle.timer); nextCycle.timer = null; el.classList.remove("fade");
-      if (!fits) el.classList.add("wrap");  // one long item: let it run onto a second line
+      clearTimeout(nextCycle.timer); nextCycle.timer = null;
+      if (!fits) on.classList.add("wrap");  // one long item: two lines
+      off.innerHTML = "";
       return;
     }
     if (nextCycle.index >= chips.length) nextCycle.index = 0;
-    showNextChip(el, chips[nextCycle.index]);
+    fitLayer(on, chips[nextCycle.index]);
     if (!nextCycle.timer) nextCycle.timer = setTimeout(stepNext, 6000);
   }
-  function showNextChip(el, html) {
-    el.classList.remove("wrap");
-    el.innerHTML = html;
-    if (el.scrollWidth > el.clientWidth + 1) el.classList.add("wrap");  // too long for one line: two lines, whole words
-  }
-  function stepNext() {
+  function stepNext() {  // crossfade: the next item appears while the current one dissolves, never a blank moment
     const el = $("clock-next");
     nextCycle.timer = null;
     if (nextCycle.chips.length < 2) return;
-    el.classList.add("fade");
-    setTimeout(() => {
-      nextCycle.index = (nextCycle.index + 1) % nextCycle.chips.length;
-      showNextChip(el, nextCycle.chips[nextCycle.index]);
-      el.classList.remove("fade");
-      nextCycle.timer = setTimeout(stepNext, 6000);
-    }, 320);
+    nextCycle.index = (nextCycle.index + 1) % nextCycle.chips.length;
+    const { on, off } = nextLayers(el);
+    fitLayer(off, nextCycle.chips[nextCycle.index]);
+    off.classList.add("active"); on.classList.remove("active");
+    clearTimeout(nextCycle.clear);
+    nextCycle.clear = setTimeout(() => { on.innerHTML = ""; }, 1000);
+    nextCycle.timer = setTimeout(stepNext, 6000);
   }
   async function pollHealth() {
     const dot = $("health-dot");
