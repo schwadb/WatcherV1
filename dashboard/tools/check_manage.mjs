@@ -270,6 +270,13 @@ check("Globe button is on the TV menu", await tv.$eval("#globe-btn", (el) => !el
 const clockInfo = await tv.evaluate(async () => { await document.fonts.ready; return { led: document.body.classList.contains("clock-led"), font: document.fonts.check("40px DSEG7"), time: document.getElementById("clock-time").textContent, ghost: document.getElementById("clock-ghost").textContent, date: document.getElementById("clock-date").textContent }; });
 const nextInfo = await tv.evaluate(() => ({ hidden: document.getElementById("clock-next").classList.contains("hidden"), text: document.getElementById("clock-next").textContent, dot: document.getElementById("health-dot").className, title: document.getElementById("health-dot").title }));
 check("what's next strip shows the live game and the next event", !nextInfo.hidden && /LIVE/.test(nextInfo.text) && /Lunch|in \d+ [mh]|Tomorrow/.test(nextInfo.text), JSON.stringify(nextInfo));
+await tv.addStyleTag({ content: ".clock .main { max-width: 14rem !important; }" });  // squeeze the line so the items must take turns
+await tv.evaluate(() => window.dispatchEvent(new Event("resize")));
+await tv.waitForTimeout(100);
+const turn1 = await tv.evaluate(() => { const el = document.getElementById("clock-next"); return el.textContent; });
+await tv.waitForTimeout(7000);
+const turn2 = await tv.evaluate(() => document.getElementById("clock-next").textContent);
+check("a squeezed what's-next line shows one item at a time and takes turns", !turn1.includes("·") && !turn2.includes("·") && turn1 !== turn2 && turn1.length > 0 && turn2.length > 0, JSON.stringify({ turn1, turn2 }));
 check("health dot reports the feeds", /health-dot (good|warn|bad)/.test(nextInfo.dot) && nextInfo.title.length > 0, JSON.stringify(nextInfo));
 const pkgInfo = await tv.evaluate(() => ({ hidden: document.getElementById("packages").classList.contains("hidden"), text: document.getElementById("packages").textContent, hasTodo: document.body.classList.contains("has-todo") }));
 check("TV lists the package under the to-do panel", !pkgInfo.hidden && /New shoes/.test(pkgInfo.text) && /Out for delivery/.test(pkgInfo.text) && pkgInfo.hasTodo, JSON.stringify(pkgInfo));
@@ -287,10 +294,12 @@ const frameText = globeFrame ? await globeFrame.textContent("body").catch(() => 
 check("V shows the globe frame from globe.localhost with the app inside", globeShown && globeFrame && frameText.includes("stub"), `${globeShown} ${globeFrame && globeFrame.url()} ${frameText}`);
 await tv.keyboard.press("Escape"); await tv.waitForTimeout(400);
 check("Escape closes the globe and blanks its frame", await tv.$eval("#globe-full", (el) => el.classList.contains("hidden")) && (await tv.$eval("#globe-full-frame", (el) => el.getAttribute("src"))) === "about:blank");
-const kickLive = await tv.evaluate(() => ({ team: (document.querySelector("#sports .team") || {}).textContent, kick: !!document.querySelector("#sports .kick") }));
-await tv.waitForTimeout(25500);  // the live team gets a double turn (24 s), then the tile rotates
-const kickNext = await tv.evaluate(() => ({ team: (document.querySelector("#sports .team") || {}).textContent, kick: (document.querySelector("#sports .kick") || {}).textContent }));
-check("sports tile: no countdown while live, kickoff countdown for the next game", kickLive.team === "Chiefs" && !kickLive.kick && kickNext.team === "Nebraska" && /^Kickoffin 3 h 1\d m$/.test(kickNext.kick || ""), JSON.stringify({ kickLive, kickNext }));
+const teamShown = () => tv.evaluate(() => ({ team: (document.querySelector("#sports .team") || {}).textContent, kick: (document.querySelector("#sports .kick") || {}).textContent || "" }));
+await tv.waitForFunction(() => (document.querySelector("#sports .team") || {}).textContent === "Chiefs", null, { timeout: 45000 }).catch(() => {});
+const kickLive = await teamShown();
+await tv.waitForFunction(() => (document.querySelector("#sports .team") || {}).textContent === "Nebraska", null, { timeout: 45000 }).catch(() => {});
+const kickNext = await teamShown();
+check("sports tile: no countdown while live, kickoff countdown for the next game", kickLive.team === "Chiefs" && !kickLive.kick && kickNext.team === "Nebraska" && /^Kickoffin 3 h 1\d m$/.test(kickNext.kick), JSON.stringify({ kickLive, kickNext }));
 check("no TV page errors", tvErrors.length === 0, tvErrors.join(" | "));
 await browser.close();
 stub.close();

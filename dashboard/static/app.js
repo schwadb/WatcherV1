@@ -190,6 +190,7 @@
     return `${who} ${escapeHTML(dayWord(new Date(when)) || "today")} ${escapeHTML(fmtShortTime(new Date(when)))}`;
   }
   let nextDrawnMinute = -1;
+  const nextCycle = { chips: [], index: 0, timer: null };  // when the items don't all fit, they take turns
   function renderNext(force = true) {
     const el = $("clock-next");
     if (!el) return;
@@ -200,8 +201,26 @@
     const cdBox = $("countdowns");
     const countdownShown = cdBox && !cdBox.classList.contains("hidden");  // already on the right: don't repeat it
     const chips = [nextGameChip(now), nextEventChip(now), countdownShown ? "" : nextCountdownChip()].filter(Boolean);
-    el.innerHTML = chips.join('<span class="sep">·</span>');
+    nextCycle.chips = chips;
     el.classList.toggle("hidden", chips.length === 0);
+    el.innerHTML = chips.join('<span class="sep">·</span>');
+    const fits = el.scrollWidth <= el.clientWidth + 1;
+    if (fits || chips.length < 2) { clearTimeout(nextCycle.timer); nextCycle.timer = null; el.classList.remove("fade"); return; }
+    if (nextCycle.index >= chips.length) nextCycle.index = 0;
+    el.innerHTML = chips[nextCycle.index];
+    if (!nextCycle.timer) nextCycle.timer = setTimeout(stepNext, 6000);
+  }
+  function stepNext() {
+    const el = $("clock-next");
+    nextCycle.timer = null;
+    if (nextCycle.chips.length < 2) return;
+    el.classList.add("fade");
+    setTimeout(() => {
+      nextCycle.index = (nextCycle.index + 1) % nextCycle.chips.length;
+      el.innerHTML = nextCycle.chips[nextCycle.index];
+      el.classList.remove("fade");
+      nextCycle.timer = setTimeout(stepNext, 6000);
+    }, 320);
   }
   async function pollHealth() {
     const dot = $("health-dot");
@@ -918,7 +937,7 @@
     st.last = performance.now(); refresh(); requestAnimationFrame(step);
     scrollers.set(el, { refresh });
   }
-  window.addEventListener("resize", () => scrollers.forEach((s) => s.refresh()));
+  window.addEventListener("resize", () => { scrollers.forEach((s) => s.refresh()); renderNext(); });
 
   // ---------- calendar -----------------------------------------------------------------------
   function renderCalendar(d) {
