@@ -37,6 +37,14 @@ Notes has no charts and only rudimentary tables. So this repo ships both:
   when the month rolls over.
 - **Monthly rollover** — a new month starts with your current habit list.
 - **Export / import** — your data as JSON, so nothing is locked in.
+- **Streaks and completion rate** — under the grid: days done, this month's
+  rate (green ≥ 80%, amber ≥ 50%, red below), and the current streak, which
+  carries across months (hover for your best). For "avoid" habits, ✗ = stayed
+  clean and counts toward the rate and the streak.
+- **Installable and offline** — when hosted (e.g. GitHub Pages) it installs as
+  an app and opens without a connection.
+- **Keyboard friendly** — arrow keys move around the grid; press <kbd>?</kbd>
+  for the other shortcuts.
 
 Light and dark mode follow your system setting.
 

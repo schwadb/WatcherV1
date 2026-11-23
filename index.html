@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Watcher — Monthly Habit Tracker</title>
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watcher">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
   :root {
     --surface-1: #fcfcfb;
@@ -20,6 +29,7 @@
     --cat-avoid: #e34948;      /* avoid */
     --today-wash: rgba(42,120,214,0.07);
     --check: #006300;
+    --warn: #9a5b00;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -37,6 +47,7 @@
       --cat-avoid: #e66767;
       --today-wash: rgba(57,135,229,0.10);
       --check: #0ca30c;
+      --warn: #e0a030;
     }
   }
 
@@ -105,9 +116,12 @@
   /* ---- habit grid ---- */
   .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: 13px; color: var(--text-secondary); }
   .legend .key { display: inline-flex; align-items: center; gap: 6px; }
-  .legend .swatch { width: 10px; height: 10px; border-radius: 3px; }
+  .legend .swatch { width: 10px; height: 10px; }
+  .shape-non { border-radius: 50%; }
+  .shape-build { border-radius: 2px; }
+  .shape-avoid { border-radius: 1px; transform: rotate(45deg) scale(0.8); }
 
-  .grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .grid-wrap { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table.grid { border-collapse: collapse; width: 100%; }
   table.grid th, table.grid td {
     border-bottom: 1px solid var(--gridline);
@@ -132,7 +146,7 @@
     font-size: 12px; color: var(--text-secondary);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  th.habith .dot { display: block; width: 8px; height: 8px; border-radius: 50%; margin: 6px auto 0; }
+  th.habith .dot { display: block; width: 8px; height: 8px; margin: 6px auto 0; }
 
   td.momcol { min-width: 200px; }
   td.momcol input, td.numcell input {
@@ -155,7 +169,13 @@
   button.cell .miss { color: var(--cat-avoid); font-weight: 700; }
 
   tfoot td { padding: 6px 2px; color: var(--text-secondary); font-size: 12px; border-bottom: none; font-variant-numeric: tabular-nums; }
+  tfoot tr + tr td { padding-top: 0; }
   tfoot .daycol { font-size: 12px; }
+  tfoot td.overall { text-align: left; padding-left: 8px; }
+  tfoot .r-good { color: var(--check); }
+  tfoot .r-mid { color: var(--warn); }
+  tfoot .r-low { color: var(--cat-avoid); }
+  tfoot td.hot { color: var(--series-sleep); font-weight: 700; }
 
   /* ---- sleep chart ---- */
   .chart-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -190,7 +210,7 @@
   /* ---- habit manager ---- */
   .hlist { display: grid; gap: 6px; margin-bottom: 14px; }
   .hrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--gridline); }
-  .hrow .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+  .hrow .dot { width: 10px; height: 10px; flex: 0 0 auto; }
   .hrow .name { flex: 1; }
   .hrow .meta { color: var(--text-muted); font-size: 12px; }
   .hrow button.del {
@@ -208,21 +228,80 @@
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .toolbar button.ghost { background: none; border: 1px solid var(--border); color: var(--text-primary); font-weight: 400; }
 
+  .toolbar .usage { align-self: center; color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
   footer.app { color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 24px; }
+
+  /* ---- save state, storage warning ---- */
+  .savestat { color: var(--text-muted); font-size: 12px; opacity: 0; transition: opacity 0.3s; }
+  .savestat.on { opacity: 1; }
+  .banner {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    background: var(--surface-1); border: 1px solid var(--cat-avoid); border-radius: 12px;
+    padding: 10px 14px; margin: 12px 0; font-size: 14px;
+  }
+  .banner[hidden] { display: none; }
+  .banner span { flex: 1 1 240px; }
+  .banner button {
+    background: var(--text-primary); color: var(--page); border: none; border-radius: 8px;
+    padding: 6px 12px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+
+  /* ---- accessibility ---- */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .skip {
+    position: absolute; left: 8px; top: -48px; z-index: 10;
+    background: var(--text-primary); color: var(--page);
+    padding: 8px 12px; border-radius: 8px; text-decoration: none;
+  }
+  .skip:focus { top: 8px; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--series-sleep); outline-offset: 2px; }
+  button.cell:focus-visible { outline-offset: -2px; }
+  section:focus { outline: none; }
+
+  /* ---- shortcuts dialog ---- */
+  dialog#keys {
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
+    background: var(--surface-1); color: var(--text-primary); max-width: 360px;
+  }
+  dialog#keys::backdrop { background: rgba(0, 0, 0, 0.35); }
+  dialog#keys h2 { font-size: 15px; margin: 0 0 10px; }
+  dialog#keys dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 14px; }
+  dialog#keys dt { white-space: nowrap; }
+  dialog#keys dd { margin: 0; color: var(--text-secondary); }
+  kbd {
+    font: 12px ui-monospace, monospace; border: 1px solid var(--baseline); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 5px;
+  }
+  dialog#keys button {
+    background: var(--text-primary); color: var(--page); border: none; border-radius: 8px;
+    padding: 6px 14px; font: inherit; font-weight: 600; cursor: pointer;
+  }
 </style>
 </head>
 <body>
+<a class="skip" href="#gridCard">Skip to habit grid</a>
+<div id="live" class="sr-only" aria-live="polite"></div>
 <div class="wrap">
 
   <header class="app">
     <h1>Watcher</h1>
     <span class="tagline">monthly habit tracker · memorable moments · sleep · gratitude</span>
+    <span class="savestat" id="saveStat" aria-hidden="true">Saved</span>
     <nav class="monthnav" aria-label="Month">
       <button id="prevM" aria-label="Previous month">‹</button>
       <span class="label" id="monthLabel"></span>
       <button id="nextM" aria-label="Next month">›</button>
     </nav>
   </header>
+
+  <div class="banner" id="storeWarn" role="alert" hidden>
+    <span id="storeWarnText"></span>
+    <button type="button" id="storeWarnExport">Export now</button>
+  </div>
 
   <section class="card intention">
     <h2>This month</h2>
@@ -237,13 +316,13 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="gridCard" tabindex="-1">
     <h2>Habit grid</h2>
     <p class="sub">Each morning, revisit <em>yesterday</em>: write one memorable moment, mark your habits, log your sleep. Tap a cell to cycle ✓ → ✗ → blank.</p>
     <div class="legend" id="legend">
-      <span class="key"><span class="swatch" style="background:var(--cat-non)"></span>Non-negotiable</span>
-      <span class="key"><span class="swatch" style="background:var(--cat-build)"></span>Building</span>
-      <span class="key"><span class="swatch" style="background:var(--cat-avoid)"></span>Avoid (✓ = slipped)</span>
+      <span class="key"><span class="swatch shape-non" style="background:var(--cat-non)"></span>Non-negotiable</span>
+      <span class="key"><span class="swatch shape-build" style="background:var(--cat-build)"></span>Building</span>
+      <span class="key"><span class="swatch shape-avoid" style="background:var(--cat-avoid)"></span>Avoid (✓ = slipped, ✗ = stayed clean)</span>
     </div>
     <div class="grid-wrap">
       <table class="grid" id="grid"></table>
@@ -303,8 +382,22 @@
       <button class="ghost" id="exportBtn" type="button">Export data</button>
       <button class="ghost" id="importBtn" type="button">Import data</button>
       <input type="file" id="importFile" accept="application/json" hidden>
+      <button class="ghost" id="keysBtn" type="button">Shortcuts <kbd>?</kbd></button>
+      <span class="usage" id="usage"></span>
     </div>
   </section>
+
+  <dialog id="keys" aria-labelledby="keysTitle">
+    <h2 id="keysTitle">Keyboard shortcuts</h2>
+    <dl>
+      <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous / next month</dd>
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous journal day</dd>
+      <dt>Arrow keys</dt><dd>Move between cells inside the habit grid</dd>
+      <dt><kbd>e</kbd></dt><dd>Export data</dd>
+      <dt><kbd>?</kbd></dt><dd>Show this list</dd>
+    </dl>
+    <form method="dialog"><button>Close</button></form>
+  </dialog>
 
   <footer class="app">
     Everything is saved on this device only (localStorage). Export regularly if you care about it.<br>
@@ -328,8 +421,11 @@
     { id: 'socials',  name: 'Socials on waking', cat: 'avoid', type: 'check'  },
   ];
 
+  const CAT_NAMES = { non: 'non-negotiable', build: 'building', avoid: 'avoid' };
+  const QUOTA = 5 * 1024 * 1024; // typical per-origin localStorage limit
+
   let state = load();
-  const now = new Date();
+  let now = new Date();
   let cur = { y: now.getFullYear(), m: now.getMonth() }; // m: 0-11
   let selDay = now.getDate();
 
@@ -340,17 +436,42 @@
     } catch (e) { /* corrupted store — start fresh */ }
     return { version: 1, months: {} };
   }
-  let saveT;
-  function save() {
-    clearTimeout(saveT);
-    saveT = setTimeout(() => {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { /* quota */ }
-    }, 250);
+  let saveT = null;
+  function persist() {
+    clearTimeout(saveT); saveT = null;
+    const json = JSON.stringify(state);
+    try { localStorage.setItem(LS_KEY, json); }
+    catch (e) {
+      showStoreWarn("Couldn't save — this browser's storage is full. Export your data now so nothing is lost.");
+      return;
+    }
+    flashSaved(); updateUsage(json.length);
   }
+  function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
+  const flush = () => { if (saveT !== null) persist(); };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 
-  const mkey = () => `${cur.y}-${String(cur.m + 1).padStart(2, '0')}`;
-  const daysInMonth = () => new Date(cur.y, cur.m + 1, 0).getDate();
+  const keyOf = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+  const dim = (y, m) => new Date(y, m + 1, 0).getDate();
+  const mkey = () => keyOf(cur.y, cur.m);
+  const daysInMonth = () => dim(cur.y, cur.m);
   const isCurMonth = () => now.getFullYear() === cur.y && now.getMonth() === cur.m;
+
+  // The page may stay open past midnight (or be resumed from the background), so "today" must move.
+  function refreshToday() {
+    const t = new Date();
+    if (t.toDateString() === now.toDateString()) return;
+    const prev = now;
+    now = t;
+    if (cur.y === prev.getFullYear() && cur.m === prev.getMonth()) {
+      if (selDay === prev.getDate()) selDay = now.getDate();
+      cur = { y: now.getFullYear(), m: now.getMonth() };
+    }
+    renderAll();
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshToday(); });
+  setInterval(refreshToday, 60000);
 
   function prevMonthWithHabits() {
     const keys = Object.keys(state.months).filter(k => k < mkey()).sort();
@@ -398,6 +519,83 @@
   }
   const catVar = (cat) => cat === 'build' ? 'var(--cat-build)' : cat === 'avoid' ? 'var(--cat-avoid)' : 'var(--cat-non)';
 
+  function announce(msg) {
+    const r = $('#live');
+    r.textContent = '';
+    setTimeout(() => { r.textContent = msg; }, 30);
+  }
+  let flashT;
+  function flashSaved() {
+    const s = $('#saveStat');
+    s.classList.add('on');
+    clearTimeout(flashT);
+    flashT = setTimeout(() => s.classList.remove('on'), 2000);
+  }
+  function showStoreWarn(msg) {
+    $('#storeWarnText').textContent = msg;
+    $('#storeWarn').hidden = false;
+  }
+  function updateUsage(len) {
+    const mb = len / 1024 / 1024;
+    $('#usage').textContent = `Using ${mb < 0.1 ? '< 0.1' : mb.toFixed(1)} MB of ~5 MB`;
+    if (len > QUOTA * 0.8) {
+      showStoreWarn(`Storage is ${Math.round(len / QUOTA * 100)}% full. Export a backup now — browsers stop saving at about 5 MB.`);
+    }
+  }
+
+  /* ---------- streaks & completion ---------- */
+  // For "avoid" habits a ✗ (stayed clean) is the success mark.
+  const success = (h) => h.cat === 'avoid' ? 'miss' : 'done';
+  function markAt(y, m, d, id) {
+    const mo = state.months[keyOf(y, m)];
+    const r = mo && mo.days && mo.days[d];
+    return r && r.vals ? r.vals[id] : undefined;
+  }
+  const isFutureMonth = () => mkey() > keyOf(now.getFullYear(), now.getMonth());
+  // Days of the viewed month that count so far. Today only counts once it has a mark,
+  // since the ritual is to fill in yesterday each morning.
+  function elapsed(h) {
+    if (isFutureMonth()) return 0;
+    if (!isCurMonth()) return daysInMonth();
+    const D = now.getDate();
+    return markAt(cur.y, cur.m, D, h.id) ? D : D - 1;
+  }
+  function currentStreak(h) {
+    if (isFutureMonth()) return 0;
+    const ok = success(h);
+    const first = Object.keys(state.months).sort()[0];
+    let y = cur.y, m = cur.m, d = elapsed(h), n = 0;
+    for (;;) {
+      if (d < 1) {
+        if (--m < 0) { m = 11; y--; }
+        if (!first || keyOf(y, m) < first) break;
+        d = dim(y, m);
+        continue;
+      }
+      if (markAt(y, m, d, h.id) !== ok) break;
+      n++; d--;
+    }
+    return n;
+  }
+  function bestStreak(h) {
+    const ok = success(h);
+    const keys = Object.keys(state.months).filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+    if (!keys.length) return 0;
+    let [y, m] = keys[0].split('-').map(Number); m--;
+    const last = keys[keys.length - 1];
+    let best = 0, run = 0;
+    while (keyOf(y, m) <= last) {
+      const N = dim(y, m);
+      for (let d = 1; d <= N; d++) {
+        if (markAt(y, m, d, h.id) === ok) { if (++run > best) best = run; }
+        else run = 0;
+      }
+      if (++m > 11) { m = 0; y++; }
+    }
+    return best;
+  }
+  const rateClass = (p) => p >= 80 ? 'r-good' : p >= 50 ? 'r-mid' : 'r-low';
+
   /* ---------- header / month nav ---------- */
   function renderHeader() {
     $('#monthLabel').textContent = `${MONTHS[cur.m]} ${cur.y}`;
@@ -407,6 +605,7 @@
   function switchMonth() {
     selDay = isCurMonth() ? now.getDate() : 1;
     renderAll();
+    announce(`${MONTHS[cur.m]} ${cur.y}`);
   }
 
   /* ---------- intention / goals / next month ---------- */
@@ -423,12 +622,17 @@
 
   /* ---------- habit grid ---------- */
   function cycle(v) { return v === 'done' ? 'miss' : v === 'miss' ? '' : 'done'; }
+  const markWord = (v) => v === 'done' ? 'done' : v === 'miss' ? 'missed' : 'blank';
+  function paintCell(btn, h, d, v) {
+    btn.replaceChildren(v === 'done' ? el('span', { class: 'done' }, '✓') : v === 'miss' ? el('span', { class: 'miss' }, '✗') : '·');
+    btn.setAttribute('aria-label', `${h.name} day ${d}: ${markWord(v)}`);
+  }
 
   function renderGrid() {
     const m = month();
     const N = daysInMonth();
     const grid = $('#grid');
-    grid.replaceChildren();
+    grid.replaceChildren(el('caption', { class: 'sr-only' }, `Habit grid, ${MONTHS[cur.m]} ${cur.y}`));
 
     // header
     const hr = el('tr');
@@ -437,7 +641,8 @@
     for (const h of m.habits) {
       const th = el('th', { class: 'habith', title: h.name });
       th.append(el('span', { class: 'rot' }, h.name));
-      th.append(el('span', { class: 'dot', style: `background:${catVar(h.cat)}` }));
+      th.append(el('span', { class: `dot shape-${h.cat}`, style: `background:${catVar(h.cat)}` }));
+      th.append(el('span', { class: 'sr-only' }, ` (${CAT_NAMES[h.cat]})`));
       hr.append(th);
     }
     hr.append(el('th', { class: 'habith', title: 'Hours slept' }, el('span', { class: 'rot' }, 'Sleep (h)')));
@@ -470,19 +675,19 @@
           });
           tr.append(el('td', { class: 'numcell' }, ni));
         } else {
-          const v = rec.vals ? rec.vals[h.id] : '';
           const btn = el('button', {
             class: 'cell', type: 'button',
-            'aria-label': `${h.name} day ${d}: ${v === 'done' ? 'done' : v === 'miss' ? 'missed' : 'blank'}`,
-            onclick: () => {
+            onclick: (e) => {
               const dd = day(d);
-              dd.vals[h.id] = cycle(dd.vals[h.id] || '');
-              save(); renderGrid();
+              const v = cycle(dd.vals[h.id] || '');
+              dd.vals[h.id] = v;
+              paintCell(e.currentTarget, h, d, v);
+              save(); renderFooter();
+              const cs = currentStreak(h);
+              announce(`${h.name} day ${d}: ${markWord(v)}.${cs ? ` Streak ${cs}.` : ''}`);
             },
           });
-          if (v === 'done') btn.append(el('span', { class: 'done' }, '✓'));
-          else if (v === 'miss') btn.append(el('span', { class: 'miss' }, '✗'));
-          else btn.append('·');
+          paintCell(btn, h, d, rec.vals ? rec.vals[h.id] : '');
           tr.append(el('td', {}, btn));
         }
       }
@@ -507,33 +712,83 @@
     }
     grid.append(tbody);
 
-    grid.append(el('tfoot', {}, el('tr', { id: 'footRow' })));
+    grid.append(el('tfoot', { id: 'foot' }));
     renderFooter();
   }
 
+  // Arrow keys move between cells; inside a text field, left/right only leave at the text's edge.
+  $('#grid').addEventListener('keydown', e => {
+    const k = e.key;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k) || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const t = e.target;
+    const td = t.closest('td');
+    const tr = td && td.parentElement;
+    if (!tr || tr.parentElement.tagName !== 'TBODY') return;
+    if (t.type === 'text' && (k === 'ArrowLeft' || k === 'ArrowRight')) {
+      const edge = k === 'ArrowLeft' ? 0 : t.value.length;
+      if (t.selectionStart !== edge || t.selectionEnd !== edge) return;
+    }
+    let row = tr, col = td.cellIndex;
+    if (k === 'ArrowUp') row = tr.previousElementSibling;
+    else if (k === 'ArrowDown') row = tr.nextElementSibling;
+    else col += k === 'ArrowLeft' ? -1 : 1;
+    const next = row && row.cells[col] && row.cells[col].querySelector('button, input');
+    if (!next) return;
+    e.preventDefault();
+    next.focus();
+  });
+
   function renderFooter() {
     const m = month();
-    const row = $('#footRow');
-    if (!row) return;
-    row.replaceChildren();
-    row.append(el('td', { class: 'daycol' }, 'Σ'));
-    row.append(el('td', {}, ''));
+    const foot = $('#foot');
+    if (!foot) return;
+    const rDone = el('tr'), rRate = el('tr'), rStreak = el('tr');
+    const done = [], rate = [], streak = [];
+    let hit = 0, total = 0;
     for (const h of m.habits) {
       if (h.type === 'number') {
         const vals = Object.values(m.days).map(r => r.vals && r.vals[h.id]).filter(v => v === 0 || (v && !isNaN(v)));
         const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-        row.append(el('td', { title: `${h.name}: average` }, avg === null ? '' : (Math.round(avg * 10) / 10).toString()));
-      } else {
-        const n = Object.values(m.days).filter(r => r.vals && r.vals[h.id] === 'done').length;
-        row.append(el('td', { title: h.cat === 'avoid' ? `${h.name}: days slipped` : `${h.name}: days done` }, n ? String(n) : ''));
+        done.push(el('td', { title: `${h.name}: average` }, avg === null ? '' : (Math.round(avg * 10) / 10).toString()));
+        rate.push(el('td')); streak.push(el('td'));
+        continue;
       }
+      const n = Object.values(m.days).filter(r => r.vals && r.vals[h.id] === 'done').length;
+      done.push(el('td', { title: h.cat === 'avoid' ? `${h.name}: days slipped` : `${h.name}: days done` }, n ? String(n) : ''));
+
+      const E = elapsed(h), ok = success(h);
+      let good = 0;
+      for (let d = 1; d <= E; d++) if (markAt(cur.y, cur.m, d, h.id) === ok) good++;
+      hit += good; total += Math.max(E, 0);
+      const p = E > 0 ? Math.round(good / E * 100) : null;
+      rate.push(el('td', {
+        class: p === null ? null : rateClass(p),
+        title: p === null ? null : `${h.name}: ${good}/${E} days ${h.cat === 'avoid' ? 'clean' : 'done'} (${p}%)`,
+      }, p === null ? '' : `${p}%`));
+
+      const cs = currentStreak(h), bs = bestStreak(h);
+      streak.push(el('td', {
+        class: cs >= 7 ? 'hot' : null,
+        title: `${h.name}: ${h.cat === 'avoid' ? 'clean ' : ''}streak ${cs} day${cs === 1 ? '' : 's'} · best ${bs}`,
+      }, cs ? String(cs) : ''));
     }
-    const sl = Object.values(m.days).map(r => r.sleepH).filter(v => v === 0 || v);
+    const overall = total ? Math.round(hit / total * 100) : null;
+
+    rDone.append(el('td', { class: 'daycol' }, 'Σ'), el('td'), ...done);
+    rRate.append(el('td', { class: 'daycol' }, 'Rate'),
+      el('td', { class: 'overall' + (overall === null ? '' : ' ' + rateClass(overall)), title: overall === null ? null : `${hit} of ${total} habit-days on track` },
+        overall === null ? '' : `${overall}% overall`),
+      ...rate);
+    rStreak.append(el('td', { class: 'daycol' }, 'Streak'), el('td'), ...streak);
+
+    const sl = Object.values(m.days).map(r => r.sleepH).filter(v => v != null && !isNaN(v));
     const avgS = sl.length ? sl.reduce((a, b) => a + b, 0) / sl.length : null;
-    row.append(el('td', {}, avgS === null ? '' : (Math.round(avgS * 10) / 10) + 'h'));
-    const sc = Object.values(m.days).map(r => r.sleepScore).filter(v => v === 0 || v);
+    const sc = Object.values(m.days).map(r => r.sleepScore).filter(v => v != null && !isNaN(v));
     const avgC = sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : null;
-    row.append(el('td', {}, avgC === null ? '' : String(Math.round(avgC))));
+    rDone.append(el('td', {}, avgS === null ? '' : (Math.round(avgS * 10) / 10) + 'h'), el('td', {}, avgC === null ? '' : String(Math.round(avgC))));
+    rRate.append(el('td'), el('td'));
+    rStreak.append(el('td'), el('td'));
+    foot.replaceChildren(rDone, rRate, rStreak);
     $('#sleepAvg').textContent = avgS === null ? '' : `avg ${(Math.round(avgS * 10) / 10)} h over ${sl.length} night${sl.length === 1 ? '' : 's'}`;
   }
 
@@ -697,12 +952,11 @@
     const m = month();
     const list = $('#hlist');
     list.replaceChildren();
-    const CATS = { non: 'non-negotiable', build: 'building', avoid: 'avoid' };
     for (const h of m.habits) {
       list.append(el('div', { class: 'hrow' },
-        el('span', { class: 'dot', style: `background:${catVar(h.cat)}` }),
+        el('span', { class: `dot shape-${h.cat}`, style: `background:${catVar(h.cat)}` }),
         el('span', { class: 'name' }, h.name),
-        el('span', { class: 'meta' }, `${CATS[h.cat]}${h.type === 'number' ? ' · number' : ''}`),
+        el('span', { class: 'meta' }, `${CAT_NAMES[h.cat]}${h.type === 'number' ? ' · number' : ''}`),
         el('button', {
           class: 'del', type: 'button', 'aria-label': `Remove ${h.name}`,
           onclick: () => {
@@ -727,11 +981,16 @@
   });
 
   /* ---------- export / import ---------- */
-  $('#exportBtn').addEventListener('click', () => {
+  function exportData() {
+    flush();
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = el('a', { href: URL.createObjectURL(blob), download: `watcher-export-${mkey()}.json` });
+    const url = URL.createObjectURL(blob);
+    const a = el('a', { href: url, download: `watcher-export-${mkey()}.json` });
     document.body.append(a); a.click(); a.remove();
-  });
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  $('#exportBtn').addEventListener('click', exportData);
+  $('#storeWarnExport').addEventListener('click', exportData);
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', e => {
     const f = e.target.files[0];
@@ -750,11 +1009,43 @@
     e.target.value = '';
   });
 
+  /* ---------- keyboard shortcuts ---------- */
+  function openKeys() {
+    const d = $('#keys');
+    if (d.open) return;
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  }
+  $('#keysBtn').addEventListener('click', openKeys);
+  function stepJournal(n) {
+    selDay = Math.min(Math.max(1, selDay + n), daysInMonth());
+    renderJournal();
+    announce(`Journal: ${MONTHS[cur.m]} ${selDay}`);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable], #grid, dialog')) return;
+    switch (e.key) {
+      case 'ArrowLeft': $('#prevM').click(); break;
+      case 'ArrowRight': $('#nextM').click(); break;
+      case 'j': stepJournal(1); break;
+      case 'k': stepJournal(-1); break;
+      case 'e': exportData(); break;
+      case '?': openKeys(); break;
+      default: return;
+    }
+    e.preventDefault();
+  });
+
   /* ---------- boot ---------- */
   function renderAll() {
     renderHeader(); renderIntention(); renderGrid(); renderChart(); renderJournal(); renderHabits();
   }
   renderAll();
+  updateUsage(JSON.stringify(state).length);
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
+  }
 })();
 </script>
 </body>
