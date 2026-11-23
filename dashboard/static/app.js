@@ -5,6 +5,11 @@
   const $ = (id) => document.getElementById(id);
   const state = { config: null, failures: 0, startedAt: Date.now(), configVersion: null };
 
+  // A logo that fails to load disappears (no inline onerror: the page's CSP allows no inline script).
+  document.addEventListener("error", (e) => { if (e.target.matches && e.target.matches("img[data-drop-on-error]")) e.target.remove(); }, true);
+  // Keeps the last good page on screen while the server restarts (updates, the nightly reload).
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+
   // ---------- helpers ----------------------------------------------------------------------
   async function getJSON(path) {
     const resp = await fetch(path, { cache: "no-store" });
@@ -902,7 +907,7 @@
     }
     const dots = teams.length > 1 ? `<div class="dots">${teams.map((_, i) => `<i class="${i === sportsState.index ? "on" : ""}"></i>`).join("")}</div>` : "";
     tile.innerHTML = `
-      <div class="head">${t.logo ? `<img src="${escapeHTML(t.logo)}" alt="" onerror="this.remove()">` : ""}
+      <div class="head">${t.logo ? `<img src="${escapeHTML(t.logo)}" alt="" data-drop-on-error>` : ""}
         <div><div class="team">${escapeHTML(t.short || t.name)}</div><div class="record">${escapeHTML([t.record, t.standing].filter(Boolean).join(" · "))}</div></div>
       </div>${lines.join("")}${dots}`;
   }
@@ -913,7 +918,7 @@
   const scrollers = new Map();
   function autoScroll(el, opts = {}) {
     if (scrollers.has(el)) { scrollers.get(el).refresh(); return; }
-    const st = { pos: 0, phase: "top", until: 0, holdUntil: 0, last: 0 };
+    const st = { pos: 0, phase: "top", until: 0, holdUntil: 0, last: 0, running: false };
     const pause = opts.pauseMs || 7000;
     const speed = () => (opts.pxPerSec || 0.0095 * window.innerWidth);
     const hold = () => { st.holdUntil = performance.now() + 20000; };
@@ -925,6 +930,7 @@
       el.classList.toggle("scrolls", overflow > 2);
       if (overflow <= 2) { el.scrollTop = 0; st.pos = 0; st.phase = "top"; }
       st.until = performance.now() + pause;
+      if (overflow > 2 && !st.running) { st.running = true; st.last = performance.now(); requestAnimationFrame(step); }
     }
     function step(now) {
       const overflow = el.scrollHeight - el.clientHeight;
@@ -945,9 +951,11 @@
         st.pos = el.scrollTop;  // follow a person's own scrolling
       }
       el.classList.toggle("at-top", el.scrollTop < 4);
+      // Nothing to scroll (or the box was removed / hidden): stop; the next refresh() starts it again.
+      if (overflow <= 2 || !el.isConnected) { st.running = false; return; }
       requestAnimationFrame(step);
     }
-    st.last = performance.now(); refresh(); requestAnimationFrame(step);
+    refresh();
     scrollers.set(el, { refresh });
   }
   window.addEventListener("resize", () => { scrollers.forEach((s) => s.refresh()); renderNext(); });
@@ -1216,7 +1224,7 @@
     startWidget("weather", every("weather", 300), renderWeather);
     startWidget("alerts", every("alerts", 300), renderAlerts, () => $("alert-banner").classList.add("hidden"));
     startWidget("radar", every("radar", 300), renderRadar);
-    startWidget("stocks", 60, renderStocks);
+    startWidget("stocks", every("stocks", 300), renderStocks);
     startWidget("sports", every("sports", 300), renderSports, () => $("sports").classList.add("hidden"));
     startWidget("calendar", every("calendar", 300), renderCalendar);
     startWidget("news", every("news", 600), renderNews);

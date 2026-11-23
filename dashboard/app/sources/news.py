@@ -5,6 +5,7 @@ import asyncio
 import calendar as _cal
 import html
 import re
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
@@ -60,12 +61,12 @@ def parse_feed(name: str, content: bytes) -> list[dict[str, Any]]:
 def merge(all_items: list[list[dict[str, Any]]], limit: int) -> list[dict[str, Any]]:
     """Newest-first within each feed, then round-robin across feeds so the ticker mixes sources."""
     seen: set[str] = set()
-    queues = [sorted(items, key=lambda i: i["published"] or "", reverse=True) for items in all_items]
+    queues = [deque(sorted(items, key=lambda i: i["published"] or "", reverse=True)) for items in all_items]
     merged: list[dict[str, Any]] = []
     while len(merged) < limit and any(queues):
         for queue in queues:
             while queue:
-                item = queue.pop(0)
+                item = queue.popleft()
                 key = re.sub(r"[^a-z0-9]", "", item["title"].lower())[:80]
                 if key in seen:
                     continue

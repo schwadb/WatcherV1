@@ -85,17 +85,32 @@ async def refresh(client: httpx.AsyncClient, settings: Settings) -> dict[str, An
     folder.mkdir(parents=True, exist_ok=True)
     per_artist = int((settings.cfg.get("photos") or {}).get("art_per_artist", PER_ARTIST_DEFAULT))
     max_size = int(settings.cfg["photos"].get("max_size", 1920))
-    works: list[dict[str, Any]] = []
     errors: list[str] = []
-    for name in artists(settings):
+    gate = asyncio.Semaphore(4)  # a few searches at a time, to stay polite
+
+    async def search(name: str) -> list[dict[str, Any]] | None:
+        async with gate:
+            try:
+                resp = await client.get(API, params={"q": name, "query[term][is_public_domain]": "true", "fields": "id,title,artist_title,date_display,image_id", "limit": 12}, headers=HEADERS, timeout=20)
+                resp.raise_for_status()
+                return parse_search(resp.json(), name, per_artist)
+            except Exception as exc:  # noqa: BLE001 - one artist failing must not stop the rest
+                errors.append(f"{name}: {exc}")
+                return None
+
+    names = artists(settings)
+    found = await asyncio.gather(*(search(n) for n in names))
+    failed = [n for n, f in zip(names, found) if f is None]
+    works: list[dict[str, Any]] = [w for f in found if f for w in f]
+    if failed:  # keep yesterday's paintings by the artists whose search failed this time
         try:
-            resp = await client.get(API, params={"q": name, "query[term][is_public_domain]": "true", "fields": "id,title,artist_title,date_display,image_id", "limit": 12}, headers=HEADERS, timeout=20)
-            resp.raise_for_status()
-            works.extend(parse_search(resp.json(), name, per_artist))
-        except Exception as exc:  # noqa: BLE001 - one artist failing must not stop the rest
-            errors.append(f"{name}: {exc}")
-        if len(works) >= MAX_WORKS:
-            break
+            previous = json.loads(catalog_path(settings).read_text(encoding="utf-8")).get("works") or []
+        except (OSError, ValueError):
+            previous = []
+        have = {w["id"] for w in works}
+        keys = [n.lower().split()[-1] for n in failed]
+        works += [w for w in previous if w.get("id") not in have and (folder / str(w.get("file"))).exists()
+                  and any(k in (w.get("artist") or "").lower() for k in keys)]
     kept: list[dict[str, Any]] = []
     for w in works[:MAX_WORKS]:
         dest = folder / f"{w['id']}.jpg"
@@ -110,9 +125,10 @@ async def refresh(client: httpx.AsyncClient, settings: Settings) -> dict[str, An
                 continue
         kept.append({**w, "file": dest.name, "caption": caption_for(w), "credit": CREDIT})
     wanted = {w["file"] for w in kept}
-    for old in folder.glob("*.jpg"):  # drop works by artists no longer wanted
-        if old.name not in wanted and kept:
-            old.unlink(missing_ok=True)
+    if kept and not failed:  # drop works by artists no longer wanted, but never after a partial refresh
+        for old in folder.glob("*.jpg"):
+            if old.name not in wanted:
+                old.unlink(missing_ok=True)
     catalog_path(settings).write_text(json.dumps({"fetched_at": time.time(), "works": kept, "errors": errors[:10]}), encoding="utf-8")
     if not kept:
         raise RuntimeError("no paintings could be fetched: " + "; ".join(errors[:3]))

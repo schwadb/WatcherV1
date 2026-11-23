@@ -179,7 +179,9 @@ def scan(settings: Settings) -> dict[str, Any]:
     wanted_ids: set[str] = set()
     want_captions = bool(settings.cfg["photos"].get("captions", True))
     want_memories = bool(settings.cfg["photos"].get("memories", True))
-    meta = load_meta(cache) if (want_captions or want_memories) else {"photos": {}, "places": {}}
+    meta = load_meta(cache)
+    meta.setdefault("photos", {})
+    sizes = meta.setdefault("sizes", {})  # (w, h) of each cached copy, so a rescan never re-opens them
     meta_changed = False
     today = datetime.now(ZoneInfo(settings.timezone)).date().isoformat()
     for path in files:
@@ -187,11 +189,17 @@ def scan(settings: Settings) -> dict[str, Any]:
         wanted_ids.add(pid)
         dest = cache / f"{pid}.jpg"
         try:
-            if not dest.exists():
-                w, h = resize_into_cache(path, dest, max_size)
+            known = sizes.get(pid) if dest.exists() else None
+            if known:
+                w, h = known
             else:
-                with Image.open(dest) as im:
-                    w, h = im.size
+                if not dest.exists():
+                    w, h = resize_into_cache(path, dest, max_size)
+                else:
+                    with Image.open(dest) as im:
+                        w, h = im.size
+                sizes[pid] = [w, h]
+                meta_changed = True
         except Exception as exc:  # noqa: BLE001 - skip a broken file, keep the rest
             log.warning("photos: skipping %s: %s", path.name, exc)
             continue
@@ -203,8 +211,9 @@ def scan(settings: Settings) -> dict[str, Any]:
         places = meta.setdefault("places", {})
         if lookup_places({pid: meta["photos"][pid] for pid in wanted_ids if pid in meta["photos"]}, places):
             meta_changed = True
-    if meta_changed or any(pid not in wanted_ids for pid in list(meta.get("photos", {}))):
-        meta["photos"] = {pid: v for pid, v in meta.get("photos", {}).items() if pid in wanted_ids}
+    if meta_changed or any(pid not in wanted_ids for pid in [*meta["photos"], *sizes]):
+        meta["photos"] = {pid: v for pid, v in meta["photos"].items() if pid in wanted_ids}
+        meta["sizes"] = {pid: v for pid, v in sizes.items() if pid in wanted_ids}
         save_meta(cache, meta)
     for photo in photos:
         info = meta.get("photos", {}).get(photo["id"]) or {}

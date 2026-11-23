@@ -43,6 +43,14 @@ def label_for(key: str) -> str:
     return LEAGUES[key][2] if key in LEAGUES else NSAA_SPORTS.get(key, key)
 TTL_LIVE, TTL_IDLE = 30.0, 120.0
 _cache: dict[str, tuple[float, dict[str, Any]]] = {}
+CACHE_MAX_AGE = 600.0
+
+
+def _remember(key: str, data: dict[str, Any]) -> None:
+    now = time.time()
+    for k in [k for k, (t, _) in _cache.items() if now - t > CACHE_MAX_AGE]:
+        del _cache[k]
+    _cache[key] = (now, data)
 
 
 def enabled_leagues(settings: Settings) -> list[str]:
@@ -131,7 +139,7 @@ async def fetch_league(client: httpx.AsyncClient, settings: Settings, key: str) 
     resp.raise_for_status()
     data = parse_scoreboard(resp.json(), mine_for(settings, key))
     data.update(league=key, label=label)
-    _cache[key] = (time.time(), data)
+    _remember(key, data)
     return data
 
 
@@ -203,7 +211,7 @@ def parse_nsaa(html_text: str, schools: list[str] | None = None) -> dict[str, An
             a, sa, b, sb, note = sm.group(1), int(sm.group(2)), sm.group(3), int(sm.group(4)), (sm.group(5) or "")
             games.append({"id": f"nsaa-{day}-{a}-{b}", "date": day + "T00:00:00", "state": "post", "detail": "Final" + (f" · {note}" if note else ""), "completed": True, "tv": "", "venue": "", "odds": "",
                           "situation": {"down": "", "possession": "", "red_zone": False},
-                          "home": _hs_side(b, sb, sb > sa), "away": _hs_side(a, sa, sa >= sb), "mine": _mine_hs([a, b], schools)})
+                          "home": _hs_side(b, sb, sb > sa), "away": _hs_side(a, sa, sa > sb), "mine": _mine_hs([a, b], schools)})
     order = {"in": 0, "pre": 1, "post": 2}
     games.sort(key=lambda g: (not g["mine"], order.get(g["state"], 3), g["date"] or "", g["away"]["name"]))
     return {"games": games, "week": week or None, "live": 0, "fetched_at": datetime.now(timezone.utc).isoformat(), "note": "Scores as reported to the NSAA; final scores only, no live updates." if games else "No games reported this week."}
@@ -217,7 +225,7 @@ async def fetch_nsaa(client: httpx.AsyncClient, settings: Settings, key: str) ->
     resp.raise_for_status()
     data = parse_nsaa(resp.text, high_schools(settings))
     data.update(league=key, label=NSAA_SPORTS[key])
-    _cache[key] = (time.time(), data)
+    _remember(key, data)
     return data
 
 

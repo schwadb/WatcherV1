@@ -30,7 +30,7 @@ DEFAULTS: dict[str, Any] = {
         "takeover_sound": True,
         "takeover_events": ["*Warning", "Tornado Watch"],
     },
-    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": ""},
+    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": "", "skip_tls_verify": False},
     "globe": {"enabled": False, "port": 4173},
     "remote": {"hostname": ""},  # the public name of the Cloudflare Tunnel (board.example.com), for the status page
     "radar": {
