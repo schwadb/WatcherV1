@@ -70,6 +70,19 @@ body.show-cursor { cursor: auto; }
 .radar    { grid-column: 10 / 13; grid-row: 3; padding: 0; }
 .ticker   { grid-column: 1 / 13; grid-row: 4; padding: 0; display: flex; align-items: center; }
 
+/* rotating layouts: one panel takes the whole board (the news ticker stays) */
+.board { transition: opacity 0.6s ease, transform 3s ease; }
+body.layout-fade .board { opacity: 0; }
+body.layout-photos .board > .panel:not(.photo):not(.ticker),
+body.layout-radar .board > .panel:not(.radar):not(.ticker) { display: none; }
+body.layout-photos .board > .photo, body.layout-radar .board > .radar { display: block; grid-column: 1 / 13; grid-row: 1 / 4; }
+
+/* OLED burn-in protection: the page drifts a few px around a small orbit (app.js sets the offsets) */
+body.pixel-shift .board, body.pixel-shift .takeover, body.pixel-shift .scores-full, body.pixel-shift .music-full {
+  transform: translate(var(--shift-x, 0px), var(--shift-y, 0px));
+}
+.takeover, .scores-full, .music-full { transition: transform 3s ease; }
+
 /* hidden panels give their space to a neighbor */
 .todo { display: none; }
 body.has-todo .todo { display: block; }

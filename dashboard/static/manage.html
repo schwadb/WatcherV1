@@ -326,6 +326,20 @@
         <label>Nightly reload at <input name="display.reload_at" type="time"></label>
         <label>HDMI control <select name="display.control"><option value="auto">Turn the TV output off/on</option><option value="off">Only dim the page</option></select></label>
       </div>
+      <div class="row two">
+        <label class="check"><input name="display.pixel_shift" type="checkbox"> Burn-in protection: move the page a few pixels every 10 minutes (OLED TVs)</label>
+        <label>Shift by (pixels, 0–6) <input name="display.pixel_shift_px" type="number" min="0" max="6" step="1"></label>
+      </div>
+      <p class="muted">Rotating layouts: the TV takes turns between the full dashboard and full-screen photos or radar. Press L on the TV to step through them.</p>
+      <div class="row two">
+        <label class="check"><input name="layouts.rotate" type="checkbox"> Rotate layouts</label>
+        <label>Seconds per layout (15–3600) <input name="layouts.seconds" type="number" min="15" max="3600" step="5"></label>
+      </div>
+      <div class="row two">
+        <label class="check"><input name="layouts.page.dashboard" type="checkbox"> Dashboard</label>
+        <label class="check"><input name="layouts.page.photos" type="checkbox"> Photos, full screen</label>
+        <label class="check"><input name="layouts.page.radar" type="checkbox"> Radar, full screen</label>
+      </div>
       <div class="row end"><button type="submit">Save</button></div>
     </form>
 

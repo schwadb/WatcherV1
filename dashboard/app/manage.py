@@ -465,8 +465,12 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit", "art", "art_every", "artists", "captions", "memories")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
-        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
+        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "control", "start_at_login", "locked_kiosk", "stop_idle_lock", "pixel_shift", "pixel_shift_px")},
+        "layouts": {**DEFAULTS["layouts"], **(c.get("layouts") or {})},
     }
+
+
+LAYOUT_PAGES = ("dashboard", "photos", "radar")
 
 
 def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
@@ -653,7 +657,21 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         out["start_at_login"] = bool(d.get("start_at_login", True))
         out["locked_kiosk"] = bool(d.get("locked_kiosk", False))
         out["stop_idle_lock"] = bool(d.get("stop_idle_lock", True))
+        out["pixel_shift"] = bool(d.get("pixel_shift", True))
+        px = num("display", "pixel_shift_px", 0, 6, int) if d.get("pixel_shift_px") not in (None, "") else None
+        out["pixel_shift_px"] = 2 if px is None else px
         clean["display"] = out
+    if "layouts" in body:
+        lay = body["layouts"] or {}
+        pages = []
+        for page in lay.get("pages") or []:
+            page = str(page).strip().lower()
+            if page not in LAYOUT_PAGES:
+                errors.append(f"layouts.pages: unknown page '{page}' (use {', '.join(LAYOUT_PAGES)})")
+            elif page not in pages:
+                pages.append(page)
+        seconds = num("layouts", "seconds", 15, 3600, int) if lay.get("seconds") not in (None, "") else None
+        clean["layouts"] = {"rotate": bool(lay.get("rotate", False)), "seconds": seconds or DEFAULTS["layouts"]["seconds"], "pages": pages or ["dashboard"]}
     return clean, errors
 
 
@@ -873,12 +891,11 @@ def _globe_port(settings) -> int:
     return int((settings.cfg.get("globe") or {}).get("port") or DEFAULTS["globe"]["port"])
 
 
-async def _globe_probe(port: int) -> bool:
+async def _globe_probe(client: httpx.AsyncClient, port: int) -> bool:
     try:
-        async with httpx.AsyncClient(timeout=2) as client:
-            resp = await client.get(f"http://127.0.0.1:{port}/")
-            return resp.status_code < 500
-    except Exception:
+        resp = await client.get(f"http://127.0.0.1:{port}/", timeout=2)
+        return resp.status_code < 500
+    except Exception:  # noqa: BLE001 - not installed or not running
         return False
 
 
@@ -891,7 +908,7 @@ async def globe_status(request: Request):
     if _globe_status["port"] == port and now - _globe_status["checked"] < 30:
         reachable = _globe_status["reachable"]
     else:
-        reachable = await _globe_probe(port)
+        reachable = await _globe_probe(request.app.state.client, port)
         _globe_status.update(checked=now, reachable=reachable, port=port)
     return {"reachable": reachable, "port": port, "enabled": bool((settings.cfg.get("globe") or {}).get("enabled"))}
 
@@ -977,7 +994,7 @@ async def globe_app(request: Request):
     port = _globe_port(settings)
     info = {"dir": str(globe.install_dir()), "installed": False, "node": "", "node_version": ""} if settings.mock else await asyncio.to_thread(globe.script_status)
     svc = globe.status()
-    reachable = await _globe_probe(port)
+    reachable = await _globe_probe(request.app.state.client, port)
     _globe_status.update(checked=time.monotonic(), reachable=reachable, port=port)
     return {
         **info, "autostart": svc["enabled"], "service_running": svc["running"], "reachable": reachable, "port": port,

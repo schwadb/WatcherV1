@@ -131,6 +131,13 @@ display:
   night_from: "22:00"
   night_to: "06:00"
   control: auto               # auto = switch the HDMI output on/off; off = only dim the page
+  pixel_shift: true           # OLED burn-in protection: move the page a little every 10 minutes
+  pixel_shift_px: 2           # how far, 0-6 px (0 = off)
+
+layouts:                      # the TV takes turns between these (key L steps by hand)
+  rotate: false
+  seconds: 60                 # per layout, 15-3600
+  pages: [dashboard, photos, radar]   # dashboard | photos (full screen) | radar (full screen)
 
 chronalert:
   mode: "off"                 # off | rotate (swap the ChronAlert map into the photo panel) | button (corner "Map" button, key C)

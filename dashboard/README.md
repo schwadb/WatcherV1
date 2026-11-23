@@ -186,6 +186,16 @@ bundled, so it works without internet.
 neighbors expand to fill the space. Turn off the radar and the weather panel gets
 taller; turn off stocks and the photo gets the whole middle column.
 
+**Rotating layouts:** Settings → Screen → **Rotate layouts** makes the TV take turns
+between the full dashboard, the photos full screen and the radar full screen
+(pick which ones and how many seconds each gets; the news ticker stays). The turn
+timer waits while a weather takeover, the map, the globe, scores, music or the ☰
+menu is open. Press `L` on the TV to step to the next layout by hand.
+
+**Burn-in protection (OLED TVs):** Settings → Screen → **Burn-in protection** (on by
+default) moves the whole page 2 px (up to 6) around a small circle every 10
+minutes, so the clock and labels never sit on exactly the same pixels for hours.
+
 ## Using the computer as a computer too
 
 The dashboard is just a full-screen browser window on top of the normal Linux

@@ -1171,6 +1171,7 @@
       if ((e.key === "v" || e.key === "V") && cfg("globe.enabled", false)) globeToggle();
       if ((e.key === "m" || e.key === "M") && cfg("now_playing.provider", "off") === "spotify") musicToggle();
       if (e.key === "g" || e.key === "G") scoresToggle();
+      if ((e.key === "l" || e.key === "L") && !document.body.classList.contains("overlay-open")) stepLayout(1);
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
       if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (globe.open) globeToggle(); if (takeover.shown) dismissTakeover(true); }
@@ -1210,6 +1211,63 @@
     setTimeout(watchConfigVersion, 60000);
   }
 
+  // ---------- rotating layouts --------------------------------------------------------------------
+  // The board takes turns: the full dashboard, then one panel full screen (photos, radar). The turn
+  // timer only runs while nothing is on top (alert takeover, map, globe, scores, music, the menu).
+  const LAYOUT_PANEL = { photos: "photos", radar: "radar" };  // layout -> panel it needs
+  const layouts = { pages: ["dashboard"], i: 0, seconds: 60, left: 60 };
+  function layoutPages() {
+    const want = cfg("layouts.pages", ["dashboard"]) || [];
+    const ok = want.filter((p, i) => want.indexOf(p) === i && (p === "dashboard" || (LAYOUT_PANEL[p] && cfg("panels." + LAYOUT_PANEL[p], true) !== false)));
+    return ok.length ? ok : ["dashboard"];
+  }
+  function setLayout(name) {
+    const body = document.body;
+    if ((body.dataset.layout || "dashboard") === name) return;
+    body.classList.add("layout-fade");
+    setTimeout(() => {
+      for (const p of Object.keys(LAYOUT_PANEL)) body.classList.toggle("layout-" + p, p === name);
+      body.dataset.layout = name;
+      if (radar.map) radar.map.invalidateSize();
+      scrollers.forEach((sc) => sc.refresh());
+      requestAnimationFrame(() => body.classList.remove("layout-fade"));
+      setTimeout(() => { if (radar.map) radar.map.invalidateSize(); }, 700);
+    }, 600);
+  }
+  function stepLayout(n) {
+    if (layouts.pages.length < 2) return;
+    layouts.i = (layouts.i + n + layouts.pages.length) % layouts.pages.length;
+    layouts.left = layouts.seconds;
+    setLayout(layouts.pages[layouts.i]);
+  }
+  function layoutPaused() {
+    const b = document.body.classList;
+    return b.contains("overlay-open") || b.contains("screen-off") || $("corner-buttons").classList.contains("open") || document.hidden;
+  }
+  function startLayouts() {
+    layouts.pages = layoutPages();
+    layouts.seconds = Math.max(15, Math.min(3600, Number(cfg("layouts.seconds", 60)) || 60));
+    layouts.left = layouts.seconds;
+    if (layouts.pages[0] !== "dashboard") setLayout(layouts.pages[0]);
+    if (!cfg("layouts.rotate", false) || layouts.pages.length < 2) return;
+    setInterval(() => { if (!layoutPaused() && --layouts.left <= 0) stepLayout(1); }, 1000);
+  }
+
+  // ---------- OLED burn-in protection: drift a few px around a small orbit every 10 minutes ---------
+  const SHIFT_ORBIT = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+  function startPixelShift() {
+    const px = Math.max(0, Math.min(6, Math.round(Number(cfg("display.pixel_shift_px", 2)) || 0)));
+    if (cfg("display.pixel_shift", true) === false || !px) return;
+    document.body.classList.add("pixel-shift");
+    let i = 0;
+    setInterval(() => {
+      i = (i + 1) % SHIFT_ORBIT.length;
+      const root = document.documentElement.style;
+      root.setProperty("--shift-x", SHIFT_ORBIT[i][0] * px + "px");
+      root.setProperty("--shift-y", SHIFT_ORBIT[i][1] * px + "px");
+    }, 10 * 60 * 1000);
+  }
+
   // ---------- boot ---------------------------------------------------------------------------
   async function boot() {
     try { state.config = await getJSON("/api/config"); state.configVersion = state.config.config_version; } catch (err) { console.warn("config", err); }
@@ -1243,6 +1301,8 @@
     startGlobe();
     startMusic();
     startScores();
+    startLayouts();
+    startPixelShift();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
   }
