@@ -7,6 +7,7 @@ file path: systemctl calls are then recorded there instead of run.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -43,6 +44,9 @@ def systemctl(args: list[str]) -> tuple[int, str]:
         return 124, "systemctl timed out"
 
 
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")  # a newline would let a path add its own lines to the unit file
+
+
 class UserService:
     """A named user unit the dashboard writes, enables and watches."""
 
@@ -68,6 +72,8 @@ WantedBy=default.target
 """
 
     def install(self, mode: int | None = None) -> None:
+        if _CONTROL.search(self.exec_start) or _CONTROL.search(self.description):
+            raise ValueError("that path contains a line break or other control character; rename the file and try again")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(self.text(), encoding="utf-8")
         if mode is not None:

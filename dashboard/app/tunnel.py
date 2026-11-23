@@ -78,10 +78,9 @@ def status(h: Path | None = None) -> dict:
     return service("", h, "").status()
 
 
-async def connected() -> bool:
+async def connected(client: httpx.AsyncClient) -> bool:
     try:
-        async with httpx.AsyncClient(timeout=2) as client:
-            resp = await client.get(f"http://{METRICS}/ready")
-            return resp.status_code == 200
+        resp = await client.get(f"http://{METRICS}/ready", timeout=2)
+        return resp.status_code == 200
     except Exception:  # noqa: BLE001 - not running, or an old cloudflared without /ready
         return False

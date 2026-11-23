@@ -6,15 +6,18 @@ Mutating routes require the PIN when DASHBOARD_PIN is set in .env.
 from __future__ import annotations
 
 import asyncio
+import html
 import io
 import logging
 import os
 import re
 import secrets
 import shutil
+import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -49,6 +52,7 @@ except Exception:  # noqa: BLE001
     HEIC_SUPPORTED = False
 
 log = logging.getLogger("dashboard")
+_background: set[asyncio.Task] = set()
 router = APIRouter()
 STATIC_DIR = ROOT / "static"
 SECRET_KEYS = ("FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "FAMILY_ICS_URL", "DASHBOARD_PIN", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY", "CLOUDFLARE_TUNNEL_TOKEN")
@@ -137,7 +141,8 @@ async def api_pin(request: Request):
         raise HTTPException(401, "wrong PIN")
     resp = JSONResponse({"ok": True})
     if pin:
-        resp.set_cookie("dashboard_pin", pin, max_age=30 * 86400, httponly=True, samesite="lax")
+        https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").split(",")[0].strip() == "https"
+        resp.set_cookie("dashboard_pin", pin, max_age=30 * 86400, httponly=True, samesite="lax", secure=https)
     return resp
 
 
@@ -179,7 +184,10 @@ async def photos_upload(request: Request, files: list[UploadFile]):
         if ext not in UPLOAD_EXTENSIONS:
             rejected.append({"name": name, "reason": "Only JPG, PNG, WEBP or HEIC photos are supported."})
             continue
-        data = await up.read()
+        if up.size is not None and up.size > max_bytes:
+            rejected.append({"name": name, "reason": f"Larger than {max_bytes // (1024 * 1024)} MB."})
+            continue
+        data = await up.read(max_bytes + 1)  # never hold more than the limit in memory
         if len(data) > max_bytes:
             rejected.append({"name": name, "reason": f"Larger than {max_bytes // (1024 * 1024)} MB."})
             continue
@@ -268,6 +276,10 @@ async def todo_patch(request: Request, item_id: str):
     body = await request.json()
     today = _today(_settings(request))
 
+    store = _store(request, "todo", {"items": []})
+    if not any(i.get("id") == item_id for i in store.read().get("items", [])):
+        raise HTTPException(404, "item not found")
+
     def apply(d):
         for i in d.get("items", []):
             if i["id"] == item_id:
@@ -278,7 +290,7 @@ async def todo_patch(request: Request, item_id: str):
                     i["text"] = str(body["text"]).strip()[:200]
         return d
 
-    data = await _store(request, "todo", {"items": []}).update(apply)
+    data = await store.update(apply)
     item = next((i for i in data["items"] if i["id"] == item_id), None)
     if not item:
         raise HTTPException(404, "item not found")
@@ -453,8 +465,12 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit", "art", "art_every", "artists", "captions", "memories")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
-        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "control", "start_at_login", "locked_kiosk", "stop_idle_lock")},
+        "display": {k: c["display"].get(k, DEFAULTS["display"][k]) for k in ("reload_at", "screen_off", "screen_on", "dim_from", "dim_level", "night_mode", "night_from", "night_to", "control", "start_at_login", "locked_kiosk", "stop_idle_lock", "pixel_shift", "pixel_shift_px")},
+        "layouts": {**DEFAULTS["layouts"], **(c.get("layouts") or {})},
     }
+
+
+LAYOUT_PAGES = ("dashboard", "photos", "radar")
 
 
 def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
@@ -641,7 +657,21 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         out["start_at_login"] = bool(d.get("start_at_login", True))
         out["locked_kiosk"] = bool(d.get("locked_kiosk", False))
         out["stop_idle_lock"] = bool(d.get("stop_idle_lock", True))
+        out["pixel_shift"] = bool(d.get("pixel_shift", True))
+        px = num("display", "pixel_shift_px", 0, 6, int) if d.get("pixel_shift_px") not in (None, "") else None
+        out["pixel_shift_px"] = 2 if px is None else px
         clean["display"] = out
+    if "layouts" in body:
+        lay = body["layouts"] or {}
+        pages = []
+        for page in lay.get("pages") or []:
+            page = str(page).strip().lower()
+            if page not in LAYOUT_PAGES:
+                errors.append(f"layouts.pages: unknown page '{page}' (use {', '.join(LAYOUT_PAGES)})")
+            elif page not in pages:
+                pages.append(page)
+        seconds = num("layouts", "seconds", 15, 3600, int) if lay.get("seconds") not in (None, "") else None
+        clean["layouts"] = {"rotate": bool(lay.get("rotate", False)), "seconds": seconds or DEFAULTS["layouts"]["seconds"], "pages": pages or ["dashboard"]}
     return clean, errors
 
 
@@ -726,7 +756,7 @@ async def settings_put(request: Request):
             unset_key(str(env_path), key)
             os.environ.pop(key, None)
         else:
-            set_key(str(env_path), key, value.strip(), quote_mode="never")
+            set_key(str(env_path), key, value.strip(), quote_mode="always")
             os.environ[key] = value.strip()
         changed_secrets.append(key)
     from .main import reload_sources  # late import: main imports this module
@@ -767,17 +797,24 @@ def _chron_candidates(settings) -> list[str]:
     return [f"http://127.0.0.1:{port}/" for port in CHRON_PORTS]
 
 
-async def _chron_probe(settings) -> tuple[bool, str]:
+async def _chron_probe(request: Request) -> tuple[bool, str]:
     """(reachable, url): the first candidate address that answers, else the first one."""
+    settings = request.app.state.settings
     candidates = _chron_candidates(settings)
-    async with httpx.AsyncClient(timeout=3, follow_redirects=True, verify=False) as client:  # LAN app, plain http
+    insecure = bool((settings.cfg.get("chronalert") or {}).get("skip_tls_verify"))
+    # Certificates are checked unless config.yaml opts out (chronalert.skip_tls_verify, for a self-signed LAN app).
+    client = httpx.AsyncClient(verify=False) if insecure else request.app.state.client
+    try:
         for url in candidates:
             try:
-                resp = await client.get(url)
+                resp = await client.get(url, timeout=3, follow_redirects=True)
                 if resp.status_code < 500:
                     return True, url
-            except Exception:
+            except Exception:  # noqa: BLE001
                 continue
+    finally:
+        if insecure:
+            await client.aclose()
     return False, candidates[0]
 
 
@@ -797,7 +834,7 @@ async def chronalert_status(request: Request):
     key = "|".join(_chron_candidates(settings))
     if _chron_status["url"] == key and now - _chron_status["checked"] < 60:
         return {"reachable": _chron_status["reachable"], "url": _chron_public_url(_chron_status["found"], request), "cached": True}
-    reachable, found = await _chron_probe(settings)
+    reachable, found = await _chron_probe(request)
     _chron_status.update(checked=now, reachable=reachable, url=key, found=found)
     return {"reachable": reachable, "url": _chron_public_url(found, request), "cached": False}
 
@@ -811,7 +848,7 @@ async def chronalert_app(request: Request):
     settings = request.app.state.settings
     cfg_path = (settings.cfg.get("chronalert") or {}).get("app_path") or ""
     svc = chronalert.status()
-    reachable, found = await _chron_probe(settings)
+    reachable, found = await _chron_probe(request)
     _chron_status.update(checked=time.monotonic(), reachable=reachable, url="|".join(_chron_candidates(settings)), found=found)
     return {
         "app_path": cfg_path, "found_path": chronalert.find_appimage(), "autostart": svc["enabled"], "service_running": svc["running"],
@@ -854,12 +891,11 @@ def _globe_port(settings) -> int:
     return int((settings.cfg.get("globe") or {}).get("port") or DEFAULTS["globe"]["port"])
 
 
-async def _globe_probe(port: int) -> bool:
+async def _globe_probe(client: httpx.AsyncClient, port: int) -> bool:
     try:
-        async with httpx.AsyncClient(timeout=2) as client:
-            resp = await client.get(f"http://127.0.0.1:{port}/")
-            return resp.status_code < 500
-    except Exception:
+        resp = await client.get(f"http://127.0.0.1:{port}/", timeout=2)
+        return resp.status_code < 500
+    except Exception:  # noqa: BLE001 - not installed or not running
         return False
 
 
@@ -872,7 +908,7 @@ async def globe_status(request: Request):
     if _globe_status["port"] == port and now - _globe_status["checked"] < 30:
         reachable = _globe_status["reachable"]
     else:
-        reachable = await _globe_probe(port)
+        reachable = await _globe_probe(request.app.state.client, port)
         _globe_status.update(checked=now, reachable=reachable, port=port)
     return {"reachable": reachable, "port": port, "enabled": bool((settings.cfg.get("globe") or {}).get("enabled"))}
 
@@ -884,7 +920,7 @@ def _save_secret(key: str, value: str) -> None:
     env_path = ROOT / ".env"
     if not env_path.exists():
         env_path.write_text("", encoding="utf-8")
-    set_key(str(env_path), key, value.strip(), quote_mode="never")
+    set_key(str(env_path), key, value.strip(), quote_mode="always")
     os.environ[key] = value.strip()
 
 
@@ -896,7 +932,7 @@ async def tunnel_get(request: Request):
     info = {"installed": False, "binary": "", "version": ""} if settings.mock else await asyncio.to_thread(globe.script_status, tunnel.SCRIPT, {"installed": tunnel.installed(), "binary": tunnel.binary(), "version": ""})
     svc = tunnel.status()
     return {
-        **info, "autostart": svc["enabled"], "service_running": svc["running"], "connected": await tunnel.connected(),
+        **info, "autostart": svc["enabled"], "service_running": svc["running"], "connected": await tunnel.connected(request.app.state.client),
         "token_set": bool(settings.tunnel_token), "hostname": (settings.cfg.get("remote") or {}).get("hostname") or "",
         "port": settings.cfg["server"]["port"], "pin_set": bool(settings.pin), "install": request.app.state.tunnel_install.summary(),
     }
@@ -958,7 +994,7 @@ async def globe_app(request: Request):
     port = _globe_port(settings)
     info = {"dir": str(globe.install_dir()), "installed": False, "node": "", "node_version": ""} if settings.mock else await asyncio.to_thread(globe.script_status)
     svc = globe.status()
-    reachable = await _globe_probe(port)
+    reachable = await _globe_probe(request.app.state.client, port)
     _globe_status.update(checked=time.monotonic(), reachable=reachable, port=port)
     return {
         **info, "autostart": svc["enabled"], "service_running": svc["running"], "reachable": reachable, "port": port,
@@ -1105,13 +1141,23 @@ async def scores_get(request: Request, league: str = "football/nfl"):
         raise HTTPException(502, f"the scores site did not answer: {exc}")
 
 
+_search_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+SEARCH_CACHE_SECONDS = 300  # team lists change rarely; repeat and as-you-type searches stay off ESPN
+
+
 @router.get("/api/sports/search")
 async def sports_search(request: Request, q: str = ""):
+    require_pin(request)
     from .sources.sports import HEADERS
 
     q = q.strip().lower()
     if len(q) < 2:
         return {"teams": []}
+    now = time.monotonic()
+    for key in [k for k, (t, _) in _search_cache.items() if now - t > SEARCH_CACHE_SECONDS]:
+        del _search_cache[key]
+    if q in _search_cache:
+        return _search_cache[q][1]
     leagues = ["football/nfl", "football/college-football", "basketball/nba", "basketball/wnba", "basketball/mens-college-basketball", "baseball/mlb", "hockey/nhl", "soccer/usa.1"]
     client: httpx.AsyncClient = request.app.state.client
 
@@ -1135,8 +1181,9 @@ async def sports_search(request: Request, q: str = ""):
         return hits
 
     results = await asyncio.gather(*(one(lg) for lg in leagues))
-    teams = [t for group in results for t in group][:30]
-    return {"teams": teams}
+    out = {"teams": [t for group in results for t in group][:30]}
+    _search_cache[q] = (now, out)
+    return out
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1222,8 +1269,15 @@ async def system_get(request: Request):
 
 
 def _exit_soon() -> None:
+    """Shut down cleanly (pollers stop, saved data is written, connections close); systemd (Restart=always) starts us again."""
     time.sleep(0.5)
-    os._exit(0)  # systemd (Restart=always) starts us again
+    threading.Thread(target=_force_exit, daemon=True).start()
+    os.kill(os.getpid(), signal.SIGTERM)
+
+
+def _force_exit() -> None:
+    time.sleep(15)
+    os._exit(0)  # only if the clean shutdown got stuck
 
 
 @router.post("/api/system/restart")
@@ -1347,13 +1401,13 @@ async def spotify_login(request: Request):
 @router.get("/api/spotify/callback")
 async def spotify_callback(request: Request, code: str = "", state: str = "", error: str = ""):
     if error or not code:
-        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{error or 'no code returned'}</p>", status_code=400)
+        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{html.escape(error or 'no code returned')}</p>", status_code=400)
     try:
         await _spotify_finish(request, code, state)
     except HTTPException as exc:
-        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{exc.detail}</p>", status_code=exc.status_code)
+        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{html.escape(str(exc.detail))}</p>", status_code=exc.status_code)
     except Exception as exc:  # noqa: BLE001
-        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{exc}</p>", status_code=500)
+        return HTMLResponse(f"<h2>Spotify sign-in failed</h2><p>{html.escape(str(exc))}</p>", status_code=500)
     return HTMLResponse("<h2>Spotify connected</h2><p>You can close this page. The dashboard shows what's playing within a few seconds.</p><p><a href='/manage#music'>Back to settings</a></p>")
 
 
@@ -1460,7 +1514,9 @@ async def music_action(request: Request, action: str):
         raise HTTPException(502, str(exc))
     source = request.app.state.sources.get("nowplaying")
     if source:
-        asyncio.create_task(refresh_once(source[0], source[1]))  # update the card right away
+        task = asyncio.create_task(refresh_once(source[0], source[1]))  # update the card right away
+        _background.add(task)  # the loop keeps only a weak reference to a task
+        task.add_done_callback(_background.discard)
     return {"ok": True}
 
 

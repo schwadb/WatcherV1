@@ -5,6 +5,7 @@ dashboard's system service that needs XDG_RUNTIME_DIR pointed at the user; users
 """
 from __future__ import annotations
 
+import logging
 import math
 import re
 import struct
@@ -15,6 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from .userservice import user_env
+
+log = logging.getLogger("dashboard")
 
 FRIENDLY = (
     ("hdmi", "TV / monitor over HDMI"),
@@ -189,6 +192,7 @@ def select_output(card: str, profile: str, port: str = "") -> str:
         time.sleep(0.3)
     if not sink:
         raise RuntimeError("the output switched on but no sound device appeared; is the cable connected?")
+    log.info("audio: %s / %s -> sink %s", card, profile, sink)
     code, text = _run(["pactl", "set-default-sink", sink])
     if code != 0:
         raise RuntimeError(f"could not make it the default: {text.strip()[:200]}")
@@ -224,9 +228,14 @@ def tone_file(cache_dir: Path, seconds: float = 1.2, hz: float = 440.0) -> Path:
 
 
 def test_tone(cache_dir: Path) -> str:
+    code, text = _run(["pactl", "get-default-sink"], timeout=5)
+    if code == 0 and not text.strip():
+        raise RuntimeError("no sound output is selected; pick one above first")
+    if code == 124:
+        raise RuntimeError("the sound system is not answering (pactl timed out)")
     path = tone_file(cache_dir)
     for cmd in (["pw-play", str(path)], ["paplay", str(path)], ["aplay", "-q", str(path)]):
-        code, text = _run(cmd, timeout=20)
+        code, text = _run(cmd, timeout=8)  # a 1.2 s tone; a hung player must not tie up a worker thread
         if code == 0:
             return f"played a tone through {cmd[0]}"
         if code != 127:

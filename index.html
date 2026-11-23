@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Watcher — Monthly Habit Tracker</title>
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Watcher">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>try { var t = localStorage.getItem('watcher-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <style>
   :root {
     --surface-1: #fcfcfb;
@@ -20,9 +30,12 @@
     --cat-avoid: #e34948;      /* avoid */
     --today-wash: rgba(42,120,214,0.07);
     --check: #006300;
+    --warn: #9a5b00;
+    color-scheme: light;
   }
+  /* Dark tokens: when the system is dark (unless Light is picked), or when Dark is picked. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --surface-1: #1a1a19;
       --page: #0d0d0d;
       --text-primary: #ffffff;
@@ -37,7 +50,27 @@
       --cat-avoid: #e66767;
       --today-wash: rgba(57,135,229,0.10);
       --check: #0ca30c;
+      --warn: #e0a030;
+      color-scheme: dark;
     }
+  }
+  :root[data-theme="dark"] {
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-sleep: #3987e5;
+    --cat-non: #ffffff;
+    --cat-build: #3987e5;
+    --cat-avoid: #e66767;
+    --today-wash: rgba(57,135,229,0.10);
+    --check: #0ca30c;
+    --warn: #e0a030;
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -105,9 +138,12 @@
   /* ---- habit grid ---- */
   .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; font-size: 13px; color: var(--text-secondary); }
   .legend .key { display: inline-flex; align-items: center; gap: 6px; }
-  .legend .swatch { width: 10px; height: 10px; border-radius: 3px; }
+  .legend .swatch { width: 10px; height: 10px; }
+  .shape-non { border-radius: 50%; }
+  .shape-build { border-radius: 2px; }
+  .shape-avoid { border-radius: 1px; transform: rotate(45deg) scale(0.8); }
 
-  .grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .grid-wrap { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table.grid { border-collapse: collapse; width: 100%; }
   table.grid th, table.grid td {
     border-bottom: 1px solid var(--gridline);
@@ -132,7 +168,7 @@
     font-size: 12px; color: var(--text-secondary);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  th.habith .dot { display: block; width: 8px; height: 8px; border-radius: 50%; margin: 6px auto 0; }
+  th.habith .dot { display: block; width: 8px; height: 8px; margin: 6px auto 0; }
 
   td.momcol { min-width: 200px; }
   td.momcol input, td.numcell input {
@@ -155,21 +191,27 @@
   button.cell .miss { color: var(--cat-avoid); font-weight: 700; }
 
   tfoot td { padding: 6px 2px; color: var(--text-secondary); font-size: 12px; border-bottom: none; font-variant-numeric: tabular-nums; }
+  tfoot tr + tr td { padding-top: 0; }
   tfoot .daycol { font-size: 12px; }
+  tfoot td.overall { text-align: left; padding-left: 8px; }
+  tfoot .r-good { color: var(--check); }
+  tfoot .r-mid { color: var(--warn); }
+  tfoot .r-low { color: var(--cat-avoid); }
+  tfoot td.hot { color: var(--series-sleep); font-weight: 700; }
 
   /* ---- sleep chart ---- */
   .chart-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .chart-head .avg { color: var(--text-secondary); font-size: 13px; }
-  #sleepChartBox { position: relative; margin-top: 8px; }
-  #sleepChartBox svg { display: block; width: 100%; height: auto; }
-  #chartTip {
+  .chartbox { position: relative; margin-top: 8px; }
+  .chartbox svg { display: block; width: 100%; height: auto; }
+  .chart-tip {
     position: absolute; pointer-events: none; display: none;
     background: var(--surface-1); border: 1px solid var(--border);
     border-radius: 8px; padding: 6px 10px; font-size: 12px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.12); white-space: nowrap; z-index: 3;
   }
-  #chartTip .v { font-weight: 700; font-size: 13px; }
-  #chartTip .l { color: var(--text-secondary); }
+  .chart-tip .v { font-weight: 700; font-size: 13px; }
+  .chart-tip .l { color: var(--text-secondary); }
 
   /* ---- journal ---- */
   .journal-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
@@ -190,7 +232,7 @@
   /* ---- habit manager ---- */
   .hlist { display: grid; gap: 6px; margin-bottom: 14px; }
   .hrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--gridline); }
-  .hrow .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+  .hrow .dot { width: 10px; height: 10px; flex: 0 0 auto; }
   .hrow .name { flex: 1; }
   .hrow .meta { color: var(--text-muted); font-size: 12px; }
   .hrow button.del {
@@ -208,21 +250,161 @@
   .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .toolbar button.ghost { background: none; border: 1px solid var(--border); color: var(--text-primary); font-weight: 400; }
 
+  .toolbar .usage { align-self: center; color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
   footer.app { color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 24px; }
+
+  /* ---- theme button, week breaks, focus column, reorder ---- */
+  .themebtn {
+    background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-secondary);
+    font: inherit; font-size: 13px; padding: 5px 10px; cursor: pointer;
+  }
+  table.grid tbody tr.wk td { border-top: 2px solid var(--baseline); }
+  th.habith.focus .rot { color: var(--text-primary); font-weight: 700; }
+  th.habith.focuscol .rot { color: var(--series-sleep); }
+  .hrow button.mv {
+    background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary);
+    cursor: pointer; font-size: 13px; line-height: 1; padding: 4px 7px;
+  }
+  .hrow button.mv:disabled { opacity: 0.3; cursor: default; }
+  .hrow .focus-tag { color: var(--series-sleep); font-size: 12px; }
+
+  /* ---- focus habit ---- */
+  .focus-head { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .focus-head label { color: var(--text-secondary); font-size: 13px; }
+  .focus-head select { width: auto; min-width: 170px; }
+  .focus-head input { flex: 1 1 200px; width: auto; }
+  .fchart { margin-top: 14px; }
+  .fchart h3 { font-size: 13px; margin: 0; font-weight: 600; }
+  .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--check); vertical-align: middle; margin: 0 2px; }
+
+  /* ---- year heatmap ---- */
+  .heat-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .heat { display: block; }
+  .heat text { fill: var(--text-muted); font-size: 10px; }
+  .heat rect { cursor: pointer; }
+  .heat rect.cur { stroke: var(--text-muted); stroke-width: 1; }
+  .c-grid { stroke: var(--gridline); stroke-width: 1; }
+  .c-base { stroke: var(--baseline); stroke-width: 1; }
+  .c-ink { fill: var(--text-muted); font-size: 11px; }
+  .c-empty { font-size: 13px; }
+  .c-area { fill: var(--series-sleep); fill-opacity: 0.1; stroke: none; }
+  .c-line { fill: none; stroke: var(--series-sleep); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .c-ring { fill: var(--surface-1); }
+  .c-dot { fill: var(--series-sleep); }
+  .c-mark { fill: var(--check); }
+  .l0 { fill: var(--gridline); }
+  .l1, .l2, .l3, .l4, .l5 { fill: var(--series-sleep); }
+  .l1 { fill-opacity: 0.18; } .l2 { fill-opacity: 0.35; } .l3 { fill-opacity: 0.55; } .l4 { fill-opacity: 0.78; } .l5 { fill-opacity: 1; }
+  .heat-legend { display: flex; align-items: center; gap: 4px; justify-content: flex-end; color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+  .heat-legend svg { display: block; }
+
+  /* ---- import dialog ---- */
+  .dlg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  dialog button.ghost { background: none; border: 1px solid var(--border); color: var(--text-primary); font-weight: 400; }
+  dialog p { font-size: 14px; color: var(--text-secondary); margin: 0 0 14px; }
+
+  /* ---- print: one tidy light page per section, landscape ---- */
+  @media print {
+    @page { size: landscape; margin: 10mm; }
+    :root, :root[data-theme="dark"], :root:not([data-theme="light"]) {
+      --surface-1: #fff; --page: #fff; --text-primary: #000; --text-secondary: #333; --text-muted: #666;
+      --gridline: #ccc; --baseline: #999; --border: #bbb; --series-sleep: #1f5fae; --cat-non: #000;
+      --cat-build: #1f5fae; --cat-avoid: #c62828; --today-wash: transparent; --check: #006300; --warn: #8a5000;
+      color-scheme: light;
+    }
+    body { font-size: 11px; padding: 0; }
+    .wrap { max-width: none; padding: 0; }
+    .monthnav button, .themebtn, .savestat, .skip, .banner, .toolbar, .addform, .jdays, .hrow button,
+    .heat-legend, dialog, .chart-tip, footer.app { display: none !important; }
+    .monthnav { margin-left: 0; }
+    .card { border: none; border-radius: 0; padding: 6px 0; margin: 0 0 6px; break-inside: avoid; box-shadow: none; }
+    .grid-wrap, .heat-wrap { overflow: visible; }
+    table.grid .daycol { position: static; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #gridCard { break-inside: auto; }
+    table.grid tr { break-inside: avoid; }
+    th.habith .rot { max-height: 80px; font-size: 9px; }
+    table.grid td, table.grid th { line-height: 1.1; }
+    button.cell, td.numcell input, td.momcol input { height: 14px; min-height: 0; padding: 0 2px; font-size: 9px; }
+    .daynum, .daywd { font-size: 9px; }
+    tfoot td { padding: 2px; font-size: 9px; }
+    input, textarea, select { border: none !important; padding-left: 0; }
+    ::placeholder { color: transparent; }
+    textarea { resize: none; }
+  }
+
+  /* ---- save state, storage warning ---- */
+  .savestat { color: var(--text-muted); font-size: 12px; opacity: 0; transition: opacity 0.3s; }
+  .savestat.on { opacity: 1; }
+  .banner {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    background: var(--surface-1); border: 1px solid var(--cat-avoid); border-radius: 12px;
+    padding: 10px 14px; margin: 12px 0; font-size: 14px;
+  }
+  .banner[hidden] { display: none; }
+  .banner span { flex: 1 1 240px; }
+  .banner button {
+    background: var(--text-primary); color: var(--page); border: none; border-radius: 8px;
+    padding: 6px 12px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+
+  /* ---- accessibility ---- */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .skip {
+    position: absolute; left: 8px; top: -48px; z-index: 10;
+    background: var(--text-primary); color: var(--page);
+    padding: 8px 12px; border-radius: 8px; text-decoration: none;
+  }
+  .skip:focus { top: 8px; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--series-sleep); outline-offset: 2px; }
+  button.cell:focus-visible { outline-offset: -2px; }
+  section:focus { outline: none; }
+
+  /* ---- shortcuts dialog ---- */
+  dialog {
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
+    background: var(--surface-1); color: var(--text-primary); max-width: 360px;
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+  dialog h2 { font-size: 15px; margin: 0 0 10px; }
+  dialog dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 14px; }
+  dialog dt { white-space: nowrap; }
+  dialog dd { margin: 0; color: var(--text-secondary); }
+  kbd {
+    font: 12px ui-monospace, monospace; border: 1px solid var(--baseline); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 5px;
+  }
+  dialog button {
+    background: var(--text-primary); color: var(--page); border: none; border-radius: 8px;
+    padding: 6px 14px; font: inherit; font-weight: 600; cursor: pointer;
+  }
 </style>
 </head>
 <body>
+<a class="skip" href="#gridCard">Skip to habit grid</a>
+<div id="live" class="sr-only" aria-live="polite"></div>
 <div class="wrap">
 
   <header class="app">
     <h1>Watcher</h1>
     <span class="tagline">monthly habit tracker · memorable moments · sleep · gratitude</span>
+    <span class="savestat" id="saveStat" aria-hidden="true">Saved</span>
+    <button type="button" class="themebtn" id="themeBtn">◐ Auto</button>
     <nav class="monthnav" aria-label="Month">
       <button id="prevM" aria-label="Previous month">‹</button>
       <span class="label" id="monthLabel"></span>
       <button id="nextM" aria-label="Next month">›</button>
     </nav>
   </header>
+
+  <div class="banner" id="storeWarn" role="alert" hidden>
+    <span id="storeWarnText"></span>
+    <button type="button" id="storeWarnExport">Export now</button>
+  </div>
 
   <section class="card intention">
     <h2>This month</h2>
@@ -237,13 +419,13 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="gridCard" tabindex="-1">
     <h2>Habit grid</h2>
     <p class="sub">Each morning, revisit <em>yesterday</em>: write one memorable moment, mark your habits, log your sleep. Tap a cell to cycle ✓ → ✗ → blank.</p>
     <div class="legend" id="legend">
-      <span class="key"><span class="swatch" style="background:var(--cat-non)"></span>Non-negotiable</span>
-      <span class="key"><span class="swatch" style="background:var(--cat-build)"></span>Building</span>
-      <span class="key"><span class="swatch" style="background:var(--cat-avoid)"></span>Avoid (✓ = slipped)</span>
+      <span class="key"><span class="swatch shape-non" style="background:var(--cat-non)"></span>Non-negotiable</span>
+      <span class="key"><span class="swatch shape-build" style="background:var(--cat-build)"></span>Building</span>
+      <span class="key"><span class="swatch shape-avoid" style="background:var(--cat-avoid)"></span>Avoid (✓ = slipped, ✗ = stayed clean)</span>
     </div>
     <div class="grid-wrap">
       <table class="grid" id="grid"></table>
@@ -256,10 +438,32 @@
       <span class="avg" id="sleepAvg"></span>
     </div>
     <p class="sub">Log hours (and an optional score from your watch) in the grid above; the graph draws itself.</p>
-    <div id="sleepChartBox">
-      <svg id="sleepChart" role="img" aria-label="Sleep hours per night this month"></svg>
-      <div id="chartTip"></div>
+    <div class="chartbox" id="sleepChartBox">
+      <svg role="img" aria-label="Sleep hours per night this month"></svg>
+      <div class="chart-tip"></div>
     </div>
+  </section>
+
+  <section class="card" id="focusCard">
+    <h2>Focus habit</h2>
+    <p class="sub">One habit gets the spotlight this month. Rate your mood and stress each day (1–10), plus one metric of your own, and see how the days you do the habit compare — a small experiment: change one thing, watch three graphs.</p>
+    <div class="focus-head">
+      <label for="focusSel">This month's focus</label>
+      <select id="focusSel"></select>
+      <input type="text" id="focusLabel" placeholder="Your own metric, e.g. Pages read (optional)" aria-label="Name of your own daily metric">
+    </div>
+    <p class="sub" id="focusLegend" hidden></p>
+    <div id="focusCharts" hidden></div>
+  </section>
+
+  <section class="card">
+    <div class="chart-head">
+      <h2>Year at a glance</h2>
+      <span class="avg" id="heatStat"></span>
+    </div>
+    <p class="sub">Each square is a day: the stronger the colour, the more of that day's habits were on track. Tap one to open its month.</p>
+    <div class="heat-wrap" id="heatWrap"></div>
+    <div class="heat-legend" id="heatLegend"></div>
   </section>
 
   <section class="card">
@@ -303,8 +507,34 @@
       <button class="ghost" id="exportBtn" type="button">Export data</button>
       <button class="ghost" id="importBtn" type="button">Import data</button>
       <input type="file" id="importFile" accept="application/json" hidden>
+      <button class="ghost" id="keysBtn" type="button">Shortcuts <kbd>?</kbd></button>
+      <span class="usage" id="usage"></span>
     </div>
+    <p class="sub" id="dataMsg" role="status"></p>
   </section>
+
+  <dialog id="importDlg" aria-labelledby="importTitle">
+    <h2 id="importTitle">Import data</h2>
+    <p id="importInfo"></p>
+    <div class="dlg-actions">
+      <button type="button" id="importMerge">Merge with this device</button>
+      <button type="button" class="ghost" id="importReplace">Replace everything</button>
+      <button type="button" class="ghost" id="importCancel">Cancel</button>
+    </div>
+  </dialog>
+
+  <dialog id="keys" aria-labelledby="keysTitle">
+    <h2 id="keysTitle">Keyboard shortcuts</h2>
+    <dl>
+      <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Previous / next month</dd>
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous journal day</dd>
+      <dt>Arrow keys</dt><dd>Move between cells inside the habit grid</dd>
+      <dt><kbd>e</kbd></dt><dd>Export data</dd>
+      <dt><kbd>t</kbd></dt><dd>Theme: auto → light → dark</dd>
+      <dt><kbd>?</kbd></dt><dd>Show this list</dd>
+    </dl>
+    <form method="dialog"><button>Close</button></form>
+  </dialog>
 
   <footer class="app">
     Everything is saved on this device only (localStorage). Export regularly if you care about it.<br>
@@ -328,8 +558,11 @@
     { id: 'socials',  name: 'Socials on waking', cat: 'avoid', type: 'check'  },
   ];
 
+  const CAT_NAMES = { non: 'non-negotiable', build: 'building', avoid: 'avoid' };
+  const QUOTA = 5 * 1024 * 1024; // typical per-origin localStorage limit
+
   let state = load();
-  const now = new Date();
+  let now = new Date();
   let cur = { y: now.getFullYear(), m: now.getMonth() }; // m: 0-11
   let selDay = now.getDate();
 
@@ -340,17 +573,42 @@
     } catch (e) { /* corrupted store — start fresh */ }
     return { version: 1, months: {} };
   }
-  let saveT;
-  function save() {
-    clearTimeout(saveT);
-    saveT = setTimeout(() => {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) { /* quota */ }
-    }, 250);
+  let saveT = null;
+  function persist() {
+    clearTimeout(saveT); saveT = null;
+    const json = JSON.stringify(state);
+    try { localStorage.setItem(LS_KEY, json); }
+    catch (e) {
+      showStoreWarn("Couldn't save — this browser's storage is full. Export your data now so nothing is lost.");
+      return;
+    }
+    flashSaved(); updateUsage(json.length);
   }
+  function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
+  const flush = () => { if (saveT !== null) persist(); };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 
-  const mkey = () => `${cur.y}-${String(cur.m + 1).padStart(2, '0')}`;
-  const daysInMonth = () => new Date(cur.y, cur.m + 1, 0).getDate();
+  const keyOf = (y, m) => `${y}-${String(m + 1).padStart(2, '0')}`;
+  const dim = (y, m) => new Date(y, m + 1, 0).getDate();
+  const mkey = () => keyOf(cur.y, cur.m);
+  const daysInMonth = () => dim(cur.y, cur.m);
   const isCurMonth = () => now.getFullYear() === cur.y && now.getMonth() === cur.m;
+
+  // The page may stay open past midnight (or be resumed from the background), so "today" must move.
+  function refreshToday() {
+    const t = new Date();
+    if (t.toDateString() === now.toDateString()) return;
+    const prev = now;
+    now = t;
+    if (cur.y === prev.getFullYear() && cur.m === prev.getMonth()) {
+      if (selDay === prev.getDate()) selDay = now.getDate();
+      cur = { y: now.getFullYear(), m: now.getMonth() };
+    }
+    renderAll();
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshToday(); });
+  setInterval(refreshToday, 60000);
 
   function prevMonthWithHabits() {
     const keys = Object.keys(state.months).filter(k => k < mkey()).sort();
@@ -369,6 +627,8 @@
         intention: '',
         goals: ['', '', ''],
         nextMonth: prev ? (prev.nextMonth || '') : '',
+        focusHabit: prev ? (prev.focusHabit || '') : '',
+        focusCustomLabel: prev ? (prev.focusCustomLabel || '') : '',
         habits: prev ? JSON.parse(JSON.stringify(prev.habits)) : JSON.parse(JSON.stringify(DEFAULT_HABITS)),
         days: {},
       };
@@ -398,16 +658,127 @@
   }
   const catVar = (cat) => cat === 'build' ? 'var(--cat-build)' : cat === 'avoid' ? 'var(--cat-avoid)' : 'var(--cat-non)';
 
-  /* ---------- header / month nav ---------- */
+  function announce(msg) {
+    const r = $('#live');
+    r.textContent = '';
+    setTimeout(() => { r.textContent = msg; }, 30);
+  }
+  let flashT;
+  function flashSaved() {
+    const s = $('#saveStat');
+    s.classList.add('on');
+    clearTimeout(flashT);
+    flashT = setTimeout(() => s.classList.remove('on'), 2000);
+  }
+  function showStoreWarn(msg) {
+    $('#storeWarnText').textContent = msg;
+    $('#storeWarn').hidden = false;
+  }
+  function updateUsage(len) {
+    const mb = len / 1024 / 1024;
+    $('#usage').textContent = `Using ${mb < 0.1 ? '< 0.1' : mb.toFixed(1)} MB of ~5 MB`;
+    if (len > QUOTA * 0.8) {
+      showStoreWarn(`Storage is ${Math.round(len / QUOTA * 100)}% full. Export a backup now — browsers stop saving at about 5 MB.`);
+    }
+  }
+
+  /* ---------- streaks & completion ---------- */
+  // For "avoid" habits a ✗ (stayed clean) is the success mark.
+  const success = (h) => h.cat === 'avoid' ? 'miss' : 'done';
+  function markAt(y, m, d, id) {
+    const mo = state.months[keyOf(y, m)];
+    const r = mo && mo.days && mo.days[d];
+    return r && r.vals ? r.vals[id] : undefined;
+  }
+  const isFutureMonth = () => mkey() > keyOf(now.getFullYear(), now.getMonth());
+  // Days of the viewed month that count so far. Today only counts once it has a mark,
+  // since the ritual is to fill in yesterday each morning.
+  function elapsed(h) {
+    if (isFutureMonth()) return 0;
+    if (!isCurMonth()) return daysInMonth();
+    const D = now.getDate();
+    return markAt(cur.y, cur.m, D, h.id) ? D : D - 1;
+  }
+  function currentStreak(h) {
+    if (isFutureMonth()) return 0;
+    const ok = success(h);
+    const first = Object.keys(state.months).sort()[0];
+    let y = cur.y, m = cur.m, d = elapsed(h), n = 0;
+    for (;;) {
+      if (d < 1) {
+        if (--m < 0) { m = 11; y--; }
+        if (!first || keyOf(y, m) < first) break;
+        d = dim(y, m);
+        continue;
+      }
+      if (markAt(y, m, d, h.id) !== ok) break;
+      n++; d--;
+    }
+    return n;
+  }
+  function bestStreak(h) {
+    const ok = success(h);
+    const keys = Object.keys(state.months).filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+    if (!keys.length) return 0;
+    let [y, m] = keys[0].split('-').map(Number); m--;
+    const last = keys[keys.length - 1];
+    let best = 0, run = 0;
+    while (keyOf(y, m) <= last) {
+      const N = dim(y, m);
+      for (let d = 1; d <= N; d++) {
+        if (markAt(y, m, d, h.id) === ok) { if (++run > best) best = run; }
+        else run = 0;
+      }
+      if (++m > 11) { m = 0; y++; }
+    }
+    return best;
+  }
+  const rateClass = (p) => p >= 80 ? 'r-good' : p >= 50 ? 'r-mid' : 'r-low';
+
+  /* ---------- header / month nav / #YYYY-MM links ---------- */
   function renderHeader() {
     $('#monthLabel').textContent = `${MONTHS[cur.m]} ${cur.y}`;
   }
-  $('#prevM').addEventListener('click', () => { cur.m--; if (cur.m < 0) { cur.m = 11; cur.y--; } switchMonth(); });
-  $('#nextM').addEventListener('click', () => { cur.m++; if (cur.m > 11) { cur.m = 0; cur.y++; } switchMonth(); });
-  function switchMonth() {
-    selDay = isCurMonth() ? now.getDate() : 1;
-    renderAll();
+  function monthFromHash() {
+    const mt = /^#(\d{4})-(\d{2})$/.exec(location.hash);
+    return mt && +mt[2] >= 1 && +mt[2] <= 12 ? { y: +mt[1], m: +mt[2] - 1 } : null;
   }
+  function goMonth(y, m, d, fromHistory = false) {
+    cur = { y, m };
+    selDay = d || (isCurMonth() ? now.getDate() : 1);
+    if (!fromHistory && location.hash !== '#' + mkey()) location.hash = mkey();  // browser back/forward walks the months
+    renderAll();
+    announce(`${MONTHS[cur.m]} ${cur.y}`);
+  }
+  $('#prevM').addEventListener('click', () => goMonth(cur.m ? cur.y : cur.y - 1, (cur.m + 11) % 12));
+  $('#nextM').addEventListener('click', () => goMonth(cur.m === 11 ? cur.y + 1 : cur.y, (cur.m + 1) % 12));
+  window.addEventListener('hashchange', () => {
+    const h = monthFromHash() || (location.hash ? null : { y: now.getFullYear(), m: now.getMonth() });  // no hash = this month
+    if (h && (h.y !== cur.y || h.m !== cur.m)) goMonth(h.y, h.m, 0, true);
+  });
+
+  /* ---------- theme: auto / light / dark ---------- */
+  const THEMES = ['system', 'light', 'dark'];
+  function getTheme() {
+    try { const t = localStorage.getItem('watcher-theme'); return THEMES.includes(t) ? t : 'system'; } catch (e) { return 'system'; }
+  }
+  function applyTheme(t) {
+    const root = document.documentElement;
+    if (t === 'system') delete root.dataset.theme; else root.dataset.theme = t;
+    const btn = $('#themeBtn');
+    btn.textContent = { system: '◐ Auto', light: '☀ Light', dark: '☾ Dark' }[t];
+    btn.setAttribute('aria-label', `Theme: ${t === 'system' ? 'follows your device' : t}. Change theme`);
+    document.querySelectorAll('meta[name="theme-color"]').forEach(mt => {
+      mt.setAttribute('content', t === 'system' ? (mt.media.includes('dark') ? '#0d0d0d' : '#f9f9f7') : (t === 'dark' ? '#0d0d0d' : '#f9f9f7'));
+    });
+  }
+  function cycleTheme() {
+    const t = THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length];
+    try { localStorage.setItem('watcher-theme', t); } catch (e) { /* still applies for this visit */ }
+    applyTheme(t);
+    announce(`Theme: ${t === 'system' ? 'automatic' : t}`);
+  }
+  $('#themeBtn').addEventListener('click', cycleTheme);
 
   /* ---------- intention / goals / next month ---------- */
   function renderIntention() {
@@ -421,27 +792,105 @@
     inp.addEventListener('input', e => { month().goals[+e.target.dataset.i] = e.target.value; save(); }));
   $('#nextMonth').addEventListener('input', e => { month().nextMonth = e.target.value; save(); });
 
+  /* ---------- focus habit (one habit, three daily graphs) ---------- */
+  const num = (v) => v !== null && v !== undefined && v !== '' && !isNaN(v);
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  function focusHabit(m = month()) { return m.habits.find(h => h.id === m.focusHabit) || null; }
+  function focusMetrics(m = month()) {
+    const label = (m.focusCustomLabel || '').trim();
+    return [{ key: 'mood', name: 'Mood', min: 1, max: 10 }, { key: 'stress', name: 'Stress', min: 1, max: 10 },
+      ...(label ? [{ key: 'custom', name: label }] : [])];
+  }
+  function focusDone(h, rec) {
+    const v = rec && rec.vals ? rec.vals[h.id] : undefined;
+    return h.type === 'number' ? num(v) : v === success(h);
+  }
+  const focusVal = (rec, key) => (rec && rec.focus && num(rec.focus[key]) ? rec.focus[key] : null);
+
+  function renderFocus() {
+    const m = month();
+    const sel = $('#focusSel');
+    sel.replaceChildren(el('option', { value: '' }, 'None'), ...m.habits.map(h => el('option', { value: h.id }, h.name)));
+    const h = focusHabit(m);
+    sel.value = h ? h.id : '';
+    $('#focusLabel').value = m.focusCustomLabel || '';
+    $('#focusCharts').hidden = $('#focusLegend').hidden = !h;
+    renderFocusCharts();
+  }
+  function renderFocusCharts() {
+    const m = month();
+    const h = focusHabit(m);
+    const wrap = $('#focusCharts');
+    if (!h) { wrap.replaceChildren(); return; }
+    const N = daysInMonth();
+    const marks = new Set();
+    for (let d = 1; d <= N; d++) if (focusDone(h, m.days[d])) marks.add(d);
+    const legend = $('#focusLegend');
+    legend.replaceChildren('Green dots under each graph mark the ', el('span', { class: 'legend-dot', 'aria-hidden': 'true' }),
+      ` ${marks.size} day${marks.size === 1 ? '' : 's'} you did “${h.name}”${h.cat === 'avoid' ? ' (stayed clean)' : ''}. Log the numbers in the grid above.`);
+    wrap.replaceChildren();
+    for (const mt of focusMetrics(m)) {
+      const pts = [];
+      for (let d = 1; d <= N; d++) { const v = focusVal(m.days[d], mt.key); if (v !== null) pts.push({ d, v }); }
+      const on = pts.filter(p => marks.has(p.d)).map(p => p.v), off = pts.filter(p => !marks.has(p.d)).map(p => p.v);
+      let stat = pts.length ? `avg ${r1(mean(pts.map(p => p.v)))}` : '';
+      if (on.length && off.length) stat += ` · ${r1(mean(on))} on ${h.name} days vs ${r1(mean(off))} on other days`;
+      const box = el('div', { class: 'chartbox' }, s('svg', { role: 'img', 'aria-label': `${mt.name} per day, ${MONTHS[cur.m]}` }), el('div', { class: 'chart-tip' }));
+      wrap.append(el('div', { class: 'fchart' }, el('div', { class: 'chart-head' }, el('h3', {}, mt.name), el('span', { class: 'avg' }, stat)), box));
+      let lo = 0, hi = 10, step = 2;
+      if (!mt.max) ({ lo, hi, step } = niceRange(pts.map(p => p.v)));
+      lineChart(box, {
+        pts, lo, hi, step, marks,
+        height: (W) => Math.min(200, Math.max(150, Math.round(W * 0.2))),
+        empty: `No ${mt.name.toLowerCase()} logged yet — add it in the grid above.`,
+        tip: (p) => [String(p.v), `${MONTHS[cur.m].slice(0, 3)} ${p.d}${marks.has(p.d) ? ` · ${h.name} ✓` : ''}`],
+      });
+    }
+  }
+  $('#focusSel').addEventListener('change', e => {
+    month().focusHabit = e.target.value;
+    save(); renderGrid(); renderFocus(); renderHabits();
+    const h = focusHabit();
+    announce(h ? `Focus habit: ${h.name}. Mood, stress${(month().focusCustomLabel || '').trim() ? ' and your metric' : ''} columns added to the grid.` : 'No focus habit');
+  });
+  $('#focusLabel').addEventListener('input', e => { month().focusCustomLabel = e.target.value; save(); });
+  $('#focusLabel').addEventListener('change', () => { if (focusHabit()) { renderGrid(); renderFocusCharts(); } });
+
   /* ---------- habit grid ---------- */
   function cycle(v) { return v === 'done' ? 'miss' : v === 'miss' ? '' : 'done'; }
+  const markWord = (v) => v === 'done' ? 'done' : v === 'miss' ? 'missed' : 'blank';
+  function paintCell(btn, h, d, v) {
+    btn.replaceChildren(v === 'done' ? el('span', { class: 'done' }, '✓') : v === 'miss' ? el('span', { class: 'miss' }, '✗') : '·');
+    btn.setAttribute('aria-label', `${h.name} day ${d}: ${markWord(v)}`);
+  }
 
   function renderGrid() {
     const m = month();
     const N = daysInMonth();
+    const fh = focusHabit(m);
+    const fms = fh ? focusMetrics(m) : [];
     const grid = $('#grid');
-    grid.replaceChildren();
+    grid.replaceChildren(el('caption', { class: 'sr-only' }, `Habit grid, ${MONTHS[cur.m]} ${cur.y}`));
 
     // header
     const hr = el('tr');
     hr.append(el('th', { class: 'daycol' }, ''));
     hr.append(el('th', { class: 'momcol' }, el('span', { class: 'rotlabel', style: 'font-size:12px;color:var(--text-secondary)' }, 'Memorable moment')));
     for (const h of m.habits) {
-      const th = el('th', { class: 'habith', title: h.name });
-      th.append(el('span', { class: 'rot' }, h.name));
-      th.append(el('span', { class: 'dot', style: `background:${catVar(h.cat)}` }));
+      const isFocus = fh && h.id === fh.id;
+      const th = el('th', { class: 'habith' + (isFocus ? ' focus' : ''), title: h.name + (isFocus ? ' — focus habit' : '') });
+      th.append(el('span', { class: 'rot' }, (isFocus ? '★ ' : '') + h.name));
+      th.append(el('span', { class: `dot shape-${h.cat}`, style: `background:${catVar(h.cat)}` }));
+      th.append(el('span', { class: 'sr-only' }, ` (${CAT_NAMES[h.cat]}${isFocus ? ', focus habit' : ''})`));
       hr.append(th);
     }
     hr.append(el('th', { class: 'habith', title: 'Hours slept' }, el('span', { class: 'rot' }, 'Sleep (h)')));
     hr.append(el('th', { class: 'habith', title: 'Sleep score' }, el('span', { class: 'rot' }, 'Score')));
+    for (const mt of fms) {
+      hr.append(el('th', { class: 'habith focuscol', title: `${mt.name}${mt.max ? ' (1–10)' : ''} — focus experiment` },
+        el('span', { class: 'rot' }, mt.name + (mt.max ? ' 1–10' : ''))));
+    }
     grid.append(el('thead', {}, hr));
 
     // body
@@ -449,7 +898,8 @@
     for (let d = 1; d <= N; d++) {
       const rec = m.days[d] || {};
       const wd = new Date(cur.y, cur.m, d).getDay();
-      const tr = el('tr', { class: isCurMonth() && d === now.getDate() ? 'today' : '' });
+      const cls = [isCurMonth() && d === now.getDate() ? 'today' : '', wd === 1 && d > 1 ? 'wk' : ''].filter(Boolean).join(' ');
+      const tr = el('tr', { class: cls });
       tr.append(el('td', { class: 'daycol' },
         el('span', { class: 'daynum' }, String(d)),
         el('span', { class: 'daywd' }, WEEKDAYS[wd])));
@@ -467,22 +917,24 @@
           ni.addEventListener('input', e => {
             day(d).vals[h.id] = e.target.value === '' ? undefined : parseFloat(e.target.value);
             save(); renderFooter();
+            if (fh && h.id === fh.id) renderFocusCharts();
           });
           tr.append(el('td', { class: 'numcell' }, ni));
         } else {
-          const v = rec.vals ? rec.vals[h.id] : '';
           const btn = el('button', {
             class: 'cell', type: 'button',
-            'aria-label': `${h.name} day ${d}: ${v === 'done' ? 'done' : v === 'miss' ? 'missed' : 'blank'}`,
-            onclick: () => {
+            onclick: (e) => {
               const dd = day(d);
-              dd.vals[h.id] = cycle(dd.vals[h.id] || '');
-              save(); renderGrid();
+              const v = cycle(dd.vals[h.id] || '');
+              dd.vals[h.id] = v;
+              paintCell(e.currentTarget, h, d, v);
+              save(); renderFooter(); renderHeat();
+              if (fh && h.id === fh.id) renderFocusCharts();
+              const cs = currentStreak(h);
+              announce(`${h.name} day ${d}: ${markWord(v)}.${cs ? ` Streak ${cs}.` : ''}`);
             },
           });
-          if (v === 'done') btn.append(el('span', { class: 'done' }, '✓'));
-          else if (v === 'miss') btn.append(el('span', { class: 'miss' }, '✗'));
-          else btn.append('·');
+          paintCell(btn, h, d, rec.vals ? rec.vals[h.id] : '');
           tr.append(el('td', {}, btn));
         }
       }
@@ -491,7 +943,7 @@
       sh.value = (rec.sleepH === 0 || rec.sleepH) ? rec.sleepH : '';
       sh.addEventListener('input', e => {
         day(d).sleepH = e.target.value === '' ? null : parseFloat(e.target.value);
-        save(); renderChart(); renderFooter();
+        save(); renderSleepChart(); renderFooter();
       });
       tr.append(el('td', { class: 'numcell' }, sh));
 
@@ -499,127 +951,193 @@
       ss.value = (rec.sleepScore === 0 || rec.sleepScore) ? rec.sleepScore : '';
       ss.addEventListener('input', e => {
         day(d).sleepScore = e.target.value === '' ? null : parseFloat(e.target.value);
-        save(); renderChart();
+        save(); renderSleepChart();
       });
       tr.append(el('td', { class: 'numcell' }, ss));
+
+      for (const mt of fms) {
+        const fi = el('input', mt.max
+          ? { type: 'number', step: '1', min: String(mt.min), max: String(mt.max), inputmode: 'numeric', 'aria-label': `${mt.name} day ${d}, 1 to 10` }
+          : { type: 'number', step: 'any', inputmode: 'decimal', 'aria-label': `${mt.name} day ${d}` });
+        const v = focusVal(rec, mt.key);
+        fi.value = v === null ? '' : v;
+        fi.addEventListener('input', e => {
+          const dd = day(d);
+          dd.focus = dd.focus || {};
+          let nv = e.target.value === '' ? null : parseFloat(e.target.value);
+          if (nv !== null && mt.max) nv = Math.min(mt.max, Math.max(mt.min, Math.round(nv)));
+          dd.focus[mt.key] = nv;
+          save(); renderFocusCharts(); renderFooter();
+        });
+        fi.addEventListener('change', e => { const v2 = focusVal(m.days[d], mt.key); e.target.value = v2 === null ? '' : v2; });
+        tr.append(el('td', { class: 'numcell' }, fi));
+      }
 
       tbody.append(tr);
     }
     grid.append(tbody);
 
-    grid.append(el('tfoot', {}, el('tr', { id: 'footRow' })));
+    grid.append(el('tfoot', { id: 'foot' }));
     renderFooter();
   }
 
+  // Arrow keys move between cells; inside a text field, left/right only leave at the text's edge.
+  $('#grid').addEventListener('keydown', e => {
+    const k = e.key;
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k) || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const t = e.target;
+    const td = t.closest('td');
+    const tr = td && td.parentElement;
+    if (!tr || tr.parentElement.tagName !== 'TBODY') return;
+    if (t.type === 'text' && (k === 'ArrowLeft' || k === 'ArrowRight')) {
+      const edge = k === 'ArrowLeft' ? 0 : t.value.length;
+      if (t.selectionStart !== edge || t.selectionEnd !== edge) return;
+    }
+    let row = tr, col = td.cellIndex;
+    if (k === 'ArrowUp') row = tr.previousElementSibling;
+    else if (k === 'ArrowDown') row = tr.nextElementSibling;
+    else col += k === 'ArrowLeft' ? -1 : 1;
+    const next = row && row.cells[col] && row.cells[col].querySelector('button, input');
+    if (!next) return;
+    e.preventDefault();
+    next.focus();
+  });
+
   function renderFooter() {
     const m = month();
-    const row = $('#footRow');
-    if (!row) return;
-    row.replaceChildren();
-    row.append(el('td', { class: 'daycol' }, 'Σ'));
-    row.append(el('td', {}, ''));
+    const foot = $('#foot');
+    if (!foot) return;
+    const rDone = el('tr'), rRate = el('tr'), rStreak = el('tr');
+    const done = [], rate = [], streak = [];
+    let hit = 0, total = 0;
     for (const h of m.habits) {
       if (h.type === 'number') {
         const vals = Object.values(m.days).map(r => r.vals && r.vals[h.id]).filter(v => v === 0 || (v && !isNaN(v)));
         const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
-        row.append(el('td', { title: `${h.name}: average` }, avg === null ? '' : (Math.round(avg * 10) / 10).toString()));
-      } else {
-        const n = Object.values(m.days).filter(r => r.vals && r.vals[h.id] === 'done').length;
-        row.append(el('td', { title: h.cat === 'avoid' ? `${h.name}: days slipped` : `${h.name}: days done` }, n ? String(n) : ''));
+        done.push(el('td', { title: `${h.name}: average` }, avg === null ? '' : (Math.round(avg * 10) / 10).toString()));
+        rate.push(el('td')); streak.push(el('td'));
+        continue;
+      }
+      const n = Object.values(m.days).filter(r => r.vals && r.vals[h.id] === 'done').length;
+      done.push(el('td', { title: h.cat === 'avoid' ? `${h.name}: days slipped` : `${h.name}: days done` }, n ? String(n) : ''));
+
+      const E = elapsed(h), ok = success(h);
+      let good = 0;
+      for (let d = 1; d <= E; d++) if (markAt(cur.y, cur.m, d, h.id) === ok) good++;
+      hit += good; total += Math.max(E, 0);
+      const p = E > 0 ? Math.round(good / E * 100) : null;
+      rate.push(el('td', {
+        class: p === null ? null : rateClass(p),
+        title: p === null ? null : `${h.name}: ${good}/${E} days ${h.cat === 'avoid' ? 'clean' : 'done'} (${p}%)`,
+      }, p === null ? '' : `${p}%`));
+
+      const cs = currentStreak(h), bs = bestStreak(h);
+      streak.push(el('td', {
+        class: cs >= 7 ? 'hot' : null,
+        title: `${h.name}: ${h.cat === 'avoid' ? 'clean ' : ''}streak ${cs} day${cs === 1 ? '' : 's'} · best ${bs}`,
+      }, cs ? String(cs) : ''));
+    }
+    const overall = total ? Math.round(hit / total * 100) : null;
+
+    rDone.append(el('td', { class: 'daycol' }, 'Σ'), el('td'), ...done);
+    rRate.append(el('td', { class: 'daycol' }, 'Rate'),
+      el('td', { class: 'overall' + (overall === null ? '' : ' ' + rateClass(overall)), title: overall === null ? null : `${hit} of ${total} habit-days on track` },
+        overall === null ? '' : `${overall}% overall`),
+      ...rate);
+    rStreak.append(el('td', { class: 'daycol' }, 'Streak'), el('td'), ...streak);
+
+    const sl = Object.values(m.days).map(r => r.sleepH).filter(v => v != null && !isNaN(v));
+    const avgS = sl.length ? sl.reduce((a, b) => a + b, 0) / sl.length : null;
+    const sc = Object.values(m.days).map(r => r.sleepScore).filter(v => v != null && !isNaN(v));
+    const avgC = sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : null;
+    rDone.append(el('td', {}, avgS === null ? '' : (Math.round(avgS * 10) / 10) + 'h'), el('td', {}, avgC === null ? '' : String(Math.round(avgC))));
+    rRate.append(el('td'), el('td'));
+    rStreak.append(el('td'), el('td'));
+    if (focusHabit(m)) {
+      for (const mt of focusMetrics(m)) {
+        const vs = Object.values(m.days).map(r => focusVal(r, mt.key)).filter(v => v !== null);
+        rDone.append(el('td', { title: `${mt.name}: average` }, vs.length ? String(r1(mean(vs))) : ''));
+        rRate.append(el('td')); rStreak.append(el('td'));
       }
     }
-    const sl = Object.values(m.days).map(r => r.sleepH).filter(v => v === 0 || v);
-    const avgS = sl.length ? sl.reduce((a, b) => a + b, 0) / sl.length : null;
-    row.append(el('td', {}, avgS === null ? '' : (Math.round(avgS * 10) / 10) + 'h'));
-    const sc = Object.values(m.days).map(r => r.sleepScore).filter(v => v === 0 || v);
-    const avgC = sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : null;
-    row.append(el('td', {}, avgC === null ? '' : String(Math.round(avgC))));
+    foot.replaceChildren(rDone, rRate, rStreak);
     $('#sleepAvg').textContent = avgS === null ? '' : `avg ${(Math.round(avgS * 10) / 10)} h over ${sl.length} night${sl.length === 1 ? '' : 's'}`;
   }
 
-  /* ---------- sleep chart ---------- */
+  /* ---------- line charts (sleep + focus graphs) ---------- */
   const SVG_NS = 'http://www.w3.org/2000/svg';
   function s(tag, attrs = {}) {
     const n = document.createElementNS(SVG_NS, tag);
     for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
     return n;
   }
-  function cssVar(name) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  // About five tidy ticks covering the values.
+  function niceRange(vs) {
+    let lo = vs.length ? Math.min(...vs) : 0, hi = vs.length ? Math.max(...vs) : 10;
+    const raw = (hi - lo || Math.max(1, Math.abs(hi))) / 4;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map(k => k * mag).find(k => k >= raw);
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    if (hi === lo) hi = lo + step;
+    return { lo, hi, step };
   }
+  const tidy = (v) => String(+v.toFixed(6));
 
-  function renderChart() {
-    const m = month();
+  // pts: [{d, v}] for the viewed month. marks: optional Set of days drawn as dots under the axis.
+  function lineChart(box, o) {
     const N = daysInMonth();
-    const box = $('#sleepChartBox');
-    const svg = $('#sleepChart');
+    const svg = box.querySelector('svg');
+    const tip = box.querySelector('.chart-tip');
     svg.replaceChildren();
-
     const W = Math.max(320, box.clientWidth);
-    const H = Math.min(300, Math.max(220, Math.round(W * 0.32)));
-    const pad = { l: 34, r: 14, t: 14, b: 26 };
+    const H = o.height(W);
+    const pad = { l: 34, r: 14, t: 14, b: o.marks ? 36 : 26 };
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('width', W); svg.setAttribute('height', H);
-
-    const pts = [];
-    for (let d = 1; d <= N; d++) {
-      const r = m.days[d];
-      if (r && (r.sleepH === 0 || r.sleepH)) pts.push({ d, h: r.sleepH, score: r.sleepScore });
-    }
-
-    let yMin = 4, yMax = 10;
-    for (const p of pts) { yMin = Math.min(yMin, Math.floor(p.h)); yMax = Math.max(yMax, Math.ceil(p.h)); }
+    const { pts, lo, hi, step } = o;
     const x = (d) => pad.l + (d - 1) / (N - 1) * (W - pad.l - pad.r);
-    const y = (h) => pad.t + (yMax - h) / (yMax - yMin) * (H - pad.t - pad.b);
+    const y = (v) => pad.t + (hi - v) / (hi - lo) * (H - pad.t - pad.b);
 
-    const ink = cssVar('--text-muted'), gridc = cssVar('--gridline'),
-          base = cssVar('--baseline'), series = cssVar('--series-sleep'),
-          surface = cssVar('--surface-1');
-
-    // horizontal gridlines + y ticks (whole hours)
-    for (let h = yMin; h <= yMax; h++) {
-      svg.append(s('line', { x1: pad.l, x2: W - pad.r, y1: y(h), y2: y(h), stroke: h === yMin ? base : gridc, 'stroke-width': 1 }));
-      const t = s('text', { x: pad.l - 8, y: y(h) + 4, 'text-anchor': 'end', fill: ink, 'font-size': 11 });
-      t.textContent = h; svg.append(t);
+    // Colours come from CSS classes, so theme switches and printing restyle the chart without redrawing it.
+    for (let i = 0; lo + i * step <= hi + step / 1000; i++) {
+      const v = lo + i * step;
+      svg.append(s('line', { x1: pad.l, x2: W - pad.r, y1: y(v), y2: y(v), class: i === 0 ? 'c-base' : 'c-grid' }));
+      const t = s('text', { x: pad.l - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'c-ink' });
+      t.textContent = tidy(v); svg.append(t);
     }
-    // x ticks: 1, 5, 10, ... and last day
     const xt = [1]; for (let d = 5; d < N; d += 5) xt.push(d);
     if (N - xt[xt.length - 1] < 3) xt.pop();
     xt.push(N);
     for (const d of xt) {
-      const t = s('text', { x: x(d), y: H - 8, 'text-anchor': 'middle', fill: ink, 'font-size': 11 });
+      const t = s('text', { x: x(d), y: H - 8, 'text-anchor': 'middle', class: 'c-ink' });
       t.textContent = d; svg.append(t);
     }
+    if (o.marks) for (const d of o.marks) svg.append(s('circle', { cx: x(d), cy: H - pad.b + 9, r: 3, class: 'c-mark' }));
 
     if (pts.length === 0) {
-      const t = s('text', { x: W / 2, y: (pad.t + H - pad.b) / 2, 'text-anchor': 'middle', fill: ink, 'font-size': 13 });
-      t.textContent = 'No sleep logged yet — add hours in the grid above.';
+      const t = s('text', { x: W / 2, y: (pad.t + H - pad.b) / 2, 'text-anchor': 'middle', class: 'c-ink c-empty' });
+      t.textContent = o.empty;
       svg.append(t);
       return;
     }
-
-    // line (2px) + area wash
     if (pts.length > 1) {
-      const dAttr = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.d)},${y(p.h)}`).join(' ');
+      const dAttr = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.d)},${y(p.v)}`).join(' ');
       svg.append(s('path', {
-        d: `${dAttr} L${x(pts[pts.length - 1].d)},${y(yMin)} L${x(pts[0].d)},${y(yMin)} Z`,
-        fill: series, 'fill-opacity': 0.1, stroke: 'none',
+        d: `${dAttr} L${x(pts[pts.length - 1].d)},${y(lo)} L${x(pts[0].d)},${y(lo)} Z`,
+        class: 'c-area',
       }));
-      svg.append(s('path', { d: dAttr, fill: 'none', stroke: series, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      svg.append(s('path', { d: dAttr, class: 'c-line' }));
     }
-    // dots: 8px with 2px surface ring
     for (const p of pts) {
-      svg.append(s('circle', { cx: x(p.d), cy: y(p.h), r: 6, fill: surface }));
-      svg.append(s('circle', { cx: x(p.d), cy: y(p.h), r: 4, fill: series }));
+      svg.append(s('circle', { cx: x(p.d), cy: y(p.v), r: 6, class: 'c-ring' }));
+      svg.append(s('circle', { cx: x(p.d), cy: y(p.v), r: 4, class: 'c-dot' }));
     }
 
-    // hover: crosshair snaps to nearest logged day, tooltip shows hours + score
-    const cross = s('line', { y1: pad.t, y2: H - pad.b, stroke: base, 'stroke-width': 1, visibility: 'hidden' });
+    // hover: crosshair snaps to the nearest logged day
+    const cross = s('line', { y1: pad.t, y2: H - pad.b, class: 'c-base', visibility: 'hidden' });
     svg.append(cross);
     const hit = s('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent' });
     svg.append(hit);
-    const tip = $('#chartTip');
-
     function showTip(clientX) {
       const rect = svg.getBoundingClientRect();
       const px = (clientX - rect.left) * (W / rect.width);
@@ -627,24 +1145,106 @@
       for (const p of pts) if (Math.abs(x(p.d) - px) < Math.abs(x(best.d) - px)) best = p;
       cross.setAttribute('x1', x(best.d)); cross.setAttribute('x2', x(best.d));
       cross.setAttribute('visibility', 'visible');
-      tip.replaceChildren(
-        el('div', { class: 'v' }, `${best.h} h`),
-        el('div', { class: 'l' }, `${MONTHS[cur.m].slice(0, 3)} ${best.d}` + (best.score === 0 || best.score ? ` · score ${best.score}` : '')),
-      );
+      const [v, l] = o.tip(best);
+      tip.replaceChildren(el('div', { class: 'v' }, v), el('div', { class: 'l' }, l));
       tip.style.display = 'block';
       const bxw = tip.offsetWidth;
       const lx = x(best.d) / W * box.clientWidth;
       tip.style.left = Math.min(Math.max(0, lx - bxw / 2), box.clientWidth - bxw) + 'px';
-      tip.style.top = (y(best.h) / H * svg.getBoundingClientRect().height - tip.offsetHeight - 12) + 'px';
+      const top = y(best.v) / H * rect.height - tip.offsetHeight - 12;
+      tip.style.top = (top < 0 ? y(best.v) / H * rect.height + 14 : top) + 'px';  // flip below near the top edge
     }
     hit.addEventListener('pointermove', e => showTip(e.clientX));
     hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); tip.style.display = 'none'; });
   }
-  let rsT;
-  window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(renderChart, 150); });
-  if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => renderChart());
+
+  function renderSleepChart() {
+    const m = month();
+    const N = daysInMonth();
+    const pts = [];
+    for (let d = 1; d <= N; d++) {
+      const r = m.days[d];
+      if (r && num(r.sleepH)) pts.push({ d, v: r.sleepH, score: r.sleepScore });
+    }
+    let lo = 4, hi = 10;
+    for (const p of pts) { lo = Math.min(lo, Math.floor(p.v)); hi = Math.max(hi, Math.ceil(p.v)); }
+    lineChart($('#sleepChartBox'), {
+      pts, lo, hi, step: 1,
+      height: (W) => Math.min(300, Math.max(220, Math.round(W * 0.32))),
+      empty: 'No sleep logged yet — add hours in the grid above.',
+      tip: (p) => [`${p.v} h`, `${MONTHS[cur.m].slice(0, 3)} ${p.d}` + (num(p.score) ? ` · score ${p.score}` : '')],
+    });
   }
+  function renderCharts() { renderSleepChart(); renderFocusCharts(); }
+  let rsT;
+  window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(renderCharts, 150); });
+
+  /* ---------- year at a glance ---------- */
+  // A day's level: share of its check habits on track, or null when nothing was marked.
+  function dayScore(y, m, d) {
+    const mo = state.months[keyOf(y, m)];
+    const r = mo && mo.days && mo.days[d];
+    if (!r || !r.vals || !mo.habits) return null;
+    const hs = mo.habits.filter(h => h.type !== 'number');
+    let marked = 0, good = 0;
+    for (const h of hs) { const v = r.vals[h.id]; if (v) marked++; if (v === success(h)) good++; }
+    return marked ? { good, total: hs.length } : null;
+  }
+  const heatLevel = (sc) => !sc ? 0 : 1 + Math.min(4, Math.floor(sc.good / sc.total * 4.999));
+  function renderHeat() {
+    const C = 11, G = 3, L = 28, T = 16;
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(end);
+    start.setDate(start.getDate() - 52 * 7 - end.getDay());  // a Sunday, 53 weeks back
+    const days = [];
+    for (const dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) days.push(new Date(dt));
+    const weeks = Math.ceil(days.length / 7);
+    const W = L + weeks * (C + G), H = T + 7 * (C + G);
+    let tracked = 0, sum = 0;
+    const svg = s('svg', { class: 'heat', viewBox: `0 0 ${W} ${H}`, width: W, height: H });
+    [['Mon', 1], ['Wed', 3], ['Fri', 5]].forEach(([t, r]) => {
+      const tx = s('text', { x: 0, y: T + r * (C + G) + 9 }); tx.textContent = t; svg.append(tx);
+    });
+    let lastM = -1;
+    days.forEach((dt, i) => {
+      const col = Math.floor(i / 7), row = dt.getDay();
+      const y = dt.getFullYear(), m = dt.getMonth(), d = dt.getDate();
+      if (row === 0 && m !== lastM && d <= 7 && col < weeks - 1) {
+        const tx = s('text', { x: L + col * (C + G), y: 10 }); tx.textContent = MONTHS[m].slice(0, 3); svg.append(tx);
+        lastM = m;
+      }
+      const sc = dayScore(y, m, d);
+      if (sc) { tracked++; sum += sc.good / sc.total; }
+      const rect = s('rect', {
+        x: L + col * (C + G), y: T + row * (C + G), width: C, height: C, rx: 2,
+        class: `l${heatLevel(sc)}${y === cur.y && m === cur.m ? ' cur' : ''}`, 'data-date': `${y}-${m}-${d}`,
+      });
+      const title = s('title');
+      title.textContent = `${MONTHS[m].slice(0, 3)} ${d}, ${y}: ` + (sc ? `${sc.good} of ${sc.total} habits on track (${Math.round(sc.good / sc.total * 100)}%)` : 'nothing marked');
+      rect.append(title);
+      svg.append(rect);
+    });
+    const avg = tracked ? Math.round(sum / tracked * 100) : null;
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `Last 12 months: ${tracked} days tracked${avg === null ? '' : `, ${avg}% of habits on track on average`}`);
+    const wrap = $('#heatWrap');
+    wrap.replaceChildren(svg);
+    wrap.scrollLeft = wrap.scrollWidth;
+    $('#heatStat').textContent = tracked ? `${tracked} day${tracked === 1 ? '' : 's'} tracked · ${avg}% on track` : '';
+  }
+  $('#heatWrap').addEventListener('click', e => {
+    const r = e.target.closest('rect[data-date]');
+    if (!r) return;
+    const [y, m, d] = r.dataset.date.split('-').map(Number);
+    goMonth(y, m, d);
+    const row = $('#grid').tBodies[0].rows[d - 1];
+    if (row) row.scrollIntoView({ block: 'center' });
+  });
+  (function heatLegend() {
+    const sv = s('svg', { class: 'heat', width: 5 * 14, height: 11, 'aria-hidden': 'true' });
+    for (let i = 0; i < 5; i++) sv.append(s('rect', { x: i * 14, y: 0, width: 11, height: 11, rx: 2, class: `l${i === 0 ? 0 : i + 1}` }));
+    $('#heatLegend').replaceChildren('Less', sv, 'More');
+  })();
 
   /* ---------- journal ---------- */
   function renderJournal() {
@@ -697,22 +1297,35 @@
     const m = month();
     const list = $('#hlist');
     list.replaceChildren();
-    const CATS = { non: 'non-negotiable', build: 'building', avoid: 'avoid' };
-    for (const h of m.habits) {
+    m.habits.forEach((h, i) => {
       list.append(el('div', { class: 'hrow' },
-        el('span', { class: 'dot', style: `background:${catVar(h.cat)}` }),
-        el('span', { class: 'name' }, h.name),
-        el('span', { class: 'meta' }, `${CATS[h.cat]}${h.type === 'number' ? ' · number' : ''}`),
+        el('span', { class: `dot shape-${h.cat}`, style: `background:${catVar(h.cat)}` }),
+        el('span', { class: 'name' }, h.name, h.id === m.focusHabit ? el('span', { class: 'focus-tag' }, ' ★ focus') : null),
+        el('span', { class: 'meta' }, `${CAT_NAMES[h.cat]}${h.type === 'number' ? ' · number' : ''}`),
+        el('button', { class: 'mv', type: 'button', 'data-dir': '-1', 'aria-label': `Move ${h.name} left in the grid`, disabled: i === 0 ? '' : null, onclick: () => moveHabit(i, -1) }, '↑'),
+        el('button', { class: 'mv', type: 'button', 'data-dir': '1', 'aria-label': `Move ${h.name} right in the grid`, disabled: i === m.habits.length - 1 ? '' : null, onclick: () => moveHabit(i, 1) }, '↓'),
         el('button', {
           class: 'del', type: 'button', 'aria-label': `Remove ${h.name}`,
           onclick: () => {
             if (!confirm(`Remove “${h.name}” from ${MONTHS[cur.m]}? Its marks this month will be kept in storage but hidden.`)) return;
             m.habits = m.habits.filter(x => x.id !== h.id);
-            save(); renderGrid(); renderHabits();
+            if (m.focusHabit === h.id) m.focusHabit = '';
+            save(); renderGrid(); renderHabits(); renderFocus(); renderHeat();
           },
         }, '✕'),
       ));
-    }
+    });
+  }
+  function moveHabit(i, dir) {
+    const m = month();
+    const j = i + dir;
+    if (j < 0 || j >= m.habits.length) return;
+    [m.habits[i], m.habits[j]] = [m.habits[j], m.habits[i]];
+    save(); renderGrid(); renderHabits(); renderFocus();
+    const row = $('#hlist').children[j];
+    const btn = row.querySelector(`button.mv[data-dir="${dir}"]`);
+    (btn && !btn.disabled ? btn : row.querySelector('button.mv:not([disabled])')).focus();
+    announce(`${m.habits[j].name} moved to position ${j + 1} of ${m.habits.length}`);
   }
   $('#addHabit').addEventListener('submit', e => {
     e.preventDefault();
@@ -723,15 +1336,61 @@
       name, cat: $('#hcat').value, type: $('#htype').value,
     });
     $('#hname').value = '';
-    save(); renderGrid(); renderHabits();
+    save(); renderGrid(); renderHabits(); renderFocus();
   });
 
-  /* ---------- export / import ---------- */
-  $('#exportBtn').addEventListener('click', () => {
+  /* ---------- export / import (replace or merge) ---------- */
+  function exportData() {
+    flush();
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = el('a', { href: URL.createObjectURL(blob), download: `watcher-export-${mkey()}.json` });
+    const url = URL.createObjectURL(blob);
+    const a = el('a', { href: url, download: `watcher-export-${mkey()}.json` });
     document.body.append(a); a.click(); a.remove();
-  });
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  $('#exportBtn').addEventListener('click', exportData);
+  $('#storeWarnExport').addEventListener('click', exportData);
+
+  // Merging two devices: nothing filled in on either side is lost. Where both filled the same text,
+  // the longer one wins; where both marked the same cell, this device wins.
+  const filled = (v) => v !== null && v !== undefined && v !== '' && !(typeof v === 'number' && isNaN(v));
+  const longer = (a, b) => ((b || '').length > (a || '').length ? b : a) || '';
+  function overlay(a, b) {
+    const out = { ...(b || {}) };
+    for (const [k, v] of Object.entries(a || {})) if (filled(v)) out[k] = v;
+    return out;
+  }
+  function mergeDay(a, b) {
+    const out = { ...b, ...a };
+    for (const k of ['moment', 'journal', 'jtime']) out[k] = longer(a[k], b[k]);
+    out.grateful = [0, 1, 2].map(i => longer((a.grateful || [])[i], (b.grateful || [])[i]));
+    out.vals = overlay(a.vals, b.vals);
+    for (const k of ['sleepH', 'sleepScore']) out[k] = filled(a[k]) ? a[k] : filled(b[k]) ? b[k] : null;
+    if (a.focus || b.focus) out.focus = overlay(a.focus, b.focus);
+    return out;
+  }
+  function mergeMonth(a, b) {
+    const out = { ...b, ...a };
+    for (const k of ['intention', 'nextMonth', 'focusCustomLabel']) out[k] = longer(a[k], b[k]);
+    out.focusHabit = a.focusHabit || b.focusHabit || '';
+    out.goals = [0, 1, 2].map(i => longer((a.goals || [])[i], (b.goals || [])[i]));
+    const ids = new Set((a.habits || []).map(h => h.id));
+    out.habits = [...(a.habits || []), ...(b.habits || []).filter(h => !ids.has(h.id))];
+    out.days = { ...(b.days || {}) };
+    for (const [d, r] of Object.entries(a.days || {})) out.days[d] = out.days[d] ? mergeDay(r, out.days[d]) : r;
+    return out;
+  }
+  function mergeState(local, incoming) {
+    let added = 0, merged = 0;
+    for (const [k, mo] of Object.entries(incoming.months)) {
+      if (!mo || typeof mo !== 'object') continue;
+      if (!local.months[k]) { local.months[k] = mo; added++; }
+      else { local.months[k] = mergeMonth(local.months[k], mo); merged++; }
+    }
+    return { added, merged };
+  }
+
+  let pendingImport = null;
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', e => {
     const f = e.target.files[0];
@@ -740,21 +1399,78 @@
     r.onload = () => {
       try {
         const data = JSON.parse(r.result);
-        if (!data || typeof data.months !== 'object') throw new Error('bad shape');
-        if (!confirm('Replace all Watcher data on this device with the imported file?')) return;
-        state = data;
-        save(); renderAll();
+        if (!data || typeof data.months !== 'object' || data.months === null) throw new Error('bad shape');
+        pendingImport = data;
+        const keys = Object.keys(data.months).sort();
+        const label = (k) => { const [y, m] = k.split('-'); return `${(MONTHS[+m - 1] || '').slice(0, 3)} ${y}`; };
+        $('#importInfo').textContent = `“${f.name}” has ${keys.length} month${keys.length === 1 ? '' : 's'}` +
+          (keys.length ? ` (${label(keys[0])}${keys.length > 1 ? ` – ${label(keys[keys.length - 1])}` : ''})` : '') +
+          '. Merge keeps everything from both devices: where both have the same text, the longer one is kept; where both marked the same day, this device wins. Replace throws away what is on this device.';
+        const dlg = $('#importDlg');
+        if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
       } catch (err) { alert('That file does not look like a Watcher export.'); }
     };
     r.readAsText(f);
     e.target.value = '';
   });
+  function finishImport(msg) {
+    $('#importDlg').close();
+    pendingImport = null;
+    persist(); renderAll();
+    $('#dataMsg').textContent = msg;
+  }
+  $('#importMerge').addEventListener('click', () => {
+    const { added, merged } = mergeState(state, pendingImport);
+    finishImport(`Merged: ${added} new month${added === 1 ? '' : 's'} added, ${merged} combined with what was here.`);
+  });
+  $('#importReplace').addEventListener('click', () => {
+    if (!confirm('Replace all Watcher data on this device with the imported file? This cannot be undone — export first if unsure.')) return;
+    state = pendingImport;
+    finishImport('Replaced this device’s data with the imported file.');
+  });
+  $('#importCancel').addEventListener('click', () => { pendingImport = null; $('#importDlg').close(); });
+
+  /* ---------- keyboard shortcuts ---------- */
+  function openKeys() {
+    const d = $('#keys');
+    if (d.open) return;
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  }
+  $('#keysBtn').addEventListener('click', openKeys);
+  function stepJournal(n) {
+    selDay = Math.min(Math.max(1, selDay + n), daysInMonth());
+    renderJournal();
+    announce(`Journal: ${MONTHS[cur.m]} ${selDay}`);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+    if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable], #grid, dialog')) return;
+    switch (e.key) {
+      case 'ArrowLeft': $('#prevM').click(); break;
+      case 'ArrowRight': $('#nextM').click(); break;
+      case 'j': stepJournal(1); break;
+      case 'k': stepJournal(-1); break;
+      case 'e': exportData(); break;
+      case 't': cycleTheme(); break;
+      case '?': openKeys(); break;
+      default: return;
+    }
+    e.preventDefault();
+  });
 
   /* ---------- boot ---------- */
   function renderAll() {
-    renderHeader(); renderIntention(); renderGrid(); renderChart(); renderJournal(); renderHabits();
+    renderHeader(); renderIntention(); renderGrid(); renderSleepChart(); renderFocus(); renderHeat(); renderJournal(); renderHabits();
   }
+  const fromHash = monthFromHash();
+  if (fromHash) { cur = fromHash; selDay = isCurMonth() ? now.getDate() : 1; }
+  applyTheme(getTheme());
   renderAll();
+  updateUsage(JSON.stringify(state).length);
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
+  }
 })();
 </script>
 </body>

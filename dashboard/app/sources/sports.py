@@ -192,17 +192,17 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
     if not out:
         raise RuntimeError("; ".join(errors))
     # Live scores: one scoreboard call per league that has a game on right now.
-    boards: dict[str, Any] = {}
+    async def board(league: str) -> dict[str, Any]:
+        try:
+            sport, lg = league.split("/", 1)
+            resp = await client.get(SCOREBOARD.format(sport=sport, league=lg), params=SCOREBOARD_PARAMS.get(league), headers=HEADERS, timeout=20)
+            return resp.json() if resp.status_code == 200 else {}
+        except Exception:  # noqa: BLE001 - a live score is a bonus; the tile works without it
+            return {}
+
+    live_leagues = list(dict.fromkeys(t["league"] for t in out if t.get("live")))
+    boards = dict(zip(live_leagues, await asyncio.gather(*(board(lg) for lg in live_leagues))))
     for team in out:
-        if not team.get("live"):
-            continue
-        league = team["league"]
-        if league not in boards:
-            try:
-                sport, lg = league.split("/", 1)
-                resp = await client.get(SCOREBOARD.format(sport=sport, league=lg), params=SCOREBOARD_PARAMS.get(league), headers=HEADERS, timeout=20)
-                boards[league] = resp.json() if resp.status_code == 200 else {}
-            except Exception:
-                boards[league] = {}
-        apply_scoreboard(team, boards[league])
+        if team.get("live"):
+            apply_scoreboard(team, boards[team["league"]])
     return {"teams": out, "errors": errors}

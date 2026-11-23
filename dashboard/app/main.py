@@ -17,9 +17,10 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 
 from . import globe, manage, mock, tunnel
-from .pages import page_response
+from .pages import page_response, static_version
 from .cache import SourceCache, refresh_once, run_poller
 from .config import Settings, load_settings
 from .sources import alerts as alerts_src
@@ -167,6 +168,7 @@ async def reload_sources(app: FastAPI) -> Settings:
             log.warning(problem)
         await stop_sources(app)
         await start_sources(app, settings, previous)
+        static_version.cache_clear()
         log.info("settings reloaded (version %d)", version)
         return settings
 
@@ -240,6 +242,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Watcher Dashboard", lifespan=lifespan)
 app.state.started = STARTED
+class TextGZip:
+    """Gzip JSON, pages, CSS and JS (big win over the Cloudflare Tunnel / phone data); photos, fonts and images are already compressed."""
+
+    SKIP_PREFIXES = ("/photos/", "/art/")
+    SKIP_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".woff2", ".wav", ".mp3")
+
+    def __init__(self, app, minimum_size: int = 1000):
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size)
+
+    async def __call__(self, scope, receive, send):
+        path = scope.get("path", "") if scope["type"] == "http" else ""
+        if path and not path.startswith(self.SKIP_PREFIXES) and not path.lower().endswith(self.SKIP_SUFFIXES):
+            return await self.gzip(scope, receive, send)
+        return await self.app(scope, receive, send)
+
+
+app.add_middleware(TextGZip, minimum_size=1000)
 app.include_router(manage.router)  # literal routes first; the /api/{name} catch-all below comes last
 app.add_middleware(
     globe.GlobeProxy, client_getter=lambda: app.state.client,
@@ -287,6 +307,12 @@ async def api_refresh(name: str):
 
 
 _ART_ID = re.compile(r"^[0-9]{1,9}\.jpg$")
+
+
+@app.get("/sw.js")
+async def service_worker():
+    """Served from the root so it may look after the TV page at /."""
+    return FileResponse(STATIC_DIR / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/art/{filename}")

@@ -37,6 +37,25 @@ Notes has no charts and only rudimentary tables. So this repo ships both:
   when the month rolls over.
 - **Monthly rollover** — a new month starts with your current habit list.
 - **Export / import** — your data as JSON, so nothing is locked in.
+- **Streaks and completion rate** — under the grid: days done, this month's
+  rate (green ≥ 80%, amber ≥ 50%, red below), and the current streak, which
+  carries across months (hover for your best). For "avoid" habits, ✗ = stayed
+  clean and counts toward the rate and the streak.
+- **Focus habit** — Dominic Hart's 2026 twist: pick one habit to spotlight
+  each month, rate mood and stress (1–10) and one metric of your own in the
+  grid, and three graphs compare the days you did the habit with the days you
+  didn't.
+- **Year at a glance** — a year-long heatmap of how many habits were on track
+  each day; tap a day to open it.
+- **Reorder habits** with ↑/↓, **week lines** in the grid, a **theme
+  switch** (auto / light / dark), a **print layout**, and month links like
+  `index.html#2026-11` that work with the browser's back button.
+- **Merge on import** — bring in an export from another device without losing
+  what's on this one (or replace everything, if you'd rather).
+- **Installable and offline** — when hosted (e.g. GitHub Pages) it installs as
+  an app and opens without a connection.
+- **Keyboard friendly** — arrow keys move around the grid; press <kbd>?</kbd>
+  for the other shortcuts.
 
 Light and dark mode follow your system setting.
 

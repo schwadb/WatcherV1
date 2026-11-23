@@ -43,6 +43,8 @@ def service_text(app_path: str) -> str:
 
 def install(app_path: str, h: Path | None = None) -> str:
     """Write the user service, enable it and start it now. Returns a message for the page."""
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in app_path):
+        raise ValueError("the AppImage path contains a line break or other control character")
     path = Path(app_path).expanduser()
     if not path.is_file():
         raise ValueError(f"{app_path} does not exist")

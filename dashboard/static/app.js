@@ -5,6 +5,11 @@
   const $ = (id) => document.getElementById(id);
   const state = { config: null, failures: 0, startedAt: Date.now(), configVersion: null };
 
+  // A logo that fails to load disappears (no inline onerror: the page's CSP allows no inline script).
+  document.addEventListener("error", (e) => { if (e.target.matches && e.target.matches("img[data-drop-on-error]")) e.target.remove(); }, true);
+  // Keeps the last good page on screen while the server restarts (updates, the nightly reload).
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+
   // ---------- helpers ----------------------------------------------------------------------
   async function getJSON(path) {
     const resp = await fetch(path, { cache: "no-store" });
@@ -902,7 +907,7 @@
     }
     const dots = teams.length > 1 ? `<div class="dots">${teams.map((_, i) => `<i class="${i === sportsState.index ? "on" : ""}"></i>`).join("")}</div>` : "";
     tile.innerHTML = `
-      <div class="head">${t.logo ? `<img src="${escapeHTML(t.logo)}" alt="" onerror="this.remove()">` : ""}
+      <div class="head">${t.logo ? `<img src="${escapeHTML(t.logo)}" alt="" data-drop-on-error>` : ""}
         <div><div class="team">${escapeHTML(t.short || t.name)}</div><div class="record">${escapeHTML([t.record, t.standing].filter(Boolean).join(" · "))}</div></div>
       </div>${lines.join("")}${dots}`;
   }
@@ -913,7 +918,7 @@
   const scrollers = new Map();
   function autoScroll(el, opts = {}) {
     if (scrollers.has(el)) { scrollers.get(el).refresh(); return; }
-    const st = { pos: 0, phase: "top", until: 0, holdUntil: 0, last: 0 };
+    const st = { pos: 0, phase: "top", until: 0, holdUntil: 0, last: 0, running: false };
     const pause = opts.pauseMs || 7000;
     const speed = () => (opts.pxPerSec || 0.0095 * window.innerWidth);
     const hold = () => { st.holdUntil = performance.now() + 20000; };
@@ -925,6 +930,7 @@
       el.classList.toggle("scrolls", overflow > 2);
       if (overflow <= 2) { el.scrollTop = 0; st.pos = 0; st.phase = "top"; }
       st.until = performance.now() + pause;
+      if (overflow > 2 && !st.running) { st.running = true; st.last = performance.now(); requestAnimationFrame(step); }
     }
     function step(now) {
       const overflow = el.scrollHeight - el.clientHeight;
@@ -945,9 +951,11 @@
         st.pos = el.scrollTop;  // follow a person's own scrolling
       }
       el.classList.toggle("at-top", el.scrollTop < 4);
+      // Nothing to scroll (or the box was removed / hidden): stop; the next refresh() starts it again.
+      if (overflow <= 2 || !el.isConnected) { st.running = false; return; }
       requestAnimationFrame(step);
     }
-    st.last = performance.now(); refresh(); requestAnimationFrame(step);
+    refresh();
     scrollers.set(el, { refresh });
   }
   window.addEventListener("resize", () => { scrollers.forEach((s) => s.refresh()); renderNext(); });
@@ -1163,6 +1171,7 @@
       if ((e.key === "v" || e.key === "V") && cfg("globe.enabled", false)) globeToggle();
       if ((e.key === "m" || e.key === "M") && cfg("now_playing.provider", "off") === "spotify") musicToggle();
       if (e.key === "g" || e.key === "G") scoresToggle();
+      if ((e.key === "l" || e.key === "L") && !document.body.classList.contains("overlay-open")) stepLayout(1);
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
       if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (globe.open) globeToggle(); if (takeover.shown) dismissTakeover(true); }
@@ -1202,6 +1211,63 @@
     setTimeout(watchConfigVersion, 60000);
   }
 
+  // ---------- rotating layouts --------------------------------------------------------------------
+  // The board takes turns: the full dashboard, then one panel full screen (photos, radar). The turn
+  // timer only runs while nothing is on top (alert takeover, map, globe, scores, music, the menu).
+  const LAYOUT_PANEL = { photos: "photos", radar: "radar" };  // layout -> panel it needs
+  const layouts = { pages: ["dashboard"], i: 0, seconds: 60, left: 60 };
+  function layoutPages() {
+    const want = cfg("layouts.pages", ["dashboard"]) || [];
+    const ok = want.filter((p, i) => want.indexOf(p) === i && (p === "dashboard" || (LAYOUT_PANEL[p] && cfg("panels." + LAYOUT_PANEL[p], true) !== false)));
+    return ok.length ? ok : ["dashboard"];
+  }
+  function setLayout(name) {
+    const body = document.body;
+    if ((body.dataset.layout || "dashboard") === name) return;
+    body.classList.add("layout-fade");
+    setTimeout(() => {
+      for (const p of Object.keys(LAYOUT_PANEL)) body.classList.toggle("layout-" + p, p === name);
+      body.dataset.layout = name;
+      if (radar.map) radar.map.invalidateSize();
+      scrollers.forEach((sc) => sc.refresh());
+      requestAnimationFrame(() => body.classList.remove("layout-fade"));
+      setTimeout(() => { if (radar.map) radar.map.invalidateSize(); }, 700);
+    }, 600);
+  }
+  function stepLayout(n) {
+    if (layouts.pages.length < 2) return;
+    layouts.i = (layouts.i + n + layouts.pages.length) % layouts.pages.length;
+    layouts.left = layouts.seconds;
+    setLayout(layouts.pages[layouts.i]);
+  }
+  function layoutPaused() {
+    const b = document.body.classList;
+    return b.contains("overlay-open") || b.contains("screen-off") || $("corner-buttons").classList.contains("open") || document.hidden;
+  }
+  function startLayouts() {
+    layouts.pages = layoutPages();
+    layouts.seconds = Math.max(15, Math.min(3600, Number(cfg("layouts.seconds", 60)) || 60));
+    layouts.left = layouts.seconds;
+    if (layouts.pages[0] !== "dashboard") setLayout(layouts.pages[0]);
+    if (!cfg("layouts.rotate", false) || layouts.pages.length < 2) return;
+    setInterval(() => { if (!layoutPaused() && --layouts.left <= 0) stepLayout(1); }, 1000);
+  }
+
+  // ---------- OLED burn-in protection: drift a few px around a small orbit every 10 minutes ---------
+  const SHIFT_ORBIT = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+  function startPixelShift() {
+    const px = Math.max(0, Math.min(6, Math.round(Number(cfg("display.pixel_shift_px", 2)) || 0)));
+    if (cfg("display.pixel_shift", true) === false || !px) return;
+    document.body.classList.add("pixel-shift");
+    let i = 0;
+    setInterval(() => {
+      i = (i + 1) % SHIFT_ORBIT.length;
+      const root = document.documentElement.style;
+      root.setProperty("--shift-x", SHIFT_ORBIT[i][0] * px + "px");
+      root.setProperty("--shift-y", SHIFT_ORBIT[i][1] * px + "px");
+    }, 10 * 60 * 1000);
+  }
+
   // ---------- boot ---------------------------------------------------------------------------
   async function boot() {
     try { state.config = await getJSON("/api/config"); state.configVersion = state.config.config_version; } catch (err) { console.warn("config", err); }
@@ -1216,7 +1282,7 @@
     startWidget("weather", every("weather", 300), renderWeather);
     startWidget("alerts", every("alerts", 300), renderAlerts, () => $("alert-banner").classList.add("hidden"));
     startWidget("radar", every("radar", 300), renderRadar);
-    startWidget("stocks", 60, renderStocks);
+    startWidget("stocks", every("stocks", 300), renderStocks);
     startWidget("sports", every("sports", 300), renderSports, () => $("sports").classList.add("hidden"));
     startWidget("calendar", every("calendar", 300), renderCalendar);
     startWidget("news", every("news", 600), renderNews);
@@ -1235,6 +1301,8 @@
     startGlobe();
     startMusic();
     startScores();
+    startLayouts();
+    startPixelShift();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
   }

@@ -30,7 +30,7 @@ DEFAULTS: dict[str, Any] = {
         "takeover_sound": True,
         "takeover_events": ["*Warning", "Tornado Watch"],
     },
-    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": ""},
+    "chronalert": {"mode": "off", "url": "", "show_seconds": 90, "photo_seconds": 180, "open_mode": "iframe", "app_path": "", "skip_tls_verify": False},
     "globe": {"enabled": False, "port": 4173},
     "remote": {"hostname": ""},  # the public name of the Cloudflare Tunnel (board.example.com), for the status page
     "radar": {
@@ -58,7 +58,9 @@ DEFAULTS: dict[str, Any] = {
         "alerts": True, "radar": True, "stocks": True, "sports": True, "calendar": True,
         "todo": True, "news": True, "photos": True, "nowplaying": True,
     },
-    "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "night_mode": True, "night_from": "22:00", "night_to": "06:00", "control": "auto", "start_at_login": True, "locked_kiosk": False, "stop_idle_lock": True},
+    "display": {"reload_at": "03:30", "screen_off": "", "screen_on": "", "dim_from": "", "dim_level": 0.5, "night_mode": True, "night_from": "22:00", "night_to": "06:00", "control": "auto", "start_at_login": True, "locked_kiosk": False, "stop_idle_lock": True,
+                "pixel_shift": True, "pixel_shift_px": 2},  # nudge the page a few px every 10 min (OLED burn-in)
+    "layouts": {"rotate": False, "seconds": 60, "pages": ["dashboard", "photos", "radar"]},  # TV takes turns between these
     "audio": {"card": "", "profile": "", "port": ""},
     "scores": {"leagues": ["football/nfl", "football/college-football", "basketball/nba", "baseball/mlb", "hockey/nhl", "basketball/mens-college-basketball",
                            "volleyball/womens-college-volleyball", "baseball/college-baseball", "nsaa/fb", "nsaa/vb", "nsaa/bb", "nsaa/gb", "nsaa/wr"],
@@ -190,6 +192,7 @@ class Settings:
             "todo": c.get("todo") or DEFAULTS["todo"],
             "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "refresh_seconds": (c.get("now_playing") or {}).get("refresh_seconds", 10), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
             "display": c["display"],
+            "layouts": {**DEFAULTS["layouts"], **(c.get("layouts") or {})},
             "takeover": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("takeover", "takeover_minutes", "takeover_sound")},
             "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
             "globe": {**DEFAULTS["globe"], **(c.get("globe") or {})},
