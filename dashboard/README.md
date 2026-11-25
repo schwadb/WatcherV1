@@ -139,7 +139,7 @@ the rest of the box. Prefer the old crop-to-fill look? Settings → Photos →
 "How photos fill the box".
 
 Famous paintings are mixed in too: one every four photos by default, from the
-Art Institute of Chicago's free collection of public-domain works (Van Gogh,
+free open-access collections of the Art Institute of Chicago, The Met and the Cleveland Museum of Art (Van Gogh,
 Monet, Vermeer, Hokusai, Hopper, O'Keeffe and others), fetched once a day and
 kept on the computer (about 30 MB). A caption gives the title, artist and year.
 Settings → Photos: turn it off, change how often, or name your own artists.

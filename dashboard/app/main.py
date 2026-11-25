@@ -286,7 +286,7 @@ async def api_refresh(name: str):
     return JSONResponse(cache.envelope())
 
 
-_ART_ID = re.compile(r"^[0-9]{1,9}\.jpg$")
+_ART_ID = re.compile(r"^(?:[a-z]{3}-)?[0-9]{1,9}\.jpg$")
 
 
 @app.get("/art/{filename}")

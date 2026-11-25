@@ -294,6 +294,17 @@ check("config: an unquoted clock time still loads as 22:30", _ls.cfg["display"][
 check("config: an existing config file raises no 'not found' warning", not any("not found" in e for e in _ls.errors))
 del _os2.environ["DASHBOARD_CONFIG"]
 
+# ---- art: three museums --------------------------------------------------------------------------
+_met = _art.parse_met_object({"objectID": 436535, "title": "Wheat Field with Cypresses", "artistDisplayName": "Vincent van Gogh", "objectDate": "1889", "isPublicDomain": True, "primaryImageSmall": "https://images.metmuseum.org/x.jpg"}, "Vincent van Gogh")
+check("art: a Met public-domain object becomes a work with a credit", _met and _met["id"] == "met-436535" and _met["image"].endswith("x.jpg") and "Metropolitan" in _met["credit"])
+check("art: a Met object that is not public domain or not by the artist is skipped",
+      _art.parse_met_object({"objectID": 1, "title": "x", "artistDisplayName": "Vincent van Gogh", "isPublicDomain": False, "primaryImageSmall": "u"}, "Vincent van Gogh") is None
+      and _art.parse_met_object({"objectID": 2, "title": "x", "artistDisplayName": "Someone Else", "isPublicDomain": True, "primaryImageSmall": "u"}, "Vincent van Gogh") is None)
+_cma = _art.parse_cma({"data": [{"id": 135382, "title": "The Red Kerchief", "creation_date": "c. 1868-73", "creators": [{"description": "Claude Monet (French, 1840-1926)"}], "images": {"web": {"url": "https://openaccess-cdn.clevelandart.org/1958.39/1958.39_web.jpg"}}},
+                                {"id": 2, "title": "No picture", "creators": [{"description": "Claude Monet"}], "images": {}}]}, "Claude Monet", 5)
+check("art: Cleveland works parsed with artist, date and web image; ones without an image skipped", len(_cma) == 1 and _cma[0]["id"] == "cma-135382" and _cma[0]["artist"] == "Claude Monet" and _cma[0]["date"].startswith("c. 1868"))
+check("art: all museums by default, narrowed by the setting", _art.sources(load_settings()) == ["aic", "met", "cma"])
+
 # ---- remote access: Cloudflare Tunnel ------------------------------------------------------------
 from app import tunnel as _tn
 _tu = _tn.service_text("eyJTOKEN", "/opt/bin/cloudflared")

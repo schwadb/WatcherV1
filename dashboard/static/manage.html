@@ -293,7 +293,13 @@
         <label class="check"><input name="photos.captions" type="checkbox"> Caption photos with where and when they were taken</label>
         <label class="check"><input name="photos.memories" type="checkbox"> "On this day": show photos from this week in past years first</label>
       </div>
-      <label>Artists (comma separated; blank = a built-in list of 18) <input name="photos.artists" type="text" placeholder="Vincent van Gogh, Claude Monet, Edward Hopper"><span class="hint">Public-domain works from the Art Institute of Chicago, fetched once a day.</span></label>
+      <div class="checks">
+        <span class="hint">Museums to draw from (all free, public-domain works):</span>
+        <label class="check"><input name="photos.art_sources.aic" type="checkbox"> Art Institute of Chicago</label>
+        <label class="check"><input name="photos.art_sources.met" type="checkbox"> The Met, New York</label>
+        <label class="check"><input name="photos.art_sources.cma" type="checkbox"> Cleveland Museum of Art</label>
+      </div>
+      <label>Artists (comma separated; blank = a built-in list of 18) <input name="photos.artists" type="text" placeholder="Vincent van Gogh, Claude Monet, Edward Hopper"><span class="hint">Fetched once a day from the museums ticked above.</span></label>
       <div class="row two">
         <label>Max upload size (MB) <input name="photos.max_upload_mb" type="number" min="1" max="100"></label>
         <label>To-do items on screen <input name="todo.max_items" type="number" min="1" max="20"></label>
