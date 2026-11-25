@@ -376,6 +376,13 @@ body.night .sports .kick .v { text-shadow: none; }
 .ticker-item::after { content: "•"; color: var(--muted); margin-left: 2.5rem; }
 .ticker-item.quote { font-style: italic; color: #e9dfc4; }
 .ticker-item.quote .src { color: var(--warn); font-style: normal; }
+/* the house note and family messages: an amber pill that pulses so it catches the eye; the text itself never dims */
+.ticker-item.note, .ticker-item.message { display: inline-block; padding: 0.15rem 1rem 0.15rem 0.9rem; margin-right: 2.5rem; border-radius: 2rem; color: #fff3df; font-weight: 600; background: rgba(245,185,66,0.22); border: 1px solid rgba(245,185,66,0.55); animation: ticker-pulse 1.4s ease-in-out infinite; }
+.ticker-item.note .src, .ticker-item.message .src { color: var(--warn); }
+.ticker-item.note::after, .ticker-item.message::after { content: ""; margin: 0; }
+@keyframes ticker-pulse { 0%, 100% { background: rgba(245,185,66,0.18); border-color: rgba(245,185,66,0.45); box-shadow: none; } 50% { background: rgba(245,185,66,0.42); border-color: rgba(245,185,66,0.95); box-shadow: 0 0 0.8rem rgba(245,185,66,0.45); } }
+@media (prefers-reduced-motion: reduce) { .ticker-item.note, .ticker-item.message { animation: none; } }
+body.night .ticker-item.note, body.night .ticker-item.message { animation: none; }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* ---- to-do + notes ---- */

@@ -977,9 +977,33 @@
   }
 
   // ---------- news ticker --------------------------------------------------------------------
-  const ticker = { pending: null, track: null };
+  const ticker = { pending: null, track: null, headlines: [], extras: { note: "", messages: [] } };
+  /** Headlines plus the house note and family messages (first, and again mid-list so they come round twice a loop). */
+  function tickerItems() {
+    const own = [];
+    if (ticker.extras.note) own.push({ kind: "note", source: "Note", title: ticker.extras.note });
+    for (const m of ticker.extras.messages) own.push({ kind: "message", source: m.from || "Message", title: m.text });
+    const news = ticker.headlines;
+    if (!own.length) return news;
+    const mid = Math.floor(news.length / 2);
+    return [...own, ...news.slice(0, mid), ...(news.length > 3 ? own : []), ...news.slice(mid)];
+  }
+  function scheduleTicker(immediate = false) {  // immediate: a new note/message shows right away rather than at the next loop
+    const items = tickerItems();
+    if (!items.length) return;
+    if (immediate && ticker.track) { ticker.pending = null; buildTicker(items); return; }
+    if (!ticker.track) {
+      ticker.track = $("ticker-track");
+      ticker.track.addEventListener("animationiteration", () => {
+        if (ticker.pending) { buildTicker(ticker.pending); ticker.pending = null; }
+      });
+      buildTicker(items);
+    } else {
+      ticker.pending = items;  // swap in at the next seamless loop point
+    }
+  }
   function buildTicker(headlines) {
-    const items = headlines.map((h) => `<span class="ticker-item${h.kind === "quote" ? " quote" : ""}"><span class="src">${escapeHTML(h.source)}</span>${escapeHTML(h.title)}</span>`).join("");
+    const items = headlines.map((h) => `<span class="ticker-item${h.kind && h.kind !== "news" ? " " + escapeHTML(h.kind) : ""}"><span class="src">${escapeHTML(h.source)}</span>${escapeHTML(h.title)}</span>`).join("");
     const track = ticker.track;
     track.innerHTML = items + items;  // duplicated so the loop is seamless at -50%
     const viewport = track.parentElement.clientWidth;
@@ -992,15 +1016,8 @@
   function renderNews(d) {
     const headlines = d.headlines || [];
     if (!headlines.length) return;
-    if (!ticker.track) {
-      ticker.track = $("ticker-track");
-      ticker.track.addEventListener("animationiteration", () => {
-        if (ticker.pending) { buildTicker(ticker.pending); ticker.pending = null; }
-      });
-      buildTicker(headlines);
-    } else {
-      ticker.pending = headlines;  // swap in at the next seamless loop point
-    }
+    ticker.headlines = headlines;
+    scheduleTicker();
   }
 
   // ---------- photos -------------------------------------------------------------------------
@@ -1081,6 +1098,8 @@
     msgState.items = items;
     if (msgState.index >= items.length) msgState.index = 0;
     drawMessage();
+    const inTicker = items.map((m) => ({ from: m.from, text: m.text }));
+    if (JSON.stringify(inTicker) !== JSON.stringify(ticker.extras.messages)) { ticker.extras.messages = inTicker; scheduleTicker(true); }
     clearInterval(msgState.timer); msgState.timer = null;
     if (items.length > 1) msgState.timer = setInterval(() => { msgState.index = (msgState.index + 1) % msgState.items.length; drawMessage(); }, 8000);
   }
@@ -1132,6 +1151,8 @@
     $("notes").textContent = text;
     $("notes").classList.toggle("hidden", !text);
     updateTodoVisibility();
+    const oneLine = text.replace(/\s+/g, " ");
+    if (oneLine !== ticker.extras.note) { ticker.extras.note = oneLine; scheduleTicker(true); }
   }
 
   // ---------- settings gear + cursor -------------------------------------------------------------
