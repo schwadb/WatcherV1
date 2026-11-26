@@ -29,7 +29,7 @@ async def weather(settings: Settings) -> dict[str, Any]:
     raw["current"]["time"] = now.strftime("%Y-%m-%dT%H:%M")
     hours = len(raw["hourly"]["time"])
     base = now.replace(minute=0, second=0, microsecond=0)
-    raw["hourly"]["time"] = [(base.timestamp() + i * 3600) for i in range(hours)]
+    raw["hourly"]["time"] = [(base.timestamp() + (i - weather_src.PRESSURE_TREND_HOURS) * 3600) for i in range(hours)]  # the first hours are the past, as the real API sends them
     raw["hourly"]["time"] = [datetime.fromtimestamp(t).strftime("%Y-%m-%dT%H:%M") for t in raw["hourly"]["time"]]
     # Daily block: today onwards, keeping the fixture's sunrise/sunset clock times.
     day0 = now.date()

@@ -284,7 +284,11 @@ Settings → Pages. The TV flips through full-screen pages with a soft crossfade
 60 seconds each by default (15 to 600). The clock bar and the news ticker stay
 on every page; Home is the normal layout and is always first.
 
-- **Weather**: the whole forecast (up to seven days, Settings → Weather) with a large radar beside it.
+- **Weather**: a ten-day forecast (each day with its rain amount and wind), a large
+  radar, and a grid of readings: feels like, humidity and dew point, wind and gusts,
+  barometer with its trend, visibility, cloud cover, today's rain, UV, air quality,
+  sunrise/sunset and daylight hours, moon, and today's wind. Settings → Weather sets
+  the number of days (1 to 10).
 - **Photos**: one photo fills the screen.
 - **Family**: the calendar on the left; to-do, note, packages and messages on the right.
 - **Sports**: today's scoreboard (the same one as ☰ → Scores), refreshed every 30 seconds.

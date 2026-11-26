@@ -689,7 +689,8 @@
     const x = cx + r * Math.cos(a), y = cy - r * Math.sin(a);
     svg.classList.toggle("night", sun.is_day === false);
     $("sun-arc-dot").setAttribute("cx", x.toFixed(1)); $("sun-arc-dot").setAttribute("cy", y.toFixed(1));
-    $("sun-arc-lit").setAttribute("d", p > 0.01 ? `M8 46 A42 42 0 ${p > 0.5 ? 1 : 0} 1 ${x.toFixed(1)} ${y.toFixed(1)}` : "");
+    // Never more than a half circle, so the large-arc flag stays 0 (1 made the arc bulge out of the box past midday).
+    $("sun-arc-lit").setAttribute("d", p > 0.01 ? `M8 46 A42 42 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)}` : "");
     $("sun-arc-rise").textContent = fmtLocalClock(sun.sunrise);
     $("sun-arc-set").textContent = fmtLocalClock(sun.sunset);
   }
@@ -734,14 +735,44 @@
         <span class="p">${h.precip_pct >= 20 ? h.precip_pct + "%" : ""}</span>
       </li>`).join("");
     $("hourly").classList.toggle("hidden", !(d.hourly || []).length);
+    renderWeatherDetails(d);
+    const u = d.units || {};
     const list = $("forecast");
-    list.innerHTML = (d.daily || []).slice(0, 7).map((day) => `
+    list.innerHTML = (d.daily || []).slice(0, 10).map((day) => {
+      const extra = [day.precip >= 0.01 ? `${day.precip} ${u.precip || ""}` : "", day.wind_max != null ? `${day.wind_max} ${u.wind || ""}${day.wind_dir ? " " + day.wind_dir : ""}` : ""].filter(Boolean).join(" · ");
+      return `
       <li>
-        <span class="day">${escapeHTML(weekdayShort(day.date))}</span>
+        <span class="day">${escapeHTML(weekdayShort(day.date))}<span class="dnum">${escapeHTML(String(new Date(day.date + "T12:00:00").getDate()))}</span></span>
         <span class="icon">${window.weatherIcon(day.icon, true)}</span>
         <span class="label">${escapeHTML(day.label)}${day.precip_pct >= 20 ? `<span class="pct">${day.precip_pct}%</span>` : ""}</span>
+        <span class="extra">${escapeHTML(extra)}</span>
         <span class="temps">${day.hi ?? "--"}°<span class="lo">${day.lo ?? "--"}°</span></span>
-      </li>`).join("");
+      </li>`; }).join("");
+  }
+  // The Weather page's tile grid (hidden on the home panel): the numbers behind the headline.
+  function renderWeatherDetails(d) {
+    const c = d.current || {}, t = d.today || {}, u = d.units || {};
+    const imperial = (u.temp || "").includes("F");
+    const tile = (label, value, sub = "") => value == null || value === "" ? "" : `<div class="wx-tile"><span class="l">${escapeHTML(label)}</span><span class="v">${value}</span>${sub ? `<span class="s">${escapeHTML(sub)}</span>` : ""}</div>`;
+    const p = c.pressure;
+    const pressure = p ? (imperial ? `${(p.hpa * 0.02953).toFixed(2)} <small>inHg</small>` : `${Math.round(p.hpa)} <small>hPa</small>`) : null;
+    const trendWord = p ? ({ rising: "rising", falling: "falling", steady: "steady" }[p.trend] || "") : "";
+    const trendArrow = p ? ({ rising: "↑", falling: "↓", steady: "→" }[p.trend] || "") : "";
+    const tiles = [
+      tile("Feels like", c.feels_like != null ? `${c.feels_like}°` : null),
+      tile("Humidity", c.humidity != null ? `${c.humidity}%` : null, c.dew_point != null ? `Dew point ${c.dew_point}°` : ""),
+      tile("Wind", c.wind != null ? `${c.wind} <small>${escapeHTML(u.wind || "")}</small> ${escapeHTML(c.wind_dir || "")}` : null, c.wind_gust != null ? `Gusts ${c.wind_gust} ${u.wind || ""}` : ""),
+      tile("Pressure", pressure ? `${pressure} <small>${trendArrow}</small>` : null, trendWord ? `${trendWord[0].toUpperCase()}${trendWord.slice(1)}${p.change != null ? ` · ${p.change > 0 ? "+" : ""}${p.change} hPa` : ""}` : ""),
+      tile("Visibility", c.visibility != null ? `${c.visibility} <small>${escapeHTML(u.distance || "")}</small>` : null),
+      tile("Cloud cover", c.cloud_cover != null ? `${c.cloud_cover}%` : null),
+      tile("Rain today", t.precip != null ? `${t.precip} <small>${escapeHTML(u.precip || "")}</small>` : null, t.precip_pct != null ? `${t.precip_pct}% chance` : ""),
+      tile("UV index", t.uv ? `${Math.round(t.uv.index)}` : null, t.uv ? t.uv.label : ""),
+      tile("Air quality", d.air ? `<i class="dot" style="background:${escapeHTML(d.air.color)}"></i>${escapeHTML(d.air.aqi)}` : null, d.air ? d.air.label : ""),
+      tile("Sunrise", t.sunrise ? `${escapeHTML(fmtLocalClock(t.sunrise))}` : null, t.sunset ? `Set ${fmtLocalClock(t.sunset)}${t.daylight_h != null ? ` · ${t.daylight_h} h` : ""}` : ""),
+      tile("Moon", d.moon ? `${window.moonIcon(d.moon.phase)}${escapeHTML(d.moon.illumination)}%` : null, d.moon ? d.moon.name : ""),
+      tile("Wind today", t.wind_max != null ? `${t.wind_max} <small>${escapeHTML(u.wind || "")}</small> ${escapeHTML(t.wind_dir || "")}` : null, t.gust_max != null ? `Gusts ${t.gust_max} ${u.wind || ""}` : ""),
+    ];
+    $("weather-details").innerHTML = tiles.join("");
   }
 
   // ---------- radar --------------------------------------------------------------------------

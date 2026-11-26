@@ -20,7 +20,7 @@ DEFAULTS: dict[str, Any] = {
     "clock": {"style": "led"},  # classic | neon | led | hud | rings (Settings → Panels)
     "weather": {
         "refresh_minutes": 10,
-        "forecast_days": 7,
+        "forecast_days": 10,
         "hourly_hours": 8,
         "air_quality": True,
         "alerts": True,

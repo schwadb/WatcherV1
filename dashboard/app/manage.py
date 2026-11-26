@@ -497,7 +497,7 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     if "weather" in body:
         w = body["weather"] or {}
         clean["weather"] = {
-            "forecast_days": int(num("weather", "forecast_days", 1, 7, int) or 7),
+            "forecast_days": int(num("weather", "forecast_days", 1, 10, int) or 10),
             "hourly_hours": int(num("weather", "hourly_hours", 4, 12, int) or 8),
             "air_quality": bool(w.get("air_quality", True)),
             "alerts": bool(w.get("alerts", True)),

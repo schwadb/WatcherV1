@@ -27,7 +27,7 @@ panels:
 
 weather:
   refresh_minutes: 10
-  forecast_days: 7            # days after today; the home panel shows up to five, the Weather page shows them all
+  forecast_days: 10           # days after today (max 10); the home panel shows up to five, the Weather page shows them all
   hourly_hours: 8             # hours in the hourly strip
   air_quality: true           # US air quality index from Open-Meteo
   alerts: true                # National Weather Service watches and warnings (US only)

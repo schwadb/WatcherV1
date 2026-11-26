@@ -55,6 +55,27 @@ UV_BANDS = [(3, "Low"), (6, "Moderate"), (8, "High"), (11, "Very high"), (10**6,
 
 
 NOWCAST_SLOTS = 48  # 12 hours of 15-minute slots
+PRESSURE_TREND_HOURS = 3
+MAX_FORECAST_DAYS = 10
+
+
+def pressure_trend(times: list[str], values: list[Any], now: str) -> dict[str, Any] | None:
+    """Barometer now and its change over the last few hours: rising / falling / steady (in hPa)."""
+    if not times or not now:
+        return None
+    now_hour = now[:13]
+    try:
+        idx = next(i for i, t in enumerate(times) if t[:13] >= now_hour)
+    except StopIteration:
+        return None
+    cur = values[idx] if idx < len(values) else None
+    if cur is None:
+        return None
+    back = idx - PRESSURE_TREND_HOURS
+    prev = values[back] if back >= 0 and back < len(values) else None
+    change = round(float(cur) - float(prev), 1) if prev is not None else None
+    trend = "steady" if change is None or abs(change) < 1.0 else ("rising" if change > 0 else "falling")
+    return {"hpa": round(float(cur), 1), "change": change, "trend": trend}
 SNOW_CODES = {71, 73, 75, 77, 85, 86}
 
 
@@ -133,16 +154,19 @@ def params(settings: Settings) -> dict[str, Any]:
             [
                 "temperature_2m", "relative_humidity_2m", "apparent_temperature", "is_day",
                 "precipitation", "weather_code", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m",
+                "cloud_cover", "pressure_msl",
             ]
         ),
-        "hourly": "temperature_2m,weather_code,precipitation_probability,is_day",
+        "hourly": "temperature_2m,weather_code,precipitation_probability,is_day,dew_point_2m,visibility,pressure_msl",
         "forecast_hours": int(w.get("hourly_hours", 8)) + 2,
+        "past_hours": PRESSURE_TREND_HOURS,  # to tell whether the barometer is rising or falling
         "minutely_15": "precipitation,weather_code",  # 15-minute nowcast (HRRR in the US) for "rain starts at…"
         "forecast_minutely_15": NOWCAST_SLOTS,
         "daily": ",".join(
             [
                 "weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_probability_max",
-                "sunrise", "sunset", "uv_index_max",
+                "sunrise", "sunset", "uv_index_max", "precipitation_sum", "wind_speed_10m_max", "wind_gusts_10m_max",
+                "wind_direction_10m_dominant", "daylight_duration", "sunshine_duration",
             ]
         ),
         "temperature_unit": "fahrenheit" if imperial else "celsius",
@@ -163,6 +187,30 @@ def _round(value: Any) -> int | None:
         return int(round(float(value)))
     except (TypeError, ValueError):
         return None
+
+
+def _amount(value: Any) -> float | None:
+    """Precipitation amount to two decimals (0.0 stays 0.0)."""
+    try:
+        return round(float(value), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _hours(seconds: Any) -> float | None:
+    try:
+        return round(float(seconds) / 3600, 1)
+    except (TypeError, ValueError):
+        return None
+
+
+def _distance(meters: Any, imperial: bool) -> float | None:
+    """Visibility: Open-Meteo gives meters; show miles or km to one decimal."""
+    try:
+        m = float(meters)
+    except (TypeError, ValueError):
+        return None
+    return round(m / (1609.344 if imperial else 1000), 1)
 
 
 def _compass(deg: Any) -> str:
@@ -224,11 +272,19 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
                 "sunrise": _get(daily_raw, "sunrise", i),
                 "sunset": _get(daily_raw, "sunset", i),
                 "uv": uv_label(_get(daily_raw, "uv_index_max", i)),
+                "precip": _amount(_get(daily_raw, "precipitation_sum", i)),
+                "wind_max": _round(_get(daily_raw, "wind_speed_10m_max", i)),
+                "gust_max": _round(_get(daily_raw, "wind_gusts_10m_max", i)),
+                "wind_dir": _compass(_get(daily_raw, "wind_direction_10m_dominant", i)),
+                "daylight_h": _hours(_get(daily_raw, "daylight_duration", i)),
+                "sunshine_h": _hours(_get(daily_raw, "sunshine_duration", i)),
             }
         )
 
     hourly_raw = raw.get("hourly", {})
     now_hour = (cur.get("time") or "")[:13]  # "2026-09-30T19"
+    now_idx = next((i for i, t in enumerate(hourly_raw.get("time", [])) if t[:13] >= now_hour), None) if now_hour else None
+    at_now = (lambda key: _get(hourly_raw, key, now_idx)) if now_idx is not None else (lambda key: None)
     hourly = []
     for i, t in enumerate(hourly_raw.get("time", [])):
         if now_hour and t[:13] < now_hour:
@@ -262,7 +318,7 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
         "rain": rain,
         "nowcast": nowcast,
         "sun": sun,
-        "units": {"temp": "°F" if settings.imperial else "°C", "wind": "mph" if settings.imperial else "km/h"},
+        "units": {"temp": "°F" if settings.imperial else "°C", "wind": "mph" if settings.imperial else "km/h", "precip": "in" if settings.imperial else "mm", "distance": "mi" if settings.imperial else "km"},
         "current": {
             "time": cur.get("time"),
             "temp": _round(cur.get("temperature_2m")),
@@ -271,6 +327,10 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
             "wind": _round(cur.get("wind_speed_10m")),
             "wind_gust": _round(cur.get("wind_gusts_10m")),
             "wind_dir": _compass(cur.get("wind_direction_10m")),
+            "cloud_cover": _round(cur.get("cloud_cover")),
+            "dew_point": _round(at_now("dew_point_2m")),
+            "visibility": _distance(at_now("visibility"), settings.imperial),
+            "pressure": pressure_trend(hourly_raw.get("time") or [], hourly_raw.get("pressure_msl") or [], now_local) or ({"hpa": round(float(cur["pressure_msl"]), 1), "change": None, "trend": "steady"} if cur.get("pressure_msl") is not None else None),
             "code": cur.get("weather_code"),
             "label": label,
             "icon": icon,

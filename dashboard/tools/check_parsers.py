@@ -179,6 +179,9 @@ check("weather: UV label present", w["today"]["uv"] and w["today"]["uv"]["label"
 check("weather: air quality parsed", w["air"] and w["air"]["label"] == "Good")
 check("weather: air quality failure is non-fatal", weather.parse(load("weather.json"), settings, None)["air"] is None)
 check("weather: moon included", "name" in w["moon"])
+check("weather: ten forecast days with rain amount, wind and daylight", len(w["daily"]) == 10 and w["daily"][0]["precip"] == 0.35 and w["daily"][0]["wind_max"] == 13 and w["daily"][0]["wind_dir"] == "NW" and w["daily"][0]["daylight_h"] == 11.8)
+check("weather: extra current readings (dew point, visibility in miles, cloud cover, falling barometer)", w["current"]["dew_point"] == 68 and w["current"]["visibility"] == 6.0 and w["current"]["cloud_cover"] == 100 and w["current"]["pressure"] == {"hpa": 1009.4, "change": -2.6, "trend": "falling"})
+check("weather: barometer trend is steady without history", weather.pressure_trend(["2026-09-30T20:00"], [1010.0], "2026-09-30T20:10") == {"hpa": 1010.0, "change": None, "trend": "steady"} and weather.pressure_trend([], [], "x") is None)
 
 # ---- sports ----------------------------------------------------------------------------------
 s = sports.parse_team(load("sports/team.json"), load("sports/schedule.json"), now=datetime(2026, 10, 1, tzinfo=timezone.utc))
