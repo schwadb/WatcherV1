@@ -20,7 +20,7 @@ DEFAULTS: dict[str, Any] = {
     "clock": {"style": "led"},  # classic | neon | led | hud | rings (Settings → Panels)
     "weather": {
         "refresh_minutes": 10,
-        "forecast_days": 5,
+        "forecast_days": 7,
         "hourly_hours": 8,
         "air_quality": True,
         "alerts": True,
@@ -50,7 +50,8 @@ DEFAULTS: dict[str, Any] = {
     "calendars": [],
     "countdowns": [],
     "sports": {"refresh_minutes": 10, "rotate_seconds": 12, "teams": []},
-    "news": {"refresh_minutes": 10, "max_headlines": 40, "feeds": [], "quotes": True, "quote_every": 4},
+    "news": {"refresh_minutes": 10, "max_headlines": 40, "feeds": [], "quotes": True, "quote_every": 4, "page_images": True, "video": "abc"},
+    "pages": {"cycle": True, "seconds": 60, "list": ["home", "weather", "photos", "family", "sports", "news"]},
     "photos": {"folder": "photos", "seconds_per_photo": 20, "order": "shuffle", "rescan_minutes": 5, "max_size": 1920, "max_upload_mb": 25, "fit": "fit", "art": True, "art_every": 4, "art_per_artist": 5, "artists": [], "art_sources": ["aic", "met", "cma"], "captions": True, "memories": True},
     "todo": {"max_items": 8},
     "now_playing": {"provider": "off", "refresh_seconds": 10, "device_name": "Dashboard"},
@@ -193,6 +194,8 @@ class Settings:
             "takeover": {k: c["weather"].get(k, DEFAULTS["weather"][k]) for k in ("takeover", "takeover_minutes", "takeover_sound")},
             "chronalert": {**DEFAULTS["chronalert"], **(c.get("chronalert") or {})},
             "globe": {**DEFAULTS["globe"], **(c.get("globe") or {})},
+            "pages": {**DEFAULTS["pages"], **(c.get("pages") or {})},
+            "news_page": {"video": (c.get("news") or {}).get("video", "abc"), "images": bool((c.get("news") or {}).get("page_images", True))},
             "reload_at": c["display"]["reload_at"],
             "mock": self.mock,
             "manage": True,
@@ -231,6 +234,10 @@ def load_settings(config_path: str | os.PathLike | None = None, override_env: bo
         v = (user_cfg.get("display") or {}).get(key)
         if isinstance(v, int) and not isinstance(v, bool) and 0 <= v < 1440:
             user_cfg["display"][key] = f"{v // 60:02d}:{v % 60:02d}"
+    # "video: off" written without quotes is read by YAML as the boolean False; turn it back.
+    nv = (user_cfg.get("news") or {}).get("video")
+    if isinstance(nv, bool):
+        user_cfg["news"]["video"] = "off" if nv is False else "abc"
     merged = _merge(DEFAULTS, user_cfg)
     cfg = _expand_env(merged)
     for entry in cfg.get("countdowns") or []:

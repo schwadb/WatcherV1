@@ -140,7 +140,7 @@
       <h2>Weather &amp; radar</h2>
       <div class="row two">
         <label>Hourly strip (hours) <input name="weather.hourly_hours" type="number" min="4" max="12"></label>
-        <label>Forecast days <input name="weather.forecast_days" type="number" min="1" max="7"></label>
+        <label>Forecast days (home shows up to 5, the Weather page all) <input name="weather.forecast_days" type="number" min="1" max="7"></label>
       </div>
       <div class="row two">
         <label class="check"><input name="weather.air_quality" type="checkbox"> Show air quality</label>
@@ -258,6 +258,24 @@
       <div class="row end"><button type="submit">Save</button></div>
     </form>
 
+    <form class="card" data-section="pages">
+      <h2>Pages</h2>
+      <p class="muted">The TV can cycle through full-screen pages with a soft crossfade. The clock and the news ticker stay on every page; Home is the normal layout and is always included.</p>
+      <div class="row two">
+        <label class="check"><input name="pages.cycle" type="checkbox"> Cycle through the pages</label>
+        <label>Seconds per page <input name="pages.seconds" type="number" min="15" max="600"></label>
+      </div>
+      <div class="checks" id="pages-list">
+        <label class="check"><input type="checkbox" value="weather"> Weather: big forecast and a large radar</label>
+        <label class="check"><input type="checkbox" value="photos"> Photos: one photo fills the screen</label>
+        <label class="check"><input type="checkbox" value="family"> Family: calendar, to-do, note, packages and messages</label>
+        <label class="check"><input type="checkbox" value="sports"> Sports: today's scoreboard</label>
+        <label class="check"><input type="checkbox" value="news"> News: headline cards with pictures and live video</label>
+      </div>
+      <p class="muted">On the TV a keyboard's ← → flips pages, P pauses the cycling, and a swipe on a touch screen flips too.</p>
+      <div class="row end"><button type="submit">Save</button></div>
+    </form>
+
     <form class="card" data-section="news">
       <h2>News feeds</h2>
       <p class="muted">Tap a feed below to add it, or paste any website address and the dashboard finds its feed.</p>
@@ -271,6 +289,12 @@
       <div class="row two">
         <label class="check"><input name="news.quotes" type="checkbox"> Mix famous quotes into the ticker</label>
         <label>…one quote every <input name="news.quote_every" type="number" min="1" max="20"> headlines</label>
+      </div>
+      <h3>News page</h3>
+      <p class="muted">The News page (Settings → Pages) shows headline cards with pictures and, if you like, a live news channel playing muted beside them.</p>
+      <div class="row two">
+        <label>Live video <select name="news.video"><option value="off">Off (cards only)</option><option value="abc">ABC News Live</option><option value="nbc">NBC News NOW</option><option value="cbs">CBS News 24/7</option></select></label>
+        <label class="check"><input name="news.page_images" type="checkbox"> Fetch a picture for headlines whose feed has none</label>
       </div>
       <h3>Your feeds</h3>
       <div class="list" id="feed-list"></div>

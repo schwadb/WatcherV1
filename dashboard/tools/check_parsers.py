@@ -208,6 +208,11 @@ check("calendars: parse() wrapper still works", calendar.parse((FX / "calendar.i
 items = news.parse_feed("Sample", (FX / "news.xml").read_bytes())
 merged = news.merge([items, items], 40)
 check("news: duplicates removed across feeds", len(merged) == 7)
+_imgs = [i["image"] for i in items if i.get("image")]
+check("news: pictures found from media:thumbnail, an image enclosure and an <img> in the text", len(_imgs) == 3 and all(x.endswith(".jpg") for x in _imgs))
+check("news: summaries are short, clean text and never just the title", all(len(i["summary"]) <= 220 and "<" not in i["summary"] and i["summary"] != i["title"] for i in items) and any(i["summary"] for i in items))
+_og = news.og_image('<html><head><meta content="https://x.org/pic.jpg" property="og:image"><meta property="og:title" content="t"></head></html>')
+check("news: og:image found whatever the attribute order", _og == "https://x.org/pic.jpg" and news.og_image("<html></html>") == "")
 
 # ---- spotify + screen schedule ----------------------------------------------------------------
 raw_np = {"is_playing": True, "progress_ms": 30000, "currently_playing_type": "track", "item": {"name": "Song", "duration_ms": 120000, "artists": [{"name": "A"}, {"name": "B"}], "album": {"name": "Album", "images": [{"url": "big"}, {"url": "mid"}, {"url": "small"}]}}}

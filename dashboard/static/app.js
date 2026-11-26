@@ -353,6 +353,7 @@
     const banner = $("alert-banner");
     const top = d.top;
     document.body.classList.toggle("alert-extreme", !!top && top.severity === "Extreme");
+    document.body.classList.toggle("has-alert", !!top);  // the pages leave room under the banner
     if (!top) { banner.classList.add("hidden"); hideTakeover(); return; }
     banner.className = "alert sev-" + (top.severity || "unknown").toLowerCase();
     $("alert-event").textContent = top.event + (d.count > 1 ? ` +${d.count - 1}` : "");
@@ -454,16 +455,18 @@
     const t = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz() }).format(d);
     return sameDay ? t : `${new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz() }).format(d)} ${t}`;
   }
-  async function scoresLoad() {
+  const SCORES_OVERLAY = { grid: "scores-grid", meta: "scores-meta", leagues: "scores-leagues" };
+  const SCORES_PAGE = { grid: "page-scores-grid", meta: "page-scores-meta", leagues: "page-scores-leagues" };
+  async function scoresLoad(ctx = SCORES_OVERLAY) {
     if (!scores.leagues.length) {
-      try { scores.leagues = (await getJSON("/api/scores/leagues")).leagues; } catch (e) { $("scores-grid").innerHTML = '<div class="scores-empty">Could not load the league list.</div>'; return; }
+      try { scores.leagues = (await getJSON("/api/scores/leagues")).leagues; } catch (e) { $(ctx.grid).innerHTML = '<div class="scores-empty">Could not load the league list.</div>'; return; }
       if (!scores.league) scores.league = "all";
     }
     const chips = [{ key: "all", label: "All" }, ...scores.leagues];
-    $("scores-leagues").replaceChildren(...chips.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scores.league); b.addEventListener("click", () => { scores.league = l.key; scoresLoad(); }); return b; }));
+    $(ctx.leagues).replaceChildren(...chips.map((l) => { const b = document.createElement("button"); b.type = "button"; b.textContent = l.label; b.classList.toggle("active", l.key === scores.league); b.addEventListener("click", () => { scores.league = l.key; scoresLoad(ctx); }); return b; }));
     try {
       const d = await getJSON(`/api/scores?league=${encodeURIComponent(scores.league)}`);
-      const grid = $("scores-grid");
+      const grid = $(ctx.grid);
       let html = "";
       if (scores.league === "all") {
         // one block per league, your teams' games pulled up to the top
@@ -480,9 +483,9 @@
         html = d.games.length ? d.games.map(gameCard).join("") : `<div class="scores-empty">${escapeHTML(d.note || "No games today.")}</div>`;
       }
       grid.innerHTML = html;
-      $("scores-meta").textContent = [d.week ? `Week ${d.week}` : "", d.live ? `${d.live} live` : "", `${d.games.length} games`, d.note && d.games.length ? d.note : ""].filter(Boolean).join(" · ");
+      $(ctx.meta).textContent = [d.week ? `Week ${d.week}` : "", d.live ? `${d.live} live` : "", `${d.games.length} games`, d.note && d.games.length ? d.note : ""].filter(Boolean).join(" · ");
       autoScroll(grid, { pauseMs: 9000 });
-    } catch (err) { $("scores-grid").innerHTML = `<div class="scores-empty">${escapeHTML(err.message)}</div>`; }
+    } catch (err) { $(ctx.grid).innerHTML = `<div class="scores-empty">${escapeHTML(err.message)}</div>`; }
   }
   function scoresToggle() {
     scores.open = !scores.open;
@@ -732,7 +735,7 @@
       </li>`).join("");
     $("hourly").classList.toggle("hidden", !(d.hourly || []).length);
     const list = $("forecast");
-    list.innerHTML = (d.daily || []).slice(0, 5).map((day) => `
+    list.innerHTML = (d.daily || []).slice(0, 7).map((day) => `
       <li>
         <span class="day">${escapeHTML(weekdayShort(day.date))}</span>
         <span class="icon">${window.weatherIcon(day.icon, true)}</span>
@@ -1018,6 +1021,105 @@
     if (!headlines.length) return;
     ticker.headlines = headlines;
     scheduleTicker();
+    if (pages.current === "news") renderNewsPage();
+  }
+
+  // ---------- pages: the board cycles through layouts (Settings → Pages) ------------------------
+  const PAGE_KEYS = ["home", "weather", "photos", "family", "sports", "news"];
+  const NEWS_STREAMS = { abc: ["UCBi2mrWuNuyYy4gbM6fU18Q", "ABC News Live"], nbc: ["UCeY0bbntWzzVIaj2z3QigXg", "NBC News NOW"], cbs: ["UC8p1vwvWtl6T73JiExfWs1g", "CBS News 24/7"] };
+  const pages = { list: ["home"], index: 0, current: "home", timer: null, paused: false, scoresTimer: null, newsTimer: null, newsOffset: 0 };
+  function pageList() {
+    const wanted = (cfg("pages.list", PAGE_KEYS) || []).map(String);
+    const ok = (k) => {
+      if (k === "weather") return cfg("panels.weather", true) !== false;
+      if (k === "photos") return cfg("panels.photos", true) !== false;
+      if (k === "family") return cfg("panels.calendar", true) !== false || cfg("panels.todo", true) !== false;
+      if (k === "news") return cfg("panels.news", true) !== false;
+      return true;
+    };
+    return ["home", ...PAGE_KEYS.filter((k) => k !== "home" && wanted.includes(k) && ok(k))];
+  }
+  function drawPageDots() {
+    const box = $("page-dots");
+    box.classList.toggle("hidden", pages.list.length < 2);
+    box.innerHTML = pages.list.map((k, i) => `<i class="${i === pages.index ? "on" : ""}" title="${escapeHTML(k)}"></i>`).join("");
+  }
+  function applyPageClasses(key) {
+    for (const k of PAGE_KEYS) document.body.classList.remove("page-" + k);
+    document.body.classList.add("page-" + key);
+    document.body.classList.toggle("pg", key !== "home");
+  }
+  function afterPageChange(prev, key) {
+    if (radar.map) radar.map.invalidateSize();
+    scrollers.forEach((sc) => sc.refresh());
+    renderNext();
+    drawPageDots();
+    if (prev === "sports") { clearInterval(pages.scoresTimer); pages.scoresTimer = null; }
+    if (prev === "news") { clearInterval(pages.newsTimer); pages.newsTimer = null; $("news-video-frame").innerHTML = ""; }
+    if (key === "sports") { scoresLoad(SCORES_PAGE); pages.scoresTimer = setInterval(() => scoresLoad(SCORES_PAGE), 30000); }
+    if (key === "news") { pages.newsOffset = 0; newsVideo(true); renderNewsPage(); pages.newsTimer = setInterval(() => { pages.newsOffset += newsCardCount(); renderNewsPage(); }, 20000); }
+    if (key === "photos" || prev === "photos") applyPhotoFit();
+  }
+  function showPage(index) {
+    const key = pages.list[(index + pages.list.length) % pages.list.length];
+    const prev = pages.current;
+    pages.index = pages.list.indexOf(key);
+    pages.current = key;
+    const apply = () => applyPageClasses(key);
+    if (document.startViewTransition && !document.hidden) {
+      document.startViewTransition(apply).finished.then(() => afterPageChange(prev, key), () => afterPageChange(prev, key));
+    } else { apply(); afterPageChange(prev, key); }
+  }
+  function schedulePage() {
+    clearTimeout(pages.timer);
+    if (!cfg("pages.cycle", true) || pages.list.length < 2 || pages.paused) return;
+    pages.timer = setTimeout(() => {
+      const busy = document.body.classList.contains("overlay-open") || document.body.classList.contains("screen-off") || document.hidden;
+      if (busy) { pages.timer = setTimeout(schedulePage, 5000); return; }
+      showPage(pages.index + 1);
+      schedulePage();
+    }, (Number(cfg("pages.seconds", 60)) || 60) * 1000);
+  }
+  function flipPage(dir) { showPage(pages.index + dir); schedulePage(); }
+  function startPages() {
+    pages.list = pageList();
+    applyPageClasses("home");
+    drawPageDots();
+    if (pages.list.length < 2) return;
+    schedulePage();
+    let touchX = null;
+    window.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+    window.addEventListener("touchend", (e) => {
+      if (touchX == null || document.body.classList.contains("overlay-open")) return;
+      const dx = e.changedTouches[0].clientX - touchX; touchX = null;
+      if (Math.abs(dx) > 80) flipPage(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+  function newsCardCount() { return $("news-video").classList.contains("hidden") ? 8 : 6; }
+  function renderNewsPage() {
+    const all = ticker.headlines.filter((h) => h.kind === "news");
+    const box = $("news-cards");
+    if (!all.length) { box.innerHTML = '<div class="muted">No headlines yet.</div>'; return; }
+    const n = newsCardCount();
+    if (pages.newsOffset >= all.length) pages.newsOffset = 0;
+    const items = all.slice(pages.newsOffset, pages.newsOffset + n);
+    while (items.length < n && all.length > items.length) items.push(all[(pages.newsOffset + items.length) % all.length]);
+    box.innerHTML = items.map((h) => {
+      const when = h.published ? ago(Math.max(0, (Date.now() - new Date(h.published).getTime()) / 1000)) : "";
+      const pic = h.image ? `<div class="pic" style="background-image:url('${escapeHTML(h.image)}')"></div>` : `<div class="pic none"><span class="big">${escapeHTML(h.source.slice(0, 2).toUpperCase())}</span></div>`;
+      return `<article class="ncard">${pic}<div class="body"><div class="src">${escapeHTML(h.source)}<span class="ago">${escapeHTML(when)}</span></div><div class="ttl">${escapeHTML(h.title)}</div>${h.summary ? `<div class="sum">${escapeHTML(h.summary)}</div>` : ""}</div></article>`;
+    }).join("");
+  }
+  function newsVideo(on) {
+    const key = cfg("news_page.video", "abc");
+    const stream = NEWS_STREAMS[key];
+    const box = $("news-video"), frame = $("news-video-frame");
+    const show = on && !!stream;
+    box.classList.toggle("hidden", !show);
+    $("news-cards").parentElement.classList.toggle("with-video", show);
+    if (!show) { frame.innerHTML = ""; return; }
+    frame.innerHTML = `<iframe src="https://www.youtube.com/embed/live_stream?channel=${stream[0]}&autoplay=1&mute=1&controls=0&rel=0&playsinline=1" title="${escapeHTML(stream[1])}" allow="autoplay; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+    $("news-video-label").innerHTML = `<b>● LIVE</b>${escapeHTML(stream[1])} · muted`;
   }
 
   // ---------- photos -------------------------------------------------------------------------
@@ -1162,6 +1264,7 @@
     const open = ["chron-full", "globe-full", "music-full", "scores-full", "takeover"].some((id) => { const el = $(id); return el && !el.classList.contains("hidden"); });
     document.body.classList.toggle("overlay-open", open);
     if (open) $("corner-buttons").classList.remove("open");
+    if (!open && pages.list && pages.list.length > 1) schedulePage();  // a fresh full turn once the panel closes
   }
   function startInputWatch() {
     let timer = null;
@@ -1185,6 +1288,8 @@
       if ((e.key === "m" || e.key === "M") && cfg("now_playing.provider", "off") === "spotify") musicToggle();
       if (e.key === "g" || e.key === "G") scoresToggle();
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
+      else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && !document.body.classList.contains("overlay-open") && pages.list.length > 1) { e.preventDefault(); flipPage(e.key === "ArrowRight" ? 1 : -1); }
+      if ((e.key === "p" || e.key === "P") && pages.list.length > 1) { pages.paused = !pages.paused; schedulePage(); notice(pages.paused ? "Page cycling paused (P to resume)" : "Page cycling resumed", 4000); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
       if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (globe.open) globeToggle(); if (takeover.shown) dismissTakeover(true); }
     });
@@ -1235,7 +1340,7 @@
     renderCountdowns();
     startHealth();
     startWidget("weather", every("weather", 300), renderWeather);
-    startWidget("alerts", every("alerts", 300), renderAlerts, () => $("alert-banner").classList.add("hidden"));
+    startWidget("alerts", every("alerts", 300), renderAlerts, () => { $("alert-banner").classList.add("hidden"); document.body.classList.remove("has-alert"); });
     startWidget("radar", every("radar", 300), renderRadar);
     startWidget("stocks", 60, renderStocks);
     startWidget("sports", every("sports", 300), renderSports, () => $("sports").classList.add("hidden"));
@@ -1252,12 +1357,14 @@
       startWidget("nowplaying", Number(cfg("now_playing.refresh_seconds", 10)) || 10, renderNowPlaying, () => $("now-playing").classList.add("hidden"));
     }
     startInputWatch();
+    startPages();
     startChron();
     startGlobe();
     startMusic();
     startScores();
     setTimeout(watchConfigVersion, 60000);
     window.addEventListener("resize", () => { if (radar.map) radar.map.invalidateSize(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) schedulePage(); });
   }
   document.addEventListener("DOMContentLoaded", boot);
 })();

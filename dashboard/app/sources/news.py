@@ -39,6 +39,50 @@ def headline(title: str, source: str = "") -> str:
     return text
 
 
+_IMG_SRC = re.compile(r"<img[^>]+src=[\"']([^\"']+)", re.I)
+_OG_IMAGE = re.compile(r"<meta[^>]+(?:property|name)=[\"'](?:og:image|twitter:image)(?::src)?[\"'][^>]+content=[\"']([^\"']+)|<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+(?:property|name)=[\"'](?:og:image|twitter:image)", re.I)
+MAX_SUMMARY = 220
+
+
+def entry_image(entry: Any) -> str:
+    """The picture a feed entry carries, if any: media thumbnail, media content, an image enclosure, or an <img> in the text."""
+    for m in entry.get("media_thumbnail") or []:
+        if m.get("url"):
+            return str(m["url"])
+    for m in entry.get("media_content") or []:
+        kind = str(m.get("type") or m.get("medium") or "")
+        if m.get("url") and ("image" in kind or kind == ""):
+            return str(m["url"])
+    for enc in entry.get("enclosures") or []:
+        if str(enc.get("type") or "").startswith("image/") and enc.get("href"):
+            return str(enc["href"])
+    for field in ("summary", "description"):
+        m = _IMG_SRC.search(str(entry.get(field) or ""))
+        if m:
+            return m.group(1)
+    for c in entry.get("content") or []:
+        m = _IMG_SRC.search(str(c.get("value") or ""))
+        if m:
+            return m.group(1)
+    return ""
+
+
+def entry_video(entry: Any) -> str:
+    """A direct video the entry carries (HLS or MP4), when the feed offers one."""
+    for m in entry.get("media_content") or []:
+        if "video" in str(m.get("type") or m.get("medium") or "") and m.get("url"):
+            return str(m["url"])
+    for enc in entry.get("enclosures") or []:
+        if str(enc.get("type") or "").startswith("video/") and enc.get("href"):
+            return str(enc["href"])
+    return ""
+
+
+def og_image(html_text: str) -> str:
+    m = _OG_IMAGE.search(html_text or "")
+    return (m.group(1) or m.group(2)).strip() if m else ""
+
+
 def parse_feed(name: str, content: bytes) -> list[dict[str, Any]]:
     parsed = feedparser.parse(content)
     if parsed.bozo and not parsed.entries:
@@ -53,8 +97,39 @@ def parse_feed(name: str, content: bytes) -> list[dict[str, Any]]:
         published = (
             datetime.fromtimestamp(_cal.timegm(stamp), tz=timezone.utc).isoformat() if stamp else None
         )
-        items.append({"title": title, "source": source, "published": published, "link": entry.get("link"), "kind": "news"})
+        summary = clean(entry.get("summary") or entry.get("description") or "")
+        if summary.lower().startswith(title.lower()[:40]):
+            summary = ""
+        if len(summary) > MAX_SUMMARY:
+            summary = summary[:MAX_SUMMARY].rsplit(" ", 1)[0] + "…"
+        items.append({"title": title, "source": source, "published": published, "link": entry.get("link"), "kind": "news",
+                      "image": entry_image(entry), "video": entry_video(entry), "summary": summary})
     return items
+
+
+_og_cache: dict[str, str] = {}
+
+
+async def add_article_images(client: httpx.AsyncClient, items: list[dict[str, Any]], limit: int = 12) -> None:
+    """For headlines whose feed sent no picture, read the article page's own preview image (og:image); cached by link."""
+    todo = [h for h in items if h.get("kind") == "news" and not h.get("image") and h.get("link")][:limit]
+
+    async def one(h: dict[str, Any]) -> None:
+        link = str(h["link"])
+        if link in _og_cache:
+            h["image"] = _og_cache[link]
+            return
+        try:
+            resp = await client.get(link, timeout=10, follow_redirects=True, headers=FIND_HEADERS)
+            img = og_image(resp.text[:200000]) if resp.status_code == 200 else ""
+        except Exception:  # noqa: BLE001 - a picture is a nicety
+            img = ""
+        if len(_og_cache) > 400:
+            _og_cache.clear()
+        _og_cache[link] = img
+        h["image"] = img
+
+    await asyncio.gather(*(one(h) for h in todo))
 
 
 def merge(all_items: list[list[dict[str, Any]]], limit: int) -> list[dict[str, Any]]:
@@ -98,7 +173,10 @@ async def fetch(client: httpx.AsyncClient, settings: Settings) -> dict[str, Any]
             good.append(result)
     if not good:
         raise RuntimeError("; ".join(errors))
-    return {"headlines": with_quotes(merge(good, limit), settings), "errors": errors}
+    merged = merge(good, limit)
+    if settings.cfg["news"].get("page_images", True):
+        await add_article_images(client, merged)
+    return {"headlines": with_quotes(merged, settings), "errors": errors}
 
 
 # ---- finding feeds (used by the settings page) ---------------------------------------------

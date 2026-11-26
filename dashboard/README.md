@@ -278,6 +278,26 @@ end, long titles cut at the end of a sentence. Famous quotes with who said them
 scroll by every few headlines (a built-in list of about 150, rotated daily).
 Settings → News feeds: turn quotes off or change how often they appear.
 
+### Pages (the TV cycles through layouts)
+
+Settings → Pages. The TV flips through full-screen pages with a soft crossfade,
+60 seconds each by default (15 to 600). The clock bar and the news ticker stay
+on every page; Home is the normal layout and is always first.
+
+- **Weather**: the whole forecast (up to seven days, Settings → Weather) with a large radar beside it.
+- **Photos**: one photo fills the screen.
+- **Family**: the calendar on the left; to-do, note, packages and messages on the right.
+- **Sports**: today's scoreboard (the same one as ☰ → Scores), refreshed every 30 seconds.
+- **News**: headline cards with pictures, the source and how old each story is,
+  rotating every 20 seconds, and (Settings → News feeds → News page) a live news
+  channel playing muted beside them: ABC News Live, NBC News NOW or CBS News 24/7.
+  Pictures come from the feeds themselves; for headlines without one the
+  dashboard fetches the article's preview picture (turn that off there if you like).
+
+Untick a page to leave it out. With a keyboard on the TV, ← → flip pages, P
+pauses the cycling, and a swipe flips on a touch screen. Cycling waits while a
+full-screen panel (radar, globe, scoreboard, music) is open or the screen is off.
+
 ### Storm mode (a warning takes over the screen)
 
 When the alert is a **Warning** (Tornado, Severe Thunderstorm, Flash Flood, …)

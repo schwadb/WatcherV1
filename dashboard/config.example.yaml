@@ -27,7 +27,7 @@ panels:
 
 weather:
   refresh_minutes: 10
-  forecast_days: 5            # days shown after today
+  forecast_days: 7            # days after today; the home panel shows up to five, the Weather page shows them all
   hourly_hours: 8             # hours in the hourly strip
   air_quality: true           # US air quality index from Open-Meteo
   alerts: true                # National Weather Service watches and warnings (US only)
@@ -92,9 +92,16 @@ sports:
       team: 158
       name: Nebraska Cornhuskers   # shown on the settings page; add more teams from there
 
+pages:                        # the TV cycles through full-screen pages (Settings → Pages)
+  cycle: true
+  seconds: 60                 # per page, 15–600
+  list: [home, weather, photos, family, sports, news]
+
 news:
   refresh_minutes: 10
   max_headlines: 40
+  page_images: true           # News page: fetch a picture for headlines whose feed has none
+  video: abc                  # News page live channel: off, abc (ABC News Live), nbc (NBC News NOW), cbs (CBS News 24/7)
   feeds:
     - name: NPR
       url: "https://feeds.npr.org/1001/rss.xml"

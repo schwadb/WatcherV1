@@ -449,7 +449,8 @@ def editable_config(settings: Settings) -> dict[str, Any]:
         "calendar": {"days_ahead": c["calendar"].get("days_ahead", DEFAULTS["calendar"]["days_ahead"])},
         "countdowns": [{"title": x.get("title", ""), "date": str(x.get("date", "")), "icon": x.get("icon", "")} for x in (c.get("countdowns") or []) if isinstance(x, dict)],
         "sports": {"teams": [{"sport": t.get("sport", ""), "league": t.get("league", ""), "team": str(t.get("team", t.get("team_id", ""))), "name": t.get("name", "")} for t in (sports_cfg.get("teams") or []) if isinstance(t, dict)]},
-        "news": {"feeds": [{"name": f.get("name", ""), "url": f.get("url", "")} for f in (c["news"].get("feeds") or []) if isinstance(f, dict)], "quotes": c["news"].get("quotes", True), "quote_every": c["news"].get("quote_every", 4)},
+        "pages": {**DEFAULTS["pages"], **(c.get("pages") or {})},
+        "news": {"page_images": (c.get("news") or {}).get("page_images", True), "video": (c.get("news") or {}).get("video", "abc"), "feeds": [{"name": f.get("name", ""), "url": f.get("url", "")} for f in (c["news"].get("feeds") or []) if isinstance(f, dict)], "quotes": c["news"].get("quotes", True), "quote_every": c["news"].get("quote_every", 4)},
         "photos": {k: c["photos"].get(k, DEFAULTS["photos"][k]) for k in ("seconds_per_photo", "order", "max_upload_mb", "fit", "art", "art_every", "artists", "art_sources", "captions", "memories")},
         "todo": {"max_items": (c.get("todo") or {}).get("max_items", 8)},
         "now_playing": {"provider": (c.get("now_playing") or {}).get("provider", "off"), "device_name": (c.get("now_playing") or {}).get("device_name") or "Dashboard"},
@@ -496,7 +497,7 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     if "weather" in body:
         w = body["weather"] or {}
         clean["weather"] = {
-            "forecast_days": int(num("weather", "forecast_days", 1, 7, int) or 5),
+            "forecast_days": int(num("weather", "forecast_days", 1, 7, int) or 7),
             "hourly_hours": int(num("weather", "hourly_hours", 4, 12, int) or 8),
             "air_quality": bool(w.get("air_quality", True)),
             "alerts": bool(w.get("alerts", True)),
@@ -520,6 +521,11 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         }
         if clean["chronalert"]["app_path"] and not Path(clean["chronalert"]["app_path"]).expanduser().is_file():
             errors.append("chronalert.app_path: no such file (use Find it, or leave blank)")
+    if "pages" in body:
+        pg = body["pages"] or {}
+        wanted = [str(x).strip().lower() for x in (pg.get("list") or []) if str(x).strip().lower() in PAGE_KEYS]
+        order = ["home"] + [k for k in PAGE_KEYS if k != "home" and k in wanted]
+        clean["pages"] = {"cycle": bool(pg.get("cycle", True)), "seconds": int(num("pages", "seconds", 15, 600, int) or 60), "list": order}
     if "remote" in body:
         try:
             clean["remote"] = {"hostname": tunnel.valid_hostname((body["remote"] or {}).get("hostname", ""))}
@@ -609,7 +615,19 @@ def validate_config(body: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
                 errors.append(f"news feed {i + 1}: the address must start with https://")
                 continue
             feeds.append({"name": str((f or {}).get("name", "")).strip()[:20] or f"Feed {i + 1}", "url": url})
-        clean["news"] = {"feeds": feeds, "quotes": bool((body["news"] or {}).get("quotes", True)), "quote_every": int(num("news", "quote_every", 1, 20, int) or 4)}
+        nb = body["news"] or {}
+        clean["news"] = {}  # only the keys that were sent change; the phone's News card sends them all
+        if "feeds" in nb:
+            clean["news"]["feeds"] = feeds
+        if "quotes" in nb:
+            clean["news"]["quotes"] = bool(nb.get("quotes", True))
+        if "quote_every" in nb:
+            clean["news"]["quote_every"] = int(num("news", "quote_every", 1, 20, int) or 4)
+        if "page_images" in nb:
+            clean["news"]["page_images"] = bool(nb.get("page_images", True))
+        if "video" in nb:
+            video = str(nb.get("video", "abc")).lower()
+            clean["news"]["video"] = video if video in NEWS_VIDEO else "off"
     if "photos" in body:
         order = str((body["photos"] or {}).get("order", "shuffle")).lower()
         fit = str((body["photos"] or {}).get("fit", "fit")).lower()
@@ -652,9 +670,12 @@ def _quote_times(value: Any) -> Any:
         return {k: _quote_times(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_quote_times(v) for v in value]
-    if isinstance(value, str) and _HHMM.match(value):
+    if isinstance(value, str) and (_HHMM.match(value) or value.lower() in _YAML_BOOL_WORDS):
         return DoubleQuotedScalarString(value)
     return value
+
+
+_YAML_BOOL_WORDS = {"off", "on", "yes", "no", "y", "n", "true", "false"}  # unquoted, YAML reads these as booleans
 
 
 def write_config(path: Path, clean: dict[str, Any]) -> None:
@@ -998,6 +1019,8 @@ async def globe_autostart(request: Request):
 
 
 CLOCK_STYLES = ("classic", "neon", "led", "hud", "rings")
+PAGE_KEYS = ("home", "weather", "photos", "family", "sports", "news")
+NEWS_VIDEO = {"off": "", "abc": "UCBi2mrWuNuyYy4gbM6fU18Q", "nbc": "UCeY0bbntWzzVIaj2z3QigXg", "cbs": "UC8p1vwvWtl6T73JiExfWs1g"}  # YouTube channel ids of the free 24/7 news streams
 
 
 STOCK_TYPES_FIRST = ("Common Stock", "ETP", "ETF")

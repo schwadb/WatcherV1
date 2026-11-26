@@ -105,6 +105,16 @@
     <span class="badge" id="badge-radar"></span>
   </section>
 
+  <section class="panel scorespage" data-page="sports">
+    <div class="scores-top"><h2>Scores</h2><div class="scores-leagues" id="page-scores-leagues"></div><div class="scores-meta" id="page-scores-meta"></div></div>
+    <div class="scores-grid" id="page-scores-grid"><div class="muted">Loading…</div></div>
+  </section>
+
+  <section class="panel newspage" data-page="news">
+    <div class="news-cards" id="news-cards"></div>
+    <div class="news-video hidden" id="news-video"><div class="frame" id="news-video-frame"></div><div class="np-label" id="news-video-label"></div></div>
+  </section>
+
   <section class="panel ticker" data-widget="news">
     <div class="ticker-label">NEWS</div>
     <div class="ticker-viewport"><div class="ticker-track" id="ticker-track"></div></div>
@@ -157,6 +167,7 @@
 <div id="dim-overlay"></div>
 <div id="setup-note" class="setup-note hidden"></div>
 <div id="notice" class="notice hidden"></div>
+<div id="page-dots" class="page-dots hidden" aria-hidden="true"></div>
 <div class="corner-buttons" id="corner-buttons">
   <div class="corner-row">
     <button id="scores-btn" class="corner" type="button" title="Scoreboard (G)">&#127944; Scores</button>

@@ -275,6 +275,10 @@
     setField(p, "photos.captions", c.photos.captions !== false); setField(p, "photos.memories", c.photos.memories !== false);
     setField(p, "photos.art", c.photos.art !== false); setField(p, "photos.art_every", c.photos.art_every || 4); setField(p, "photos.artists", (c.photos.artists || []).join(", "));
     setField(forms.news, "news.quotes", c.news.quotes !== false); setField(forms.news, "news.quote_every", c.news.quote_every || 4);
+    setField(forms.news, "news.video", c.news.video || "off"); setField(forms.news, "news.page_images", c.news.page_images !== false);
+    const pg = c.pages || {};
+    setField(forms.pages, "pages.cycle", pg.cycle !== false); setField(forms.pages, "pages.seconds", pg.seconds || 60);
+    $("pages-list").querySelectorAll("input").forEach((i) => { i.checked = (pg.list || []).includes(i.value); });
     setField(p, "photos.seconds_per_photo", c.photos.seconds_per_photo); setField(p, "photos.order", c.photos.order);
     setField(p, "photos.max_upload_mb", c.photos.max_upload_mb); setField(p, "todo.max_items", c.todo.max_items);
     const d = forms.display;
@@ -295,7 +299,8 @@
       case "sports": return { config: { sports: { teams: [...$("team-list").children].map((r) => JSON.parse(r.dataset.json)) } } };
       case "scores": return { config: { scores: { leagues: [...form.querySelectorAll('input[type=checkbox]:checked')].map((i) => i.name.replace(/^scores\./, "")), high_schools: g("scores.high_schools").split(",").map((x) => x.trim()).filter(Boolean) } } };
       case "countdowns": return { config: { countdowns: [...$("countdown-list").children].map((r) => ({ title: r.querySelector(".title").value, date: r.querySelector(".date").value, icon: r.querySelector(".icon").value })) } };
-      case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })), quotes: g("news.quotes"), quote_every: Number(g("news.quote_every")) } } };
+      case "news": return { config: { news: { feeds: [...$("feed-list").children].map((r) => ({ name: r.querySelector(".name").value, url: r.querySelector(".url").value })), quotes: g("news.quotes"), quote_every: Number(g("news.quote_every")), video: g("news.video"), page_images: g("news.page_images") } } };
+      case "pages": return { config: { pages: { cycle: g("pages.cycle"), seconds: Number(g("pages.seconds")), list: ["home", ...[...$("pages-list").querySelectorAll("input:checked")].map((i) => i.value)] } } };
       case "photos": return { config: { photos: { seconds_per_photo: Number(g("photos.seconds_per_photo")), order: g("photos.order"), max_upload_mb: Number(g("photos.max_upload_mb")), fit: g("photos.fit"), art: g("photos.art"), art_every: Number(g("photos.art_every")), artists: g("photos.artists"), art_sources: ["aic", "met", "cma"].filter((k) => g("photos.art_sources." + k)), captions: g("photos.captions"), memories: g("photos.memories") }, todo: { max_items: Number(g("todo.max_items")) } } };
       case "display": return { config: { display: { screen_off: g("display.screen_off"), screen_on: g("display.screen_on"), dim_from: g("display.dim_from"), dim_level: g("display.dim_level"), night_mode: g("display.night_mode"), night_from: g("display.night_from"), night_to: g("display.night_to"), reload_at: g("display.reload_at"), control: g("display.control"), start_at_login: g("display.start_at_login"), locked_kiosk: g("display.locked_kiosk"), stop_idle_lock: g("display.stop_idle_lock") } } };
       case "secrets": return { secrets: Object.fromEntries(["FINNHUB_API_KEY", "OUTLOOK_ICS_URL", "SPOTIFY_CLIENT_ID", "TRACK17_API_KEY", "CLOUDFLARE_TUNNEL_TOKEN", "DASHBOARD_PIN"].map((k) => [k, g(k)])) };

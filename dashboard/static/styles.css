@@ -526,3 +526,105 @@ body.show-cursor .corner-buttons .corner-row .corner, body.show-cursor .corner-b
   .tiles { flex-direction: column; height: auto; }
   .quotes { grid-template-columns: repeat(2, 1fr); overflow: visible; }
 }
+
+/* =============================================================================================
+   Pages (Settings → Pages): the board cycles through layouts of the same panels. "home" is the
+   grid above; every other page turns the clock into a bar across the top and keeps the ticker.
+   ============================================================================================= */
+.scorespage, .newspage { display: none; }
+body.pg .board { grid-template-rows: 7.6rem 1fr 4.5rem; }
+body.pg.no-news .board { grid-template-rows: 7.6rem 1fr; }
+body.pg .panel { display: none; }
+body.pg .ticker { display: flex; }
+/* clock bar */
+body.pg .clock { display: grid; grid-column: 1 / 13; grid-row: 1; grid-template-columns: 1fr auto; align-items: center; padding: 0.5rem 1.6rem; }
+body.pg .clock .main { display: flex; align-items: baseline; gap: 1.8rem; min-width: 0; overflow: hidden; }
+body.pg .clock .time { flex: none; }
+body.pg .clock .date { flex: none; margin: 0; }
+body.pg .clock .clock-next { flex: 1; min-width: 0; margin: 0; height: 1.3em; align-self: center; }
+body.pg .clock .hud-frame, body.pg .clock .clock-label, body.pg .clock .seconds-bar, body.pg .clock .rings { display: none !important; }
+body.pg .countdowns { flex-direction: row; max-width: none; gap: 1.4rem; overflow: hidden; align-self: center; }
+body.pg .countdowns .cd { padding: 0; }
+body.pg .countdowns .cd .n { font-size: 1.6rem; min-width: 2.4rem; }
+body.pg .countdowns .cd .t { font-size: 0.95rem; }
+body.pg .clock .time, body.pg .clock .time.wide { font-size: 3.8rem; }
+body.pg.clock-led .clock .time, body.pg.clock-led .clock .time.wide { font-size: 3.2rem; }
+body.pg.clock-neon .clock .time, body.pg.clock-neon .clock .time.wide { font-size: 3rem; }
+body.pg.clock-hud .clock .time, body.pg.clock-hud .clock .time.wide { font-size: 3.6rem; }
+body.pg.clock-rings .clock .time, body.pg.clock-rings .clock .time.wide { font-size: 3rem; }
+body.pg .clock .ampm { font-size: 1.2rem; }
+body.pg .clock .date { font-size: 1.3rem; }
+body.pg.clock-led .clock .date { font-size: 1.1rem; }
+body.pg .health-dot { right: 0.7rem; bottom: 0.6rem; }
+/* weather page: big conditions + 7 days on the left, a large radar on the right */
+body.page-weather:not(.no-weather) .weather { display: grid; grid-column: 1 / 8; grid-row: 2; grid-template-columns: 1.05fr 1fr; grid-template-rows: auto auto auto auto auto auto 1fr; column-gap: 2rem; align-content: start; }
+body.page-weather .weather header { grid-column: 1 / 3; }
+body.page-weather .weather .forecast { grid-column: 2; grid-row: 2 / 8; margin-top: 0; }
+body.page-weather .weather .forecast li:first-child { border-top: none; }
+body.page-weather:not(.no-radar) .radar { display: block; grid-column: 8 / 13; grid-row: 2; }
+body.page-weather.no-radar .weather { grid-column: 1 / 13; }
+body.page-weather .weather .now { gap: 1.6rem; margin-top: 0.4rem; }
+body.page-weather .weather .now-icon { width: 8rem; height: 8rem; }
+body.page-weather .weather .now-temp { font-size: 7rem; }
+body.page-weather .weather .now-temp .deg { font-size: 3rem; }
+body.page-weather .weather .now-label { font-size: 2rem; }
+body.page-weather .weather .now-detail { font-size: 1.25rem; }
+body.page-weather .weather .today-line { font-size: 1.3rem; }
+body.page-weather .weather .rain-line { font-size: 1.3rem; }
+body.page-weather .weather .sun-arc { width: 10rem; height: 5.5rem; }
+body.page-weather .chip { font-size: 1rem; padding: 0.2rem 0.8rem; }
+body.page-weather .hourly li { font-size: 1.2rem; }
+body.page-weather .hourly li .icon { width: 2.4rem; height: 2.4rem; }
+body.page-weather .hourly li .t { font-size: 1.4rem; }
+body.page-weather .forecast li { font-size: 1.6rem; padding: 0.55rem 0; grid-template-columns: 5.5rem 3rem 1fr auto; }
+body.page-weather .forecast li .icon { width: 2.8rem; height: 2.8rem; }
+body.page-weather .forecast li .label { font-size: 1.3rem; }
+body:not(.page-weather) .forecast li:nth-child(n+6) { display: none; }  /* the home panel has room for five days */
+/* photos page: the slideshow fills the screen */
+body.page-photos:not(.no-photos) .photo { display: block; grid-column: 1 / 13; grid-row: 2; }
+body.page-photos .photo-caption { font-size: 1.4rem; }
+/* A storm banner lives in the photo panel; on the other pages the panel stays as an invisible strip so the banner still shows. */
+body.pg:not(.page-photos) .photo { display: block; grid-column: 1 / 13; grid-row: 2; align-self: start; height: 0; padding: 0; border: 0; background: none; overflow: visible; z-index: 7; }
+body.pg:not(.page-photos) .photo > :not(#alert-banner) { display: none; }
+body.pg:not(.page-photos) .photo .alert { border-radius: 1rem 1rem 0 0; }
+body.pg.has-alert:not(.page-photos) :is(.weather, .calendar, .todo, .scorespage, .newspage) { padding-top: 4.6rem; }
+/* family page: the week on the left, to-do / packages / notes on the right */
+body.page-family:not(.no-calendar) .calendar { display: block; grid-column: 1 / 7; grid-row: 2; }
+body.page-family:not(.no-todo) .todo { display: block; grid-column: 7 / 13; grid-row: 2; }
+body.page-family.no-calendar .todo { grid-column: 1 / 13; }
+body.page-family.no-todo .calendar { grid-column: 1 / 13; }
+body.page-family .agenda .event { font-size: 1.5rem; }
+body.page-family .agenda .event .when { font-size: 1.2rem; }
+body.page-family .todo-list li { font-size: 1.5rem; padding: 0.45rem 0; }
+body.page-family .packages li { font-size: 1.35rem; }
+body.page-family .notes { font-size: 1.35rem; -webkit-line-clamp: 6; }
+body.page-family .todo-list:empty::before { content: "Nothing on the list"; color: var(--muted); font-size: 1.3rem; }
+/* sports page: the scoreboard as a page */
+body.page-sports .scorespage { display: flex; flex-direction: column; gap: 1rem; grid-column: 1 / 13; grid-row: 2; }
+body.page-sports .scorespage .scores-top { padding-right: 0; }
+body.page-sports .scorespage .scores-grid { grid-template-columns: repeat(4, 1fr); }
+/* news page: picture cards, and a live news stream on the right when one is chosen */
+body.page-news .newspage { display: grid; grid-column: 1 / 13; grid-row: 2; grid-template-columns: 1fr; gap: 1rem; padding: 1rem; }
+body.page-news .newspage.with-video { grid-template-columns: 1fr 34%; }
+.news-cards { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 1fr; gap: 1rem; min-height: 0; }
+.newspage.with-video .news-cards { grid-template-columns: repeat(3, 1fr); }
+.ncard { display: flex; flex-direction: column; min-height: 0; border-radius: 0.8rem; overflow: hidden; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-edge); }
+.ncard .pic { flex: 0 0 52%; background-size: cover; background-position: center; background-color: #1b2430; display: flex; align-items: flex-end; justify-content: flex-start; }
+.ncard .pic.none { background: linear-gradient(135deg, #1f2a3a, #141a22); }
+.ncard .pic .big { font-size: 3rem; opacity: 0.25; margin: 0 0 0.3rem 0.8rem; }
+.ncard .body { padding: 0.7rem 0.9rem; display: flex; flex-direction: column; gap: 0.3rem; min-height: 0; overflow: hidden; }
+.ncard .src { font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ncard .src .ago { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 0.5rem; }
+.ncard .ttl { flex-shrink: 0; font-size: 1.25rem; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ncard .sum { font-size: 0.95rem; color: var(--text-2); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.news-video { display: flex; flex-direction: column; gap: 0.6rem; min-height: 0; }
+.news-video .frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 0.8rem; overflow: hidden; border: 1px solid var(--panel-edge); }
+.news-video .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.news-video .np-label { font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.news-video .np-label b { color: var(--down); margin-right: 0.5rem; }
+/* page dots, bottom centre just above the ticker */
+.page-dots { position: fixed; left: 50%; bottom: 4.9rem; transform: translateX(-50%); z-index: 940; display: flex; gap: 0.45rem; padding: 0.3rem 0.6rem; border-radius: 1rem; background: rgba(11,15,20,0.55); opacity: 0.6; }
+body.no-news .page-dots { bottom: 0.6rem; }
+.page-dots i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--edge); }
+.page-dots i.on { background: var(--accent); }
+body.overlay-open .page-dots { display: none; }
