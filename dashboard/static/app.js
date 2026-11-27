@@ -735,6 +735,14 @@
         <span class="p">${h.precip_pct >= 20 ? h.precip_pct + "%" : ""}</span>
       </li>`).join("");
     $("hourly").classList.toggle("hidden", !(d.hourly || []).length);
+    $("weather-parts").innerHTML = (d.parts || []).map((x) => `
+      <div class="wx-part">
+        <span class="n">${escapeHTML(x.name)}</span>
+        <span class="icon">${window.weatherIcon(x.icon, x.is_day)}</span>
+        <span class="t"><small>${x.kind === "hi" ? "High" : "Low"}</small> ${x.temp ?? "--"}°</span>
+        <span class="lbl">${escapeHTML(x.label)}</span>
+        <span class="p${(x.precip_pct || 0) < 20 ? " dim" : ""}">${x.precip_pct != null ? `${x.precip_pct}% rain` : ""}</span>
+      </div>`).join("");
     renderWeatherDetails(d);
     const u = d.units || {};
     const days = (d.daily || []).slice(0, 10);
@@ -759,7 +767,7 @@
         <span class="temps">${day.hi ?? "--"}°<span class="lo">${day.lo ?? "--"}°</span></span>
       </li>`; }).join("");
   }
-  // ---------- Weather page: "Today" and the ten-day forecast take turns, wiping left to right ----------
+  // ---------- Weather page: Today, the ten-day forecast and Details take turns, wiping left to right ----------
   const wx = { current: "today", timer: null, leaveTimer: null };
   function wxShow(name, animate = true) {
     const slides = [...document.querySelectorAll("#wx-slides .wx-slide")];
@@ -778,36 +786,77 @@
     wx.current = name;
     document.querySelectorAll("#wx-tabs i").forEach((t) => t.classList.toggle("on", t.dataset.s === name));
   }
-  function wxSeconds() {
-    // Half the page time, so each panel gets one turn per visit; 30 s when the pages don't cycle.
-    const cycling = cfg("pages.cycle", true) && pages.list.length > 1 && !pages.paused;
-    return cycling ? Math.max(8, (Number(cfg("pages.seconds", 60)) || 60) / 2) : 30;
-  }
+  const WX_PANELS = ["today", "days", "details"];
+  const WX_SECONDS = 20;
+  const wxStep = (dir) => WX_PANELS[(WX_PANELS.indexOf(wx.current) + dir + WX_PANELS.length) % WX_PANELS.length];
   function wxStart() { wxShow("today", false); wxSchedule(); }
-  function wxSchedule() { clearInterval(wx.timer); wx.timer = setInterval(() => wxShow(wx.current === "today" ? "days" : "today"), wxSeconds() * 1000); }
+  function wxSchedule() { clearInterval(wx.timer); wx.timer = setInterval(() => wxShow(wxStep(1)), WX_SECONDS * 1000); }
   function wxStop() { clearInterval(wx.timer); wx.timer = null; clearTimeout(wx.leaveTimer); wxShow("today", false); }
-  // The Weather page's tile grid (hidden on the home panel): the numbers behind the headline.
+  // The Weather page's Details panel: every reading behind the headline, one tile each.
   function renderWeatherDetails(d) {
-    const c = d.current || {}, t = d.today || {}, u = d.units || {};
+    const c = d.current || {}, t = d.today || {}, u = d.units || {}, days = d.daily || [];
     const imperial = (u.temp || "").includes("F");
-    const tile = (label, value, sub = "") => value == null || value === "" ? "" : `<div class="wx-tile"><span class="l">${escapeHTML(label)}</span><span class="v">${value}</span>${sub ? `<span class="s">${escapeHTML(sub)}</span>` : ""}</div>`;
+    const toF = (v) => (imperial ? v : v * 9 / 5 + 32);
+    const tile = (label, value, sub = "", cls = "") => value == null || value === "" ? "" : `<div class="wx-tile${cls ? " " + cls : ""}"><span class="l">${escapeHTML(label)}</span><span class="v">${value}</span>${sub ? `<span class="s">${escapeHTML(sub)}</span>` : ""}</div>`;
+    const sm = (x) => `<small>${escapeHTML(x || "")}</small>`;
+    // feels like
+    let feelsSub = c.temp != null ? `Actual ${c.temp}°` : "";
+    if (c.feels_like != null && c.temp != null && c.feels_like <= c.temp - 2) feelsSub = `Wind chill · actual ${c.temp}°`;
+    if (c.feels_like != null && c.temp != null && c.feels_like >= c.temp + 2) feelsSub = `Heat index · actual ${c.temp}°`;
+    // dew point comfort (US scale, in °F)
+    const dewF = c.dew_point != null ? toF(c.dew_point) : null;
+    const comfort = dewF == null ? "" : dewF < 50 ? "Dry" : dewF < 56 ? "Comfortable" : dewF < 61 ? "A little humid" : dewF < 66 ? "Sticky" : dewF < 71 ? "Muggy" : "Oppressive";
+    // barometer
     const p = c.pressure;
-    const pressure = p ? (imperial ? `${(p.hpa * 0.02953).toFixed(2)} <small>inHg</small>` : `${Math.round(p.hpa)} <small>hPa</small>`) : null;
-    const trendWord = p ? ({ rising: "rising", falling: "falling", steady: "steady" }[p.trend] || "") : "";
-    const trendArrow = p ? ({ rising: "↑", falling: "↓", steady: "→" }[p.trend] || "") : "";
+    const pressure = p ? (imperial ? `${(p.hpa * 0.02953).toFixed(2)} ${sm("inHg")}` : `${Math.round(p.hpa)} ${sm("hPa")}`) : null;
+    const arrow = p ? ({ rising: "↑", falling: "↓", steady: "→" }[p.trend] || "") : "";
+    const trendText = p ? `${p.trend[0].toUpperCase()}${p.trend.slice(1)}${p.change != null ? ` · ${p.change > 0 ? "+" : ""}${p.change} hPa in 3 h` : ""}` : "";
+    // visibility in miles for the wording
+    const visMi = c.visibility == null ? null : imperial ? c.visibility : c.visibility / 1.609;
+    const visText = visMi == null ? "" : visMi >= 10 ? "Clear" : visMi >= 5 ? "Good" : visMi >= 2 ? "Hazy" : visMi >= 0.6 ? "Reduced" : "Fog";
+    const cc = c.cloud_cover;
+    const skyText = cc == null ? "" : cc < 10 ? "Clear sky" : cc < 30 ? "Mostly clear" : cc < 70 ? "Partly cloudy" : cc < 90 ? "Mostly cloudy" : "Overcast";
+    // rain today + snow
+    const rainSub = [t.precip_pct != null ? `${t.precip_pct}% chance` : "", t.precip_hours ? `about ${t.precip_hours} h` : "", t.snow > 0 ? `${t.snow} ${u.precip || ""} snow` : ""].filter(Boolean).join(" · ");
+    // next rain: today's nowcast first, then the first wet day
+    let nextRain = null, nextRainSub = "";
+    if (d.rain && ["starts", "later", "ongoing"].includes(d.rain.kind)) {
+      nextRain = d.rain.kind === "ongoing" ? "Now" : escapeHTML(fmtLocalClock(d.rain.at));
+      nextRainSub = d.rain.kind === "ongoing" ? `${d.rain.what === "snow" ? "Snow" : "Rain"} for the next few hours` : `Today · ${d.rain.what === "snow" ? "snow" : "rain"} starts`;
+    } else {
+      const wet = days.find((x) => (x.precip_pct || 0) >= 40);
+      if (wet) { nextRain = `${escapeHTML(weekdayShort(wet.date))} ${sm(String(new Date(wet.date + "T12:00:00").getDate()))}`; nextRainSub = `${wet.precip_pct}% chance${wet.precip ? ` · ${wet.precip} ${u.precip || ""}` : ""}`; }
+      else { nextRain = "None"; nextRainSub = `Dry for ${days.length} days`; }
+    }
+    // daylight
+    const dl = t.daylight_h != null ? `${Math.floor(t.daylight_h)} h ${Math.round((t.daylight_h % 1) * 60)} m` : null;
+    const dlc = d.daylight_change_min;
+    const dlSub = dlc == null ? "" : dlc === 0 ? "Tomorrow about the same" : `Tomorrow ${Math.abs(dlc)} min ${dlc > 0 ? "longer" : "shorter"}`;
+    const sunPct = t.sunshine_h != null && t.daylight_h ? Math.round((t.sunshine_h / t.daylight_h) * 100) : null;
+    // moon
+    const m = d.moon;
+    const fullIn = m && m.next_full_days != null ? Math.round(m.next_full_days) : null;
+    const moonSub = m ? `${m.name}${fullIn != null ? (fullIn <= 0 ? " · full tonight" : ` · full in ${fullIn} d`) : ""}` : "";
+    // overnight low (tomorrow's minimum) and frost
+    const tmr = days[0] || {};
+    const frost = tmr.lo != null && toF(tmr.lo) <= 34;
     const tiles = [
-      tile("Feels like", c.feels_like != null ? `${c.feels_like}°` : null),
-      tile("Humidity", c.humidity != null ? `${c.humidity}%` : null, c.dew_point != null ? `Dew point ${c.dew_point}°` : ""),
-      tile("Wind", c.wind != null ? `${c.wind} <small>${escapeHTML(u.wind || "")}</small> ${escapeHTML(c.wind_dir || "")}` : null, c.wind_gust != null ? `Gusts ${c.wind_gust} ${u.wind || ""}` : ""),
-      tile("Pressure", pressure ? `${pressure} <small>${trendArrow}</small>` : null, trendWord ? `${trendWord[0].toUpperCase()}${trendWord.slice(1)}${p.change != null ? ` · ${p.change > 0 ? "+" : ""}${p.change} hPa` : ""}` : ""),
-      tile("Visibility", c.visibility != null ? `${c.visibility} <small>${escapeHTML(u.distance || "")}</small>` : null),
-      tile("Cloud cover", c.cloud_cover != null ? `${c.cloud_cover}%` : null),
-      tile("Rain today", t.precip != null ? `${t.precip} <small>${escapeHTML(u.precip || "")}</small>` : null, t.precip_pct != null ? `${t.precip_pct}% chance` : ""),
-      tile("UV index", t.uv ? `${Math.round(t.uv.index)}` : null, t.uv ? t.uv.label : ""),
-      tile("Air quality", d.air ? `<i class="dot" style="background:${escapeHTML(d.air.color)}"></i>${escapeHTML(d.air.aqi)}` : null, d.air ? d.air.label : ""),
-      tile("Sunrise", t.sunrise ? `${escapeHTML(fmtLocalClock(t.sunrise))}` : null, t.sunset ? `Set ${fmtLocalClock(t.sunset)}${t.daylight_h != null ? ` · ${t.daylight_h} h` : ""}` : ""),
-      tile("Moon", d.moon ? `${window.moonIcon(d.moon.phase)}${escapeHTML(d.moon.illumination)}%` : null, d.moon ? d.moon.name : ""),
-      tile("Wind today", t.wind_max != null ? `${t.wind_max} <small>${escapeHTML(u.wind || "")}</small> ${escapeHTML(t.wind_dir || "")}` : null, t.gust_max != null ? `Gusts ${t.gust_max} ${u.wind || ""}` : ""),
+      tile("Feels like", c.feels_like != null ? `${c.feels_like}°` : null, feelsSub),
+      tile("Humidity", c.humidity != null ? `${c.humidity}%` : null, c.dew_point != null ? `Dew point ${c.dew_point}° · ${comfort}` : ""),
+      tile("Wind", c.wind != null ? `${c.wind} ${sm(u.wind)} ${escapeHTML(c.wind_dir || "")}` : null, c.wind_gust != null ? `Gusts ${c.wind_gust} ${u.wind || ""}` : ""),
+      tile("Barometer", pressure ? `${pressure} <b class="trend ${escapeHTML(p.trend)}">${arrow}</b>` : null, trendText),
+      tile("Visibility", c.visibility != null ? `${c.visibility} ${sm(u.distance)}` : null, visText),
+      tile("Cloud cover", cc != null ? `${cc}%` : null, skyText),
+      tile("Rain today", t.precip != null ? `${t.precip} ${sm(u.precip)}` : null, rainSub),
+      tile("Next rain", nextRain, nextRainSub),
+      tile("UV index", t.uv ? `${Math.round(t.uv.index)}` : null, t.uv ? `${t.uv.label}${t.uv.index >= 3 ? " · use sunscreen" : ""}` : ""),
+      tile("Air quality", d.air ? `<i class="dot" style="background:${escapeHTML(d.air.color)}"></i>${escapeHTML(d.air.aqi)}` : null, d.air ? `${d.air.label}${d.air.pm2_5 != null ? ` · PM2.5 ${d.air.pm2_5}` : ""}` : ""),
+      tile("Sunrise", t.sunrise ? escapeHTML(fmtLocalClock(t.sunrise)) : null, t.sunset ? `Sunset ${fmtLocalClock(t.sunset)}` : ""),
+      tile("Daylight", dl, dlSub),
+      tile("Sunshine", t.sunshine_h != null ? `${t.sunshine_h} ${sm("h")}` : null, sunPct != null ? `${sunPct}% of daylight` : ""),
+      tile("Moon", m ? `${window.moonIcon(m.phase)}${escapeHTML(m.illumination)}%` : null, moonSub),
+      tile("Overnight low", tmr.lo != null ? `${tmr.lo}°` : null, frost ? "Frost possible" : tmr.hi != null ? `Tomorrow's high ${tmr.hi}°` : "", frost ? "warn" : ""),
+      tile("Peak wind today", t.wind_max != null ? `${t.wind_max} ${sm(u.wind)} ${escapeHTML(t.wind_dir || "")}` : null, t.gust_max != null ? `Gusts to ${t.gust_max} ${u.wind || ""}` : ""),
     ];
     $("weather-details").innerHTML = tiles.join("");
   }
@@ -1359,7 +1408,7 @@
       if (e.key === "g" || e.key === "G") scoresToggle();
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && !document.body.classList.contains("overlay-open") && pages.list.length > 1) { e.preventDefault(); flipPage(e.key === "ArrowRight" ? 1 : -1); }
-      else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && pages.current === "weather" && !document.body.classList.contains("overlay-open")) { e.preventDefault(); wxShow(wx.current === "today" ? "days" : "today"); wxSchedule(); }
+      else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && pages.current === "weather" && !document.body.classList.contains("overlay-open")) { e.preventDefault(); wxShow(wxStep(e.key === "ArrowDown" ? 1 : -1)); wxSchedule(); }
       if ((e.key === "p" || e.key === "P") && pages.list.length > 1) { pages.paused = !pages.paused; schedulePage(); notice(pages.paused ? "Page cycling paused (P to resume)" : "Page cycling resumed", 4000); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
       if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (globe.open) globeToggle(); if (takeover.shown) dismissTakeover(true); }

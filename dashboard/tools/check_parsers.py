@@ -181,6 +181,9 @@ check("weather: air quality failure is non-fatal", weather.parse(load("weather.j
 check("weather: moon included", "name" in w["moon"])
 check("weather: ten forecast days with rain amount, wind and daylight", len(w["daily"]) == 10 and w["daily"][0]["precip"] == 0.35 and w["daily"][0]["wind_max"] == 13 and w["daily"][0]["wind_dir"] == "NW" and w["daily"][0]["daylight_h"] == 11.8)
 check("weather: extra current readings (dew point, visibility in miles, cloud cover, falling barometer)", w["current"]["dew_point"] == 68 and w["current"]["visibility"] == 6.0 and w["current"]["cloud_cover"] == 100 and w["current"]["pressure"] == {"hpa": 1009.4, "change": -2.6, "trend": "falling"})
+_parts = weather.day_parts({"time": [f"2026-09-30T{h:02d}:00" for h in range(14, 24)] + [f"2026-10-01T{h:02d}:00" for h in range(0, 13)], "temperature_2m": list(range(70, 60, -1)) + list(range(50, 63)), "weather_code": [61] * 10 + [3] * 6 + [0] * 7, "precipitation_probability": [70] * 4 + [30] * 6 + [10] * 13}, "2026-09-30T14:20")
+check("weather: parts of the day start with the current one, highs by day and lows by night", [p["name"] for p in _parts] == ["This afternoon", "This evening", "Overnight", "Tomorrow morning"] and _parts[0]["temp"] == 70 and _parts[0]["kind"] == "hi" and _parts[1]["kind"] == "lo" and _parts[1]["temp"] == 61 and _parts[2]["temp"] == 50 and _parts[0]["precip_pct"] == 70 and _parts[3]["temp"] == 61 and _parts[3]["icon"] == "clear")
+check("weather: daylight change and moon dates", w["daylight_change_min"] == -2 and 0 <= w["moon"]["next_full_days"] < 29.6 and 0 <= w["moon"]["next_new_days"] < 29.6)
 check("weather: barometer trend is steady without history", weather.pressure_trend(["2026-09-30T20:00"], [1010.0], "2026-09-30T20:10") == {"hpa": 1010.0, "change": None, "trend": "steady"} and weather.pressure_trend([], [], "x") is None)
 
 # ---- sports ----------------------------------------------------------------------------------

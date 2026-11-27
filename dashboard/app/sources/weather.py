@@ -56,6 +56,50 @@ UV_BANDS = [(3, "Low"), (6, "Moderate"), (8, "High"), (11, "Very high"), (10**6,
 
 NOWCAST_SLOTS = 48  # 12 hours of 15-minute slots
 PRESSURE_TREND_HOURS = 3
+PARTS_HOURS = 30
+# Parts of the day for the "Today" panel: (name, first hour, last hour + 1, show the high or the low).
+DAY_PARTS = [("Overnight", 0, 6, "lo"), ("Morning", 6, 12, "hi"), ("Afternoon", 12, 18, "hi"), ("Evening", 18, 24, "lo")]
+PART_TITLES = {0: {"Overnight": "Overnight", "Morning": "This morning", "Afternoon": "This afternoon", "Evening": "This evening"},
+               1: {"Overnight": "Overnight", "Morning": "Tomorrow morning", "Afternoon": "Tomorrow afternoon", "Evening": "Tomorrow evening"}}
+
+
+def day_parts(hourly: dict[str, Any], now: Any, count: int = 4) -> list[dict[str, Any]]:
+    """The next few six-hour parts of the day, starting with the one we're in: high or low, sky, rain chance."""
+    t_now = _naive(now)
+    times = hourly.get("time") or []
+    if not t_now or not times:
+        return []
+    start = t_now.replace(minute=0, second=0, microsecond=0)
+    first = t_now.hour // 6
+    out = []
+    for k in range(count + 1):
+        j = first + k
+        day = t_now.date() + timedelta(days=j // 4)
+        name, h0, h1, kind = DAY_PARTS[j % 4]
+        idx = [i for i, t in enumerate(times) if (dt := _naive(t)) and dt.date() == day and h0 <= dt.hour < h1 and dt >= start]
+        temps = [v for v in (_get(hourly, "temperature_2m", i) for i in idx) if v is not None]
+        if not temps:
+            continue
+        codes = [c for c in (_get(hourly, "weather_code", i) for i in idx) if c is not None]
+        probs = [p for p in (_get(hourly, "precipitation_probability", i) for i in idx) if p is not None]
+        code = max(set(codes), key=lambda c: (codes.count(c), c)) if codes else None  # the usual sky, the wetter on a tie
+        label, icon = describe(code)
+        offset = (day - t_now.date()).days
+        out.append({"name": PART_TITLES.get(offset, {}).get(name, name), "kind": kind,
+                    "temp": _round(max(temps) if kind == "hi" else min(temps)), "label": label, "icon": icon,
+                    "precip_pct": _round(max(probs)) if probs else None, "is_day": name in ("Morning", "Afternoon")})
+        if len(out) >= count:
+            break
+    return out
+
+
+def _daylight_change(daily: dict[str, Any]) -> int | None:
+    """Minutes of daylight tomorrow compared with today (negative in autumn)."""
+    a, b = _get(daily, "daylight_duration", 0), _get(daily, "daylight_duration", 1)
+    try:
+        return round((float(b) - float(a)) / 60)
+    except (TypeError, ValueError):
+        return None
 MAX_FORECAST_DAYS = 10
 
 
@@ -158,7 +202,7 @@ def params(settings: Settings) -> dict[str, Any]:
             ]
         ),
         "hourly": "temperature_2m,weather_code,precipitation_probability,is_day,dew_point_2m,visibility,pressure_msl",
-        "forecast_hours": int(w.get("hourly_hours", 8)) + 2,
+        "forecast_hours": max(int(w.get("hourly_hours", 8)) + 2, PARTS_HOURS),  # a day and a bit, for "this afternoon / tonight / …"
         "past_hours": PRESSURE_TREND_HOURS,  # to tell whether the barometer is rising or falling
         "minutely_15": "precipitation,weather_code",  # 15-minute nowcast (HRRR in the US) for "rain starts at…"
         "forecast_minutely_15": NOWCAST_SLOTS,
@@ -166,7 +210,7 @@ def params(settings: Settings) -> dict[str, Any]:
             [
                 "weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_probability_max",
                 "sunrise", "sunset", "uv_index_max", "precipitation_sum", "wind_speed_10m_max", "wind_gusts_10m_max",
-                "wind_direction_10m_dominant", "daylight_duration", "sunshine_duration",
+                "wind_direction_10m_dominant", "daylight_duration", "sunshine_duration", "snowfall_sum", "precipitation_hours",
             ]
         ),
         "temperature_unit": "fahrenheit" if imperial else "celsius",
@@ -179,7 +223,7 @@ def params(settings: Settings) -> dict[str, Any]:
 
 def air_params(settings: Settings) -> dict[str, Any]:
     loc = settings.cfg["location"]
-    return {"latitude": loc["lat"], "longitude": loc["lon"], "current": "us_aqi,pm2_5", "timezone": settings.timezone}
+    return {"latitude": loc["lat"], "longitude": loc["lon"], "current": "us_aqi,pm2_5,pm10,ozone", "timezone": settings.timezone}
 
 
 def _round(value: Any) -> int | None:
@@ -247,7 +291,7 @@ def air_summary(raw: dict[str, Any] | None) -> dict[str, Any] | None:
         return None
     for limit, label, color in AQI_BANDS:
         if aqi <= limit:
-            return {"aqi": aqi, "pm2_5": cur.get("pm2_5"), "label": label, "color": color}
+            return {"aqi": aqi, "pm2_5": cur.get("pm2_5"), "pm10": cur.get("pm10"), "ozone": cur.get("ozone"), "label": label, "color": color}
     return None
 
 
@@ -278,6 +322,8 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
                 "wind_dir": _compass(_get(daily_raw, "wind_direction_10m_dominant", i)),
                 "daylight_h": _hours(_get(daily_raw, "daylight_duration", i)),
                 "sunshine_h": _hours(_get(daily_raw, "sunshine_duration", i)),
+                "snow": _amount(_get(daily_raw, "snowfall_sum", i)),
+                "precip_hours": _round(_get(daily_raw, "precipitation_hours", i)),
             }
         )
 
@@ -328,6 +374,7 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
             "wind_gust": _round(cur.get("wind_gusts_10m")),
             "wind_dir": _compass(cur.get("wind_direction_10m")),
             "cloud_cover": _round(cur.get("cloud_cover")),
+            "precip": _amount(cur.get("precipitation")),
             "dew_point": _round(at_now("dew_point_2m")),
             "visibility": _distance(at_now("visibility"), settings.imperial),
             "pressure": pressure_trend(hourly_raw.get("time") or [], hourly_raw.get("pressure_msl") or [], now_local) or ({"hpa": round(float(cur["pressure_msl"]), 1), "change": None, "trend": "steady"} if cur.get("pressure_msl") is not None else None),
@@ -337,6 +384,8 @@ def parse(raw: dict[str, Any], settings: Settings, air: dict[str, Any] | None = 
             "is_day": is_day,
         },
         "today": daily[0] if daily else None,
+        "parts": day_parts(hourly_raw, now_local),
+        "daylight_change_min": _daylight_change(daily_raw),
         "daily": daily[1:],
         "hourly": hourly,
         "air": air_summary(air),

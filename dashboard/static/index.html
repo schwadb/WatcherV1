@@ -52,7 +52,7 @@
   </section>
 
   <section class="panel weather" data-widget="weather">
-    <header><h2 id="weather-place">Weather</h2><span class="badge" id="badge-weather"></span><span class="wx-tabs" id="wx-tabs" aria-hidden="true"><i data-s="today" class="on">Today</i><i data-s="days" id="wx-tab-days">10-Day</i></span></header>
+    <header><h2 id="weather-place">Weather</h2><span class="badge" id="badge-weather"></span><span class="wx-tabs" id="wx-tabs" aria-hidden="true"><i data-s="today" class="on">Today</i><i data-s="days" id="wx-tab-days">10-Day</i><i data-s="details">Details</i></span></header>
     <div class="wx-slides" id="wx-slides">
     <div class="wx-slide wx-today active" data-s="today">
 
@@ -77,12 +77,15 @@
       <div class="rain-line" id="weather-rain"></div>
     </div>
     <div class="chips" id="weather-chips"></div>
+    <div class="wx-parts" id="weather-parts"></div>
     <ul class="hourly" id="hourly"></ul>
-    <div class="wx-details" id="weather-details"></div>
   
     </div>
     <div class="wx-slide wx-days" data-s="days">
     <ul class="forecast" id="forecast"></ul>
+    </div>
+    <div class="wx-slide wx-more" data-s="details">
+    <div class="wx-details" id="weather-details"></div>
     </div>
     </div>
   </section>

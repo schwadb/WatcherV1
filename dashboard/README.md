@@ -284,17 +284,22 @@ Settings → Pages. The TV flips through full-screen pages with a soft crossfade
 60 seconds each by default (15 to 600). The clock bar and the news ticker stay
 on every page; Home is the normal layout and is always first.
 
-- **Weather**: a large radar on the right; on the left, two panels take turns with
-  a left-to-right wipe (each gets half the page time, so one swap per visit):
+- **Weather**: a large radar on the right; on the left, three panels take turns
+  every 20 seconds with a left-to-right wipe (Today → 10-Day → Details):
   - **Today**: current conditions, today's outlook, the sun arc and "rain starts
-    around…", the hourly strip, and twelve readings: feels like, humidity and dew
-    point, wind and gusts, barometer with its trend, visibility, cloud cover,
-    today's rain, UV, air quality, sunrise/sunset and daylight, moon, today's wind.
+    around…", the next four parts of the day (this afternoon, this evening,
+    overnight, tomorrow morning: high or low, sky and rain chance), and the hourly strip.
   - **10-Day**: each day's conditions, rain chance and amount, wind, and a low-to-high
     temperature bar on one shared scale. Settings → Weather sets the number of
     days (1 to 10).
+  - **Details**: sixteen readings: feels like (wind chill / heat index), humidity
+    with dew point and how muggy it feels, wind and gusts, barometer with its
+    rising/falling/steady trend, visibility, cloud cover, rain today (chance, hours,
+    snow), next rain, UV index, air quality with PM2.5, sunrise and sunset, daylight
+    and tomorrow's change, sunshine hours, moon phase and days to the full moon,
+    the overnight low (with a frost warning), and today's peak wind with gusts.
 
-  With a keyboard, ↑ or ↓ swaps the two panels right away.
+  With a keyboard, ↓ jumps to the next panel and ↑ to the previous one.
 - **Photos**: one photo fills the screen.
 - **Family**: the calendar on the left; to-do, note, packages and messages on the right.
 - **Sports**: today's scoreboard (the same one as ☰ → Scores), refreshed every 30 seconds.

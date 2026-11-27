@@ -561,7 +561,7 @@ body.pg .health-dot { right: 0.7rem; bottom: 0.6rem; }
    "Today" (now, today's outlook, sun, hourly and every reading) and the ten-day forecast. On the
    home panel the wrappers vanish (display: contents) and the panel reads as before. */
 .wx-slides, .wx-slide { display: contents; }
-.wx-tabs, .wx-details, .forecast li .dnum, .forecast li .c { display: none; }
+.wx-tabs, .wx-details, .wx-parts, .forecast li .dnum, .forecast li .c { display: none; }
 body.page-weather:not(.no-weather) .weather { display: flex; flex-direction: column; grid-column: 1 / 8; grid-row: 2; }
 body.page-weather:not(.no-radar) .radar { display: block; grid-column: 8 / 13; grid-row: 2; }
 body.page-weather.no-radar .weather { grid-column: 1 / 13; }
@@ -581,12 +581,21 @@ body.page-weather .wx-slide.wipe::after { content: ""; position: absolute; top: 
 @media (prefers-reduced-motion: reduce) { body.page-weather .wx-slide.wipe, body.page-weather .wx-slide.wipe::after { animation: none; } }
 
 /* -- Today panel -- */
-body.page-weather .wx-today { display: grid; grid-template-columns: 1.15fr 1fr; grid-template-rows: auto auto auto 1fr; grid-template-areas: "now sun" "today today" "hourly hourly" "tiles tiles"; column-gap: 1.5rem; align-content: start; }
+body.page-weather .wx-today { display: grid; grid-template-columns: 1.15fr 1fr; grid-template-rows: auto auto 1fr auto; grid-template-areas: "now sun" "today today" "parts parts" "hourly hourly"; column-gap: 1.5rem; }
 body.page-weather .wx-today .now { grid-area: now; gap: 1.4rem; margin-top: 0; }
 body.page-weather .wx-today .sun-row { grid-area: sun; align-self: center; min-height: 0; margin: 0; gap: 1rem; }
 body.page-weather .wx-today .today-line { grid-area: today; font-size: 1.45rem; margin: 0.5rem 0 0.4rem; padding-top: 0.5rem; border-top: 1px solid var(--panel-edge); }
 body.page-weather .wx-today .hourly { grid-area: hourly; }
-body.page-weather .wx-today .wx-details { grid-area: tiles; }
+body.page-weather .wx-parts { grid-area: parts; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin: 0.2rem 0 0.8rem; }
+.wx-part { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.8rem 0.8rem; border-radius: 0.8rem; background: rgba(255,255,255,0.04); border: 1px solid var(--panel-edge); min-width: 0; text-align: center; }
+.wx-part .n { font-size: 0.9rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.wx-part .icon { width: 4.6rem; height: 4.6rem; color: var(--text-2); margin: 0.3rem 0; }
+.wx-part .icon svg { width: 100%; height: 100%; }
+.wx-part .t { font-size: 2.6rem; font-weight: 600; line-height: 1; }
+.wx-part .t small { font-size: 0.95rem; font-weight: 500; color: var(--muted); margin-right: 0.15rem; }
+.wx-part .lbl { font-size: 1.15rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.wx-part .p { font-size: 1.05rem; color: var(--accent); }
+.wx-part .p.dim { color: var(--muted); }
 body.page-weather .wx-today .chips { display: none; }  /* UV, air and moon are tiles here */
 body.page-weather .weather .now-icon { width: 6.5rem; height: 6.5rem; }
 body.page-weather .weather .now-temp { font-size: 6.2rem; }
@@ -600,8 +609,20 @@ body.page-weather .hourly li .h { font-size: 1rem; }
 body.page-weather .hourly li .icon { width: 2.5rem; height: 2.5rem; }
 body.page-weather .hourly li .t { font-size: 1.5rem; }
 body.page-weather .hourly li .p { font-size: 0.95rem; }
-body.page-weather .wx-details { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5rem; margin-top: 0.7rem; max-height: 19rem; }
-body.page-weather .wx-tile { justify-content: center; }
+/* -- Details panel -- */
+body.page-weather .wx-more { display: flex; flex-direction: column; }
+body.page-weather .wx-details { display: grid; flex: 1; min-height: 0; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.6rem; }
+body.page-weather .wx-tile { justify-content: center; padding: 0.6rem 1rem; gap: 0.2rem; }
+body.page-weather .wx-tile .l { font-size: 0.85rem; }
+body.page-weather .wx-tile .v { font-size: 2rem; }
+body.page-weather .wx-tile .v small { font-size: 1.05rem; }
+body.page-weather .wx-tile .v svg { width: 1.8rem; height: 1.8rem; }
+body.page-weather .wx-tile .v .dot { width: 0.9rem; height: 0.9rem; }
+body.page-weather .wx-tile .s { font-size: 1rem; }
+.wx-tile .trend { font-weight: 700; font-size: 0.8em; }
+.wx-tile .trend.rising { color: var(--good, #3ecf8e); }
+.wx-tile .trend.falling { color: var(--warn); }
+.wx-tile.warn { border-color: rgba(90,169,255,0.55); background: rgba(90,169,255,0.1); }
 .wx-tile { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.5rem 0.8rem; border-radius: 0.6rem; background: rgba(255,255,255,0.04); border: 1px solid var(--panel-edge); min-width: 0; }
 .wx-tile .l { font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .wx-tile .v { font-size: 1.5rem; font-weight: 600; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 0.35rem; }
