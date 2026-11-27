@@ -737,18 +737,55 @@
     $("hourly").classList.toggle("hidden", !(d.hourly || []).length);
     renderWeatherDetails(d);
     const u = d.units || {};
-    const list = $("forecast");
-    list.innerHTML = (d.daily || []).slice(0, 10).map((day) => {
-      const extra = [day.precip >= 0.01 ? `${day.precip} ${u.precip || ""}` : "", day.wind_max != null ? `${day.wind_max} ${u.wind || ""}${day.wind_dir ? " " + day.wind_dir : ""}` : ""].filter(Boolean).join(" · ");
+    const days = (d.daily || []).slice(0, 10);
+    $("wx-tab-days").textContent = `${days.length}-Day`;
+    // Each day's low-to-high bar sits on one shared scale, so warm and cold days read at a glance.
+    const los = days.map((x) => x.lo).filter((v) => v != null), his = days.map((x) => x.hi).filter((v) => v != null);
+    const min = Math.min(...los, ...his), max = Math.max(...los, ...his), span = Math.max(1, max - min);
+    $("forecast").innerHTML = days.map((day) => {
+      const left = day.lo != null ? ((day.lo - min) / span) * 100 : 0;
+      const width = day.hi != null && day.lo != null ? Math.max(3, ((day.hi - day.lo) / span) * 100) : 0;
+      const amount = day.precip >= 0.01 ? `${day.precip} ${u.precip || ""}` : "";
+      const wind = day.wind_max != null ? `${day.wind_max} ${u.wind || ""}${day.wind_dir ? " " + day.wind_dir : ""}` : "";
       return `
       <li>
         <span class="day">${escapeHTML(weekdayShort(day.date))}<span class="dnum">${escapeHTML(String(new Date(day.date + "T12:00:00").getDate()))}</span></span>
         <span class="icon">${window.weatherIcon(day.icon, true)}</span>
         <span class="label">${escapeHTML(day.label)}${day.precip_pct >= 20 ? `<span class="pct">${day.precip_pct}%</span>` : ""}</span>
-        <span class="extra">${escapeHTML(extra)}</span>
+        <span class="c pct${(day.precip_pct || 0) < 20 ? " dim" : ""}">${day.precip_pct != null ? `${day.precip_pct}%` : ""}</span>
+        <span class="c amt">${escapeHTML(amount)}</span>
+        <span class="c wind">${escapeHTML(wind)}</span>
+        <span class="c range"><span class="lo">${day.lo ?? "--"}°</span><span class="bar"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%;--span:${(100 / Math.max(width, 1) * 100).toFixed(0)}%;background-position:${width >= 99.9 ? 0 : (left / (100 - width) * 100).toFixed(0)}% 0"></i></span><span class="hi">${day.hi ?? "--"}°</span></span>
         <span class="temps">${day.hi ?? "--"}°<span class="lo">${day.lo ?? "--"}°</span></span>
       </li>`; }).join("");
   }
+  // ---------- Weather page: "Today" and the ten-day forecast take turns, wiping left to right ----------
+  const wx = { current: "today", timer: null, leaveTimer: null };
+  function wxShow(name, animate = true) {
+    const slides = [...document.querySelectorAll("#wx-slides .wx-slide")];
+    const next = slides.find((el) => el.dataset.s === name);
+    if (!next) return;
+    clearTimeout(wx.leaveTimer);
+    for (const el of slides) el.classList.remove("leaving", "wipe");
+    const prev = slides.find((el) => el.classList.contains("active") && el !== next);
+    for (const el of slides) el.classList.toggle("active", el === next);
+    if (animate && prev) {
+      prev.classList.add("leaving");
+      void next.offsetWidth;  // restart the animation
+      next.classList.add("wipe");
+      wx.leaveTimer = setTimeout(() => { prev.classList.remove("leaving"); next.classList.remove("wipe"); }, 1300);
+    }
+    wx.current = name;
+    document.querySelectorAll("#wx-tabs i").forEach((t) => t.classList.toggle("on", t.dataset.s === name));
+  }
+  function wxSeconds() {
+    // Half the page time, so each panel gets one turn per visit; 30 s when the pages don't cycle.
+    const cycling = cfg("pages.cycle", true) && pages.list.length > 1 && !pages.paused;
+    return cycling ? Math.max(8, (Number(cfg("pages.seconds", 60)) || 60) / 2) : 30;
+  }
+  function wxStart() { wxShow("today", false); wxSchedule(); }
+  function wxSchedule() { clearInterval(wx.timer); wx.timer = setInterval(() => wxShow(wx.current === "today" ? "days" : "today"), wxSeconds() * 1000); }
+  function wxStop() { clearInterval(wx.timer); wx.timer = null; clearTimeout(wx.leaveTimer); wxShow("today", false); }
   // The Weather page's tile grid (hidden on the home panel): the numbers behind the headline.
   function renderWeatherDetails(d) {
     const c = d.current || {}, t = d.today || {}, u = d.units || {};
@@ -1090,6 +1127,8 @@
     if (key === "sports") { scoresLoad(SCORES_PAGE); pages.scoresTimer = setInterval(() => scoresLoad(SCORES_PAGE), 30000); }
     if (key === "news") { pages.newsOffset = 0; newsVideo(true); renderNewsPage(); pages.newsTimer = setInterval(() => { pages.newsOffset += newsCardCount(); renderNewsPage(); }, 20000); }
     if (key === "photos" || prev === "photos") applyPhotoFit();
+    if (prev === "weather" && key !== "weather") wxStop();
+    if (key === "weather") wxStart();
   }
   function showPage(index) {
     const key = pages.list[(index + pages.list.length) % pages.list.length];
@@ -1320,6 +1359,7 @@
       if (e.key === "g" || e.key === "G") scoresToggle();
       if (scores.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); scoresStep(e.key === "ArrowRight" ? 1 : -1); }
       else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && !document.body.classList.contains("overlay-open") && pages.list.length > 1) { e.preventDefault(); flipPage(e.key === "ArrowRight" ? 1 : -1); }
+      else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && pages.current === "weather" && !document.body.classList.contains("overlay-open")) { e.preventDefault(); wxShow(wx.current === "today" ? "days" : "today"); wxSchedule(); }
       if ((e.key === "p" || e.key === "P") && pages.list.length > 1) { pages.paused = !pages.paused; schedulePage(); notice(pages.paused ? "Page cycling paused (P to resume)" : "Page cycling resumed", 4000); }
       if (e.key === " " && music.open) { e.preventDefault(); musicAction("toggle"); }
       if (e.key === "Escape") { $("corner-buttons").classList.remove("open"); if (scores.open) scoresToggle(); if (music.open) musicToggle(); if (chron.full) chronToggleFull(); if (globe.open) globeToggle(); if (takeover.shown) dismissTakeover(true); }
